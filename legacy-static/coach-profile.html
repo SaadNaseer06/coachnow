@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth hero-motion-pending">
+<head>
+<title>CoachNow - Coach Alex</title>
+<meta name="description" content="View Coach Alex's profile and book a coaching session on CoachNow.">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="icon" type="image/png" href="assets/favicon-32.png" sizes="32x32">
+  <link rel="icon" type="image/png" href="assets/favicon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&display=swap" rel="stylesheet">
+
+
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        },
+        colors: {
+          brand: {
+            red: '#DA020C',
+            'red-hover': '#BF020A',
+            'red-light': '#FFF0F1',
+            'red-subtle': 'rgba(218, 2, 12, 0.08)',
+            dark: '#0C0D0E',
+            surface: '#141618',
+            'surface-2': '#1B1E22',
+          }
+        },
+        boxShadow: {
+          'brand-glow': '0 4px 20px rgba(218, 2, 12, 0.35)',
+          'card-hover': '0 18px 36px rgba(0, 0, 0, 0.1)',
+        }
+      }
+    }
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/lenis@1.3.26/dist/lenis.css">
+
+
+
+
+
+
+<link rel="stylesheet" href="assets/css/coach-profile.css">
+</head>
+<body class="font-sans bg-white text-zinc-900 antialiased selection:bg-brand-red selection:text-white">
+
+
+<div id="coachnowScrollProgress" aria-hidden="true">
+  <span id="coachnowScrollProgressBar"></span>
+</div>
+
+<button id="coachnowScrollBubble" type="button" aria-label="Scroll back to top" title="Back to top">
+  <span class="scroll-bubble-percent">0%</span>
+  <svg class="scroll-bubble-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 19V5"></path>
+    <path d="m6 11 6-6 6 6"></path>
+  </svg>
+</button>
+
+<div id="coachnowPreloader" aria-hidden="true">
+  <div class="preloader-bars">
+    <span class="preloader-bar" style="--exit-delay:.705s"></span>
+    <span class="preloader-bar" style="--exit-delay:.650s"></span>
+    <span class="preloader-bar" style="--exit-delay:.595s"></span>
+    <span class="preloader-bar" style="--exit-delay:.540s"></span>
+    <span class="preloader-bar" style="--exit-delay:.485s"></span>
+    <span class="preloader-bar" style="--exit-delay:.430s"></span>
+    <span class="preloader-bar" style="--exit-delay:.375s"></span>
+    <span class="preloader-bar" style="--exit-delay:.320s"></span>
+    <span class="preloader-bar" style="--exit-delay:.265s"></span>
+    <span class="preloader-bar" style="--exit-delay:.210s"></span>
+    <span class="preloader-bar" style="--exit-delay:.155s"></span>
+    <span class="preloader-bar" style="--exit-delay:.100s"></span>
+  </div>
+
+  <div class="preloader-center">
+    <div class="preloader-logo-ring">
+      <img src="assets/Logo-3 1.svg" alt="" class="preloader-logo"
+       >
+    </div>
+  </div>
+</div>
+
+
+<header id="siteHeader"
+  class="fixed top-0 left-0 w-full z-50 transition-all duration-300 bg-gradient-to-b from-black/80 via-black/40 to-transparent py-4 md:py-5">
+  <div class="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+    <a href="index.html" class="flex items-center group shrink-0">
+      <img src="assets/logo.png" alt="CoachNow Logo"
+       
+        class="h-9 md:h-11 w-auto object-contain transition-all duration-300">
+    </a>
+
+    <nav class="hidden lg:flex items-center bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-full p-1 shadow-lg">
+      <ul class="flex items-center gap-0.5 list-none m-0 p-0 text-[11px] xl:text-xs font-normal">
+        <li><a href="index.html" class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">Home</a></li>
+        <li><a href="find-a-coach.html" class="block px-4 py-2 rounded-full bg-brand-red text-white font-medium shadow-[0_2px_10px_rgba(218,2,12,0.35)] transition-all">Find a Coach</a></li>
+        <li><a href="become-a-coach.html" class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">Become a Coach</a></li>
+        <li><a href="index.html#how-it-works" class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">How It Works</a></li>
+        <li><a href="about.html" class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">About</a></li>
+        <li><a href="faq.html" class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">FAQ</a></li>
+        <li><a href="contact.html" class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">Contact</a></li>
+      </ul>
+    </nav>
+
+    <div class="flex items-center gap-3 shrink-0">
+      <a href="login.html"
+        class="nav-action hidden sm:inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-2.5 rounded-full border border-white/40 bg-black/30 backdrop-blur-md hover:bg-white/15 hover:border-white transition-all duration-300">
+        Login
+      </a>
+      <a href="become-a-coach.html"
+        class="nav-action inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-3 rounded-full bg-brand-red hover:bg-brand-red-hover shadow-brand-glow hover:-translate-y-0.5 transition-all duration-300">
+        Join CoachNow
+      </a>
+      <button id="mobileMenuBtn"
+        class="lg:hidden flex flex-col justify-center items-center gap-1.5 w-9 h-9 text-white bg-white/10 rounded-full border border-white/20"
+        aria-label="Toggle Navigation">
+        <span class="w-4 h-0.5 bg-white transition-transform"></span>
+        <span class="w-4 h-0.5 bg-white transition-opacity"></span>
+        <span class="w-4 h-0.5 bg-white transition-transform"></span>
+      </button>
+    </div>
+  </div>
+
+  <div id="mobileMenuDrawer"
+    class="hidden lg:hidden px-4 pt-3 pb-5 mt-2 bg-[#191615] backdrop-blur-2xl border-b border-zinc-800 transition-all">
+    <ul class="flex flex-col gap-2 text-sm font-medium text-zinc-200">
+      <li><a href="index.html" class="block px-4 py-2 rounded-lg hover:bg-white/10">Home</a></li>
+      <li><a href="find-a-coach.html" class="block px-4 py-2 rounded-lg bg-brand-red text-white font-semibold">Find a Coach</a></li>
+      <li><a href="become-a-coach.html" class="block px-4 py-2 rounded-lg hover:bg-white/10">Become a Coach</a></li>
+      <li><a href="index.html#how-it-works" class="block px-4 py-2 rounded-lg hover:bg-white/10">How It Works</a></li>
+      <li><a href="about.html" class="block px-4 py-2 rounded-lg hover:bg-white/10">About</a></li>
+      <li><a href="faq.html" class="block px-4 py-2 rounded-lg hover:bg-white/10">FAQ</a></li>
+      <li><a href="contact.html" class="block px-4 py-2 rounded-lg hover:bg-white/10">Contact</a></li>
+      <li class="pt-2 border-t border-zinc-800 flex gap-2">
+        <a href="login.html" class="flex-1 text-center py-2 rounded-lg border border-white/30 text-white font-semibold">Login</a>
+        <a href="become-a-coach.html" class="flex-1 text-center py-2 rounded-lg bg-brand-red text-white font-semibold">Join</a>
+      </li>
+    </ul>
+  </div>
+</header>
+
+
+<main>
+  <section id="hero"
+    class="home-hero-bg relative min-h-[560px] lg:min-h-[610px] pt-[106px] pb-[72px] flex items-center bg-zinc-950 text-white overflow-hidden">
+    <div class="max-w-[1506px] mx-auto px-5 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 w-full relative z-10">
+      <div class="w-full">
+        <div class="hero-fade-target inline-flex items-center px-4 py-2 xl:px-5 xl:py-2.5 rounded-full bg-brand-red text-white text-xs sm:text-sm xl:text-[0.95rem] 2xl:text-base font-medium tracking-[0.01em] uppercase mb-4 xl:mb-5 shadow-[0_4px_14px_rgba(218,2,12,0.3)]"
+          style="--hero-delay:40ms">
+          COACH PROFILE
+        </div>
+
+        <h1 class="hero-fade-target max-w-[900px] text-4xl sm:text-5xl md:text-[3.35rem] lg:text-[3.65rem] xl:text-[3.9rem] 2xl:text-[4.25rem] font-medium tracking-[0.01em] text-white leading-none mb-4 xl:mb-5"
+          style="--hero-delay:110ms">
+          Coach Alex
+        </h1>
+
+        <p class="hero-fade-target text-[12px] sm:text-[12.5px] md:text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-[15px] text-zinc-200/90 max-w-[650px] xl:max-w-[720px] tracking-[0.002em] leading-[1.55] mb-7 font-light"
+          style="--hero-delay:180ms">
+          Professional soccer coaching focused on fundamentals, confidence, discipline, and long-term player development.
+        </p>
+
+        <a href="find-a-coach.html"
+          class="hero-fade-target inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-[13px] lg:text-sm font-medium shadow-brand-glow hover:-translate-y-0.5 transition-all"
+          style="--hero-delay:300ms">
+          <span>←</span><span>Back to Coaches</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-20 lg:py-24 bg-white motion-section">
+    <div class="max-w-[1220px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-16">
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_285px] gap-6 lg:gap-7 items-start">
+        <div>
+          <div class="profile-summary rounded-[18px] min-h-[220px] overflow-hidden border border-zinc-200/50 shadow-sm motion-item motion-pop">
+            <div class="grid grid-cols-1 md:grid-cols-[42%_58%] min-h-[220px]">
+              <div aria-hidden="true"></div>
+
+              <div class="profile-summary-copy flex flex-col justify-center px-6 lg:px-8 py-6 text-white">
+                <div class="absolute left-5 top-5 lg:left-6 lg:top-6 z-10 inline-flex items-center gap-2 rounded-[8px] bg-white text-[#191615] px-3 py-2 text-[11px] lg:text-[12px] font-medium shadow-sm">
+                  <span class="w-2 h-2 rounded-full bg-green-500"></span> Available Today
+                </div>
+
+                <h2 class="text-[24px] lg:text-[27px] xl:text-[29px] font-semibold leading-tight mb-1">Coach Alex</h2>
+
+                <p class="text-[12px] lg:text-[13px] text-white/85 mb-3">Professional Soccer Coach</p>
+
+                <div class="flex items-center gap-2 text-[12px] lg:text-[13px] mb-2">
+                  <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.4 2.9 5.88 6.49.94-4.7 4.58 1.11 6.47L12 17.22l-5.8 3.05 1.11-6.47-4.7-4.58 6.49-.94L12 2.4Z"></path></svg>
+                  <span class="font-semibold">4.9</span>
+                  <span>(128 Reviews)</span>
+                </div>
+
+                <div class="flex items-center gap-2 text-[12px] lg:text-[13px] mb-4">
+                  <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a8 8 0 0 0-8 8c0 5.7 8 12 8 12s8-6.3 8-12a8 8 0 0 0-8-8Zm0 11.2A3.2 3.2 0 1 1 12 6.8a3.2 3.2 0 0 1 0 6.4Z"></path></svg>
+                  <span>Murrieta, CA</span><span class="text-white/60">•</span><span>2.1 miles away</span>
+                </div>
+
+                <div class="flex gap-2 flex-wrap">
+                  <span class="inline-flex items-center gap-2 px-3 py-2 rounded-[8px] border border-white/80 bg-black/10 text-[10px] lg:text-[11px]">
+                    <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m7.5 12 3 3 6-6" fill="none" stroke="#3c4023" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    Available Today
+                  </span>
+                  <span class="inline-flex items-center gap-2 px-3 py-2 rounded-[8px] border border-white/80 bg-black/10 text-[10px] lg:text-[11px]">
+                    <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-4.9-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.1-8 11-8 11Z"></path></svg>
+                    CPR Certified
+                  </span>
+                  <span class="inline-flex items-center gap-2 px-3 py-2 rounded-[8px] border border-white/80 bg-black/10 text-[10px] lg:text-[11px]">
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4 5v6c0 5.2 3.4 9.3 8 11 4.6-1.7 8-5.8 8-11V5l-8-3Z"></path><path d="M12 7v8M8 11h8" fill="none" stroke="#3c4023" stroke-width="2" stroke-linecap="round"></path></svg>
+                    Insured
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 rounded-[18px] border border-zinc-200 bg-white overflow-hidden motion-item motion-soft-up" style="--motion-delay:120ms">
+            <div class="flex overflow-x-auto border-b border-zinc-200 px-4 sm:px-5" role="tablist" aria-label="Coach profile information">
+              <button id="tab-about" class="profile-tab active shrink-0 px-3 sm:px-4 py-4 border-b-2 border-transparent text-[12px] lg:text-[13px] text-zinc-500 font-medium" role="tab" aria-selected="true" aria-controls="panel-about" data-tab="about">About</button>
+              <button id="tab-services" class="profile-tab shrink-0 px-3 sm:px-4 py-4 border-b-2 border-transparent text-[12px] lg:text-[13px] text-zinc-500 font-medium" role="tab" aria-selected="false" aria-controls="panel-services" data-tab="services">Services &amp; Pricing</button>
+              <button id="tab-reviews" class="profile-tab shrink-0 px-3 sm:px-4 py-4 border-b-2 border-transparent text-[12px] lg:text-[13px] text-zinc-500 font-medium" role="tab" aria-selected="false" aria-controls="panel-reviews" data-tab="reviews">Reviews (127)</button>
+              <button id="tab-availability" class="profile-tab shrink-0 px-3 sm:px-4 py-4 border-b-2 border-transparent text-[12px] lg:text-[13px] text-zinc-500 font-medium" role="tab" aria-selected="false" aria-controls="panel-availability" data-tab="availability">Availability</button>
+            </div>
+
+            <div id="panel-about" class="profile-panel grid grid-cols-1 md:grid-cols-[1fr_245px] gap-6 p-5 lg:p-6" role="tabpanel" aria-labelledby="tab-about" data-tab-panel="about">
+              <div>
+                <h3 class="text-[16px] lg:text-[17px] font-semibold text-[#191615] mb-3">About Coach Alex</h3>
+                <p class="text-[13px] lg:text-[14px] text-zinc-500 leading-[1.7]">
+                  I’m a licensed and passionate soccer coach with over 8 years of experience helping players develop their skills, confidence, and love for the game. I focus on creating a positive, challenging, and fun environment where athletes can grow at their own pace and reach their full potential.
+                </p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 py-6 my-6 border-y border-zinc-200">
+                  <div class="flex items-center gap-3">
+                    <span class="w-11 h-11 rounded-full bg-brand-red grid place-items-center shrink-0"><img src="assets/Group 273355217.svg" alt="" class="w-5 h-6 object-contain"></span>
+                    <div><strong class="block text-[15px] lg:text-[16px]">8+</strong><span class="text-[12px] lg:text-[13px] text-zinc-500">Years Experience</span></div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="w-11 h-11 rounded-full bg-brand-red grid place-items-center shrink-0"><img src="assets/Group 273355219.svg" alt="" class="w-7 h-5 object-contain"></span>
+                    <div><strong class="block text-[15px] lg:text-[16px]">200+</strong><span class="text-[12px] lg:text-[13px] text-zinc-500">Athletes Trained</span></div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="w-11 h-11 rounded-full bg-brand-red grid place-items-center shrink-0"><img src="assets/Group 273355220.svg" alt="" class="w-6 h-6 object-contain"></span>
+                    <div><strong class="block text-[15px] lg:text-[16px]">Ages 8–14</strong><span class="text-[12px] lg:text-[13px] text-zinc-500">Specialized In</span></div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="w-11 h-11 rounded-full bg-brand-red grid place-items-center shrink-0"><img src="assets/Group 273355221.svg" alt="" class="w-5 h-6 object-contain"></span>
+                    <div><strong class="block text-[15px] lg:text-[16px]">USSF Coach</strong><span class="text-[12px] lg:text-[13px] text-zinc-500">Coaching License</span></div>
+                  </div>
+                </div>
+
+                <h3 class="text-[16px] lg:text-[17px] font-semibold text-[#191615] mb-3">Coaching Philosophy</h3>
+                <p class="text-[13px] lg:text-[14px] text-zinc-500 leading-[1.7]">
+                  I believe in more than just developing better players—I aim to build better people. My sessions emphasize fundamentals, hard work, discipline, and teamwork both on and off the field.
+                </p>
+
+                <h3 class="text-[16px] lg:text-[17px] font-semibold text-[#191615] mt-6 mb-3">My Approach</h3>
+                <ul class="space-y-3 text-[12px] lg:text-[13px] text-zinc-500">
+                  <li class="flex gap-2.5"><span class="w-4 h-4 mt-0.5 rounded-full bg-brand-red text-white text-[9px] grid place-items-center">✓</span><span>Focus on fundamentals and technique</span></li>
+                  <li class="flex gap-2.5"><span class="w-4 h-4 mt-0.5 rounded-full bg-brand-red text-white text-[9px] grid place-items-center">✓</span><span>Encourage confidence and positive mindset</span></li>
+                  <li class="flex gap-2.5"><span class="w-4 h-4 mt-0.5 rounded-full bg-brand-red text-white text-[9px] grid place-items-center">✓</span><span>Build strong work ethic and accountability</span></li>
+                  <li class="flex gap-2.5"><span class="w-4 h-4 mt-0.5 rounded-full bg-brand-red text-white text-[9px] grid place-items-center">✓</span><span>Create a supportive, fun, and challenging environment</span></li>
+                </ul>
+              </div>
+
+              <aside class="rounded-[12px] border border-zinc-200 overflow-hidden divide-y divide-zinc-200">
+                <div class="p-4">
+                  <h4 class="flex items-center gap-2 text-[14px] lg:text-[15px] font-semibold mb-3"><img src="assets/Vector.png" alt="" class="w-4 h-4 object-contain shrink-0">Sports</h4>
+                  <p class="flex items-center gap-2 pl-6 text-[12px] lg:text-[13px] text-zinc-500"><img src="assets/Vector.png" alt="" class="w-3.5 h-3.5 object-contain shrink-0" style="filter:brightness(0) saturate(100%) invert(11%) sepia(97%) saturate(6477%) hue-rotate(356deg) brightness(91%) contrast(114%)">Soccer</p>
+                </div>
+                <div class="p-4">
+                  <h4 class="flex items-center gap-2 text-[14px] lg:text-[15px] font-semibold mb-3"><img src="assets/Group 273354911.svg" alt="" class="w-4 h-4 object-contain shrink-0" style="filter:brightness(0) saturate(100%) invert(11%) sepia(97%) saturate(6477%) hue-rotate(356deg) brightness(91%) contrast(114%)">Session Types</h4>
+                  <p class="pl-6 text-[12px] lg:text-[13px] text-zinc-500 leading-[1.8]">Private Training<br>Group Training<br>Small Group<br>Team Training<br>Clinics / Workshop</p>
+                </div>
+                <div class="p-4">
+                  <h4 class="flex items-center gap-2 text-[14px] lg:text-[15px] font-semibold mb-3"><img src="assets/Group 20.png" alt="" class="w-4 h-4 object-contain shrink-0">Training Locations</h4>
+                  <p class="pl-6 text-[12px] lg:text-[13px] text-zinc-500 leading-[1.8]">Murrieta, CA (Primary)<br>Temecula, CA<br>Wildomar, CA</p>
+                </div>
+                <div class="p-4">
+                  <h4 class="flex items-center gap-2 text-[14px] lg:text-[15px] font-semibold mb-3"><img src="assets/Group 273355229.svg" alt="" class="w-4 h-4 object-contain shrink-0">Languages</h4>
+                  <p class="pl-6 text-[12px] lg:text-[13px] text-zinc-500 leading-[1.8]">English<br>Spanish (Basic)</p>
+                </div>
+              </aside>
+            </div>
+
+            <div id="panel-services" class="profile-panel p-5 lg:p-6" role="tabpanel" aria-labelledby="tab-services" data-tab-panel="services" hidden>
+              <h3 class="text-[16px] lg:text-[17px] font-semibold text-[#191615]">Services &amp; Pricing</h3>
+              <p class="mt-1 text-[12px] lg:text-[13px] text-zinc-500">Choose the training that fits your goals.</p>
+
+              <div class="mt-5 space-y-5">
+                <article class="grid grid-cols-[44px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)_90px] gap-3 rounded-[15px] border border-zinc-200 p-4">
+                  <span class="w-10 h-10 rounded-full border border-zinc-200 bg-zinc-50 grid place-items-center" aria-hidden="true">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="7" r="3"></circle><path d="M5 21v-2a7 7 0 0 1 14 0v2"></path></svg>
+                  </span>
+                  <div>
+                    <h4 class="text-[14px] font-semibold text-[#191615]">Private Training</h4>
+                    <p class="mt-1 text-[11px] lg:text-[12px] leading-[1.55] text-zinc-500">1-on-1 personalized training designed around your specific goals and skill level.</p>
+                    <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[11px] lg:text-[12px] text-zinc-500">
+                      <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4 text-[#191615]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="7" r="3"></circle><path d="M5 21v-2a7 7 0 0 1 14 0v2"></path></svg><span>1 Coach</span></span>
+                      <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4 text-[#191615]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="7" r="3"></circle><path d="M5 21v-2a7 7 0 0 1 14 0v2"></path></svg><span>1 Athlete</span></span>
+                      <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4 text-[#191615]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span>60 min</span></span>
+                    </div>
+                  </div>
+                  <div class="col-start-2 sm:col-start-3 sm:row-start-1 text-left sm:text-right">
+                    <strong class="block text-[21px] leading-none text-brand-red">$45</strong>
+                    <span class="mt-1 block text-[11px] text-zinc-500">/ session</span>
+                  </div>
+                </article>
+
+                <article class="grid grid-cols-[44px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)_90px] gap-3 rounded-[15px] border border-zinc-200 p-4">
+                  <span class="w-10 h-10 rounded-full border border-zinc-200 bg-zinc-50 grid place-items-center" aria-hidden="true">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="7" r="3"></circle><circle cx="5" cy="9" r="2"></circle><circle cx="19" cy="9" r="2"></circle><path d="M7 21v-2a5 5 0 0 1 10 0v2M2 20v-2a4 4 0 0 1 4-4M22 20v-2a4 4 0 0 0-4-4"></path></svg>
+                  </span>
+                  <div>
+                    <h4 class="text-[14px] font-semibold text-[#191615]">Group Training</h4>
+                    <p class="mt-1 text-[11px] lg:text-[12px] leading-[1.55] text-zinc-500">Small group sessions focused on skill development, teamwork, and game awareness.</p>
+                    <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[11px] lg:text-[12px] text-zinc-500">
+                      <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4 text-[#191615]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="7" r="3"></circle><path d="M5 21v-2a7 7 0 0 1 14 0v2"></path></svg><span>1 Coach</span></span>
+                      <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4 text-[#191615]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="17" cy="9" r="2.5"></circle><path d="M2 21v-2a6 6 0 0 1 12 0v2M15 15a5 5 0 0 1 7 4.5V21"></path></svg><span>2–6 Athletes</span></span>
+                      <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4 text-[#191615]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span>60 min</span></span>
+                    </div>
+                  </div>
+                  <div class="col-start-2 sm:col-start-3 sm:row-start-1 text-left sm:text-right">
+                    <strong class="block text-[21px] leading-none text-brand-red">$30</strong>
+                    <span class="mt-1 block text-[11px] text-zinc-500">/ session</span>
+                  </div>
+                </article>
+
+                <article class="grid grid-cols-[44px_minmax(0,1fr)] sm:grid-cols-[44px_minmax(0,1fr)_90px] gap-3 rounded-[15px] border border-zinc-200 p-4">
+                  <span class="w-10 h-10 rounded-full border border-zinc-200 bg-zinc-50 grid place-items-center" aria-hidden="true">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="7" r="3"></circle><circle cx="17" cy="9" r="2.5"></circle><path d="M2 21v-2a7 7 0 0 1 14 0v2M15 14a6 6 0 0 1 7 6v1"></path></svg>
+                  </span>
+                  <div>
+                    <h4 class="text-[14px] font-semibold text-[#191615]">Team Training</h4>
+                    <p class="mt-1 text-[11px] lg:text-[12px] leading-[1.55] text-zinc-500">Comprehensive training for teams to improve tactics, cohesion, and performance.</p>
+                    <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[11px] lg:text-[12px] text-zinc-500">
+                      <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4 text-[#191615]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="7" r="3"></circle><path d="M5 21v-2a7 7 0 0 1 14 0v2"></path></svg><span>1 Coach</span></span>
+                      <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4 text-[#191615]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="17" cy="9" r="2.5"></circle><path d="M2 21v-2a6 6 0 0 1 12 0v2M15 15a5 5 0 0 1 7 4.5V21"></path></svg><span>7–12 Athletes</span></span>
+                      <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4 text-[#191615]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span>90 min</span></span>
+                    </div>
+                  </div>
+                  <div class="col-start-2 sm:col-start-3 sm:row-start-1 text-left sm:text-right">
+                    <strong class="block text-[21px] leading-none text-brand-red">$150</strong>
+                    <span class="mt-1 block text-[11px] text-zinc-500">/ session</span>
+                  </div>
+                </article>
+              </div>
+            </div>
+
+            <div id="panel-reviews" class="profile-panel p-5 lg:p-6 space-y-5" role="tabpanel" aria-labelledby="tab-reviews" data-tab-panel="reviews" hidden>
+              <article class="rounded-[15px] border border-zinc-200 p-4 sm:p-5">
+                <div class="grid grid-cols-[40px_minmax(0,1fr)] gap-3">
+                  <img src="assets/Rectangle 8-2.png" alt="Jessica M." class="w-10 h-10 rounded-full object-cover">
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                      <div><h4 class="inline text-[14px] font-semibold">Jessica M.</h4><span class="ml-4 text-[10px] text-green-600">● &nbsp;Verified Athlete</span></div>
+                      <time class="text-[10px] lg:text-[11px] text-zinc-500">May 5, 2025</time>
+                    </div>
+                    <div class="mt-1 text-[14px] tracking-[1px] text-amber-500" aria-label="5 out of 5 stars">★★★★★</div>
+                    <p class="mt-1 text-[11px] lg:text-[12px] leading-[1.6] text-zinc-500">Coach Alex is amazing! He’s patient, motivating, and truly knows how to bring out the best in his players. My son has improved so much in just a few weeks!</p>
+                    <span class="mt-3 inline-block rounded-[6px] bg-red-50 px-2 py-1 text-[10px] text-red-500">Private Training</span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="rounded-[15px] border border-zinc-200 p-4 sm:p-5">
+                <div class="grid grid-cols-[40px_minmax(0,1fr)] gap-3">
+                  <img src="assets/Rectangle 8-2.png" alt="Jessica M." class="w-10 h-10 rounded-full object-cover">
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                      <div><h4 class="inline text-[14px] font-semibold">Jessica M.</h4><span class="ml-4 text-[10px] text-green-600">● &nbsp;Verified Athlete</span></div>
+                      <time class="text-[10px] lg:text-[11px] text-zinc-500">May 5, 2025</time>
+                    </div>
+                    <div class="mt-1 text-[14px] tracking-[1px] text-amber-500" aria-label="5 out of 5 stars">★★★★★</div>
+                    <p class="mt-1 text-[11px] lg:text-[12px] leading-[1.6] text-zinc-500">Coach Alex is amazing! He’s patient, motivating, and truly knows how to bring out the best in his players. My son has improved so much in just a few weeks!</p>
+                    <span class="mt-3 inline-block rounded-[6px] bg-red-50 px-2 py-1 text-[10px] text-red-500">Private Training</span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="rounded-[15px] border border-zinc-200 p-4 sm:p-5">
+                <div class="grid grid-cols-[40px_minmax(0,1fr)] gap-3">
+                  <img src="assets/Rectangle 8-2.png" alt="Jessica M." class="w-10 h-10 rounded-full object-cover">
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                      <div><h4 class="inline text-[14px] font-semibold">Jessica M.</h4><span class="ml-4 text-[10px] text-green-600">● &nbsp;Verified Athlete</span></div>
+                      <time class="text-[10px] lg:text-[11px] text-zinc-500">May 5, 2025</time>
+                    </div>
+                    <div class="mt-1 text-[14px] tracking-[1px] text-amber-500" aria-label="5 out of 5 stars">★★★★★</div>
+                    <p class="mt-1 text-[11px] lg:text-[12px] leading-[1.6] text-zinc-500">Coach Alex is amazing! He’s patient, motivating, and truly knows how to bring out the best in his players. My son has improved so much in just a few weeks!</p>
+                    <span class="mt-3 inline-block rounded-[6px] bg-red-50 px-2 py-1 text-[10px] text-red-500">Private Training</span>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <div id="panel-availability" class="profile-panel p-5 lg:p-6" role="tabpanel" aria-labelledby="tab-availability" data-tab-panel="availability" hidden>
+              <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div>
+                  <h3 class="text-[16px] lg:text-[17px] font-semibold text-[#191615]">Coach Availability</h3>
+                  <p class="mt-1 text-[11px] lg:text-[12px] text-zinc-500">All times are shown in Pacific Time (PT)</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3 rounded-[8px] border border-zinc-200 px-3 py-2 text-[9px] lg:text-[10px] text-zinc-500">
+                  <span><i class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></i>Available</span>
+                  <span><i class="inline-block w-2 h-2 rounded-full bg-zinc-200 mr-1"></i>Booked</span>
+                  <span><i class="inline-block w-2 h-2 rounded-full bg-red-600 mr-1"></i>Unavailable</span>
+                </div>
+              </div>
+
+              <div class="mt-6 grid grid-cols-[34px_1fr_34px] items-center gap-3">
+                <button type="button" class="h-8 rounded-[6px] border border-zinc-200 hover:border-brand-red hover:text-brand-red transition-colors" aria-label="Previous week">‹</button>
+                <div class="text-center"><strong class="block text-[14px]">Aug 12 – Aug 18, 2026</strong><span class="text-[10px] text-zinc-500">This Week</span></div>
+                <button type="button" class="h-8 rounded-[6px] border border-zinc-200 hover:border-brand-red hover:text-brand-red transition-colors" aria-label="Next week">›</button>
+              </div>
+
+              <div class="mt-5 overflow-x-auto pb-2">
+                <div class="min-w-[650px]">
+                  <div class="grid grid-cols-[60px_repeat(7,minmax(72px,1fr))]">
+                    <div></div>
+                    <div class="rounded-l-[7px] border border-brand-red px-2 py-2 text-center text-[10px] text-brand-red"><span class="block">Wed</span><strong>Aug 12</strong></div>
+                    <div class="border-y border-r border-zinc-200 px-2 py-2 text-center text-[10px]"><span class="block">Thu</span><strong>Aug 13</strong></div>
+                    <div class="border-y border-r border-zinc-200 px-2 py-2 text-center text-[10px]"><span class="block">Fri</span><strong>Aug 14</strong></div>
+                    <div class="border-y border-r border-zinc-200 px-2 py-2 text-center text-[10px]"><span class="block">Sat</span><strong>Aug 15</strong></div>
+                    <div class="border-y border-r border-zinc-200 px-2 py-2 text-center text-[10px]"><span class="block">Sun</span><strong>Aug 16</strong></div>
+                    <div class="border-y border-r border-zinc-200 px-2 py-2 text-center text-[10px]"><span class="block">Mon</span><strong>Aug 17</strong></div>
+                    <div class="rounded-r-[7px] border-y border-r border-zinc-200 px-2 py-2 text-center text-[10px]"><span class="block">Tue</span><strong>Aug 18</strong></div>
+                  </div>
+
+                  <div class="mt-5 grid grid-cols-[60px_repeat(5,minmax(72px,1fr))] gap-x-2 gap-y-2 items-start text-[10px]">
+                    <strong class="pt-3 text-[11px]">Morning</strong>
+                    <div class="space-y-2"><span class="block rounded-[5px] bg-green-100 px-2 py-2.5 text-center text-green-700">07:00 AM</span><span class="block rounded-[5px] bg-red-100 px-2 py-2.5 text-center text-red-600">10:30 AM</span></div>
+                    <span class="block rounded-[5px] bg-green-100 px-2 py-2.5 text-center text-green-700">08:00 AM</span>
+                    <span class="block rounded-[5px] bg-green-100 px-2 py-2.5 text-center text-green-700">09:00 AM</span>
+                    <span class="block rounded-[5px] bg-zinc-200 px-2 py-2.5 text-center">10:00 AM</span>
+                    <span class="block rounded-[5px] bg-zinc-200 px-2 py-2.5 text-center">11:00 AM</span>
+
+                    <strong class="pt-3 text-[11px]">Afternoon</strong>
+                    <div class="space-y-2"><span class="block rounded-[5px] bg-green-100 px-2 py-2.5 text-center text-green-700">12:00 PM</span><span class="block rounded-[5px] bg-red-100 px-2 py-2.5 text-center text-red-600">05:00 PM</span></div>
+                    <span class="block rounded-[5px] bg-green-100 px-2 py-2.5 text-center text-green-700">01:00 PM</span>
+                    <span class="block rounded-[5px] bg-green-100 px-2 py-2.5 text-center text-green-700">02:00 PM</span>
+                    <span class="block rounded-[5px] bg-zinc-200 px-2 py-2.5 text-center">03:00 PM</span>
+                    <span class="block rounded-[5px] bg-zinc-200 px-2 py-2.5 text-center">04:00 PM</span>
+
+                    <strong class="pt-3 text-[11px]">Evening</strong>
+                    <div class="space-y-2"><span class="block rounded-[5px] bg-green-100 px-2 py-2.5 text-center text-green-700">05:30 PM</span><span class="block rounded-[5px] bg-red-100 px-2 py-2.5 text-center text-red-600">08:00 PM</span></div>
+                    <span class="block rounded-[5px] bg-green-100 px-2 py-2.5 text-center text-green-700">06:00 PM</span>
+                    <span class="block rounded-[5px] bg-green-100 px-2 py-2.5 text-center text-green-700">06:30 PM</span>
+                    <span class="block rounded-[5px] bg-zinc-200 px-2 py-2.5 text-center">07:00 PM</span>
+                    <span class="block rounded-[5px] bg-zinc-200 px-2 py-2.5 text-center">07:30 PM</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside id="booking" class="space-y-5 motion-item motion-from-right" style="--motion-delay:160ms">
+          <div class="rounded-[14px] border border-zinc-200 bg-white p-5">
+            <h3 class="text-[16px] lg:text-[17px] font-semibold text-[#191615] mb-1">Book a Session</h3>
+            <p class="text-[11px] lg:text-[12px] text-zinc-500">Starting at</p>
+            <div class="mt-1 mb-5"><span class="text-[21px] xl:text-[23px] text-brand-red font-bold">$45</span><span class="text-[11px] xl:text-[12px] text-zinc-400"> /session</span></div>
+
+            <label class="block text-[12px] lg:text-[13px] text-zinc-600 font-medium mb-2">Select Session Type</label>
+            <select class="w-full h-11 rounded-[10px] border border-zinc-300 bg-white px-3 text-[12px] lg:text-[13px] text-zinc-600 outline-none focus:border-brand-red mb-4">
+              <option>Private Training</option><option>Small Group</option><option>Team Training</option>
+            </select>
+
+            <label class="block text-[12px] lg:text-[13px] text-zinc-600 font-medium mb-2" for="bookingDateTrigger">Select Date</label>
+            <div class="booking-date-field relative z-20 mb-4">
+              <button type="button" id="bookingDateTrigger"
+                class="w-full h-11 rounded-[10px] border border-zinc-300 bg-white px-3 text-[12px] lg:text-[13px] text-left outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all inline-flex items-center gap-2"
+                aria-expanded="false" aria-controls="bookingCalendar">
+                <svg class="w-4 h-4 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span id="bookingDateDisplay" class="flex-1 text-zinc-400">Pick a date</span>
+                <input type="hidden" id="bookingDateInput" name="bookingDate" value="">
+                <svg class="w-3.5 h-3.5 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div id="bookingCalendar" class="booking-calendar hidden" role="dialog" aria-label="Choose a date">
+                <div class="booking-calendar-header">
+                  <button type="button" id="bookingCalPrev" class="booking-calendar-nav" aria-label="Previous month">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  </button>
+                  <div id="bookingCalMonthLabel" class="booking-calendar-month"></div>
+                  <button type="button" id="bookingCalNext" class="booking-calendar-nav" aria-label="Next month">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  </button>
+                </div>
+                <div class="booking-calendar-weekdays" aria-hidden="true">
+                  <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                </div>
+                <div id="bookingCalDays" class="booking-calendar-days"></div>
+              </div>
+            </div>
+            <label class="block text-[12px] lg:text-[13px] text-zinc-600 font-medium mb-2">Select Time</label>
+            <select class="w-full h-11 rounded-[10px] border border-zinc-300 bg-white px-3 text-[12px] lg:text-[13px] text-zinc-600 outline-none focus:border-brand-red">
+              <option>Choose a time</option><option>4:00 PM</option><option>5:30 PM</option><option>6:15 PM</option>
+            </select>
+
+            <button class="w-full h-11 rounded-[10px] mt-4 bg-brand-red hover:bg-brand-red-hover text-white text-[12px] lg:text-[13px] font-semibold transition-colors inline-flex items-center justify-center gap-2"><img src="assets/Group 273355246-1.svg" alt="" class="w-4 h-4 object-contain" style="filter:brightness(0) invert(1)">Book Session</button>
+            <button class="w-full h-11 rounded-[10px] mt-3 border border-[#191615] bg-white text-[#191615] text-[12px] lg:text-[13px] font-medium hover:bg-[#191615] hover:text-white transition-colors inline-flex items-center justify-center gap-2"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path><path d="M8 9h8M8 13h5"></path></svg>Send Message</button>
+
+            <p class="text-[11px] lg:text-[12px] text-zinc-500 leading-[1.6] mt-4">♢ You won't be charged yet.<br>&nbsp;&nbsp;&nbsp;Confirmation from your coach.</p>
+          </div>
+
+          <div class="rounded-[14px] border border-zinc-200 bg-white overflow-hidden">
+            <h3 class="text-[15px] lg:text-[16px] font-semibold px-5 py-4">Quick Info</h3>
+            <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-zinc-200 text-[12px] lg:text-[13px] text-zinc-500"><span class="inline-flex items-center gap-2"><img src="assets/Group 273355246.svg" alt="" class="w-4 h-4 object-contain shrink-0">Response Time</span><span>In Hours</span></div>
+            <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-zinc-200 text-[12px] lg:text-[13px] text-zinc-500"><span class="inline-flex items-center gap-2"><img src="assets/Group 273355246-1.svg" alt="" class="w-4 h-4 object-contain shrink-0">Joined Date</span><span>May 2026</span></div>
+            <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-zinc-200 text-[12px] lg:text-[13px] text-zinc-500"><span class="inline-flex items-center gap-2"><img src="assets/Group 273354911.svg" alt="" class="w-4 h-4 object-contain shrink-0">Sessions Held</span><span>200+</span></div>
+            <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-zinc-200 text-[12px] lg:text-[13px] text-zinc-500"><span class="inline-flex items-center gap-2"><img src="assets/Group 273354911-1.svg" alt="" class="w-4 h-4 object-contain shrink-0">Repeat Clients</span><span>85%+</span></div>
+            <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-zinc-200 text-[12px] lg:text-[13px] text-zinc-500"><span class="inline-flex items-center gap-2"><img src="assets/Group 273354911-2.svg" alt="" class="w-4 h-4 object-contain shrink-0">Rating</span><span>4.9 / 5</span></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+</main>
+
+
+<footer id="footer" class="bg-[#191615] text-white pt-12 pb-5 motion-section">
+  <div class="max-w-[1220px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-16">
+    <div class="grid grid-cols-1 lg:grid-cols-[0.95fr_1.35fr] gap-8 lg:gap-12 items-center pb-9 border-b border-white/10 motion-item motion-soft-up">
+      <a href="index.html" class="inline-flex items-center">
+        <img src="assets/logo.png" alt="CoachNow Logo"
+         
+          class="h-10 lg:h-11 w-auto object-contain">
+      </a>
+
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 lg:justify-end">
+        <div class="text-[14px] lg:text-[15px] font-semibold leading-[1.55] shrink-0">
+          Stay Connected<br>With CoachNow
+        </div>
+        <form onsubmit="return false;" class="flex w-full sm:w-[470px] gap-3">
+          <input type="email" placeholder="Enter Your E-mail Address *"
+            class="min-w-0 flex-1 h-11 rounded-[7px] bg-[#302D2D] border border-white/5 px-4 text-[12px] lg:text-[13px] text-white placeholder:text-zinc-300 outline-none focus:border-brand-red transition-colors">
+          <button type="submit"
+            class="h-11 px-8 rounded-[7px] bg-brand-red hover:bg-brand-red-hover text-[12px] lg:text-[13px] font-medium transition-colors">
+            Subscribe
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.3fr_.78fr_.78fr_1.12fr] gap-0 py-0 border-b border-white/10">
+      <div class="py-10 lg:pr-10 lg:border-r border-white/10 motion-item motion-soft-up" style="--motion-delay:100ms">
+        <p class="text-[12px] lg:text-[13px] text-zinc-400 leading-[1.85] max-w-[320px]">
+          CoachNow helps athletes and families discover trusted local coaches, compare training options, and book sessions that fit their goals and schedules. From individual coaching to group sessions, find the right training and keep moving forward.
+        </p>
+        <div class="flex gap-2.5 mt-6">
+          <a href="#" class="w-8 h-8 rounded-[7px] border border-zinc-600 text-white flex items-center justify-center text-[13px] hover:bg-brand-red hover:border-brand-red transition-all">f</a>
+          <a href="#" class="w-8 h-8 rounded-[7px] border border-zinc-600 text-white flex items-center justify-center text-[12px] hover:bg-brand-red hover:border-brand-red transition-all">𝕏</a>
+          <a href="#" class="w-8 h-8 rounded-[7px] border border-zinc-600 text-white flex items-center justify-center text-[12px] font-semibold hover:bg-brand-red hover:border-brand-red transition-all">in</a>
+          <a href="#" class="w-8 h-8 rounded-[7px] border border-zinc-600 text-white flex items-center justify-center text-[12px] hover:bg-brand-red hover:border-brand-red transition-all"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] fill-none stroke-current stroke-[1.8]"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.2" cy="6.8" r="1.2" fill="currentColor" stroke="none"></circle></svg></a>
+        </div>
+      </div>
+
+      <div class="py-10 lg:px-10 lg:border-r border-white/10 motion-item motion-soft-up" style="--motion-delay:185ms">
+        <h4 class="text-[14px] lg:text-[15px] font-semibold mb-5">Explore</h4>
+        <ul class="space-y-3 text-[12px] lg:text-[13px] text-zinc-400">
+          <li><a href="find-a-coach.html" class="hover:text-white transition-colors">Find a Coach</a></li>
+          <li><a href="index.html#how-it-works" class="hover:text-white transition-colors">How It Works</a></li>
+          <li><a href="index.html#training" class="hover:text-white transition-colors">Training Options</a></li>
+          <li><a href="become-a-coach.html" class="hover:text-white transition-colors">Become a Coach</a></li>
+          <li><a href="become-a-coach.html" class="hover:text-white transition-colors">Founding Coaches</a></li>
+        </ul>
+      </div>
+
+      <div class="py-10 lg:px-10 lg:border-r border-white/10 motion-item motion-soft-up" style="--motion-delay:270ms">
+        <h4 class="text-[14px] lg:text-[15px] font-semibold mb-5">Company</h4>
+        <ul class="space-y-3 text-[12px] lg:text-[13px] text-zinc-400">
+          <li><a href="about.html" class="hover:text-white transition-colors">About CoachNow</a></li>
+          <li><a href="contact.html" class="hover:text-white transition-colors">Contact</a></li>
+          <li><a href="faq.html" class="hover:text-white transition-colors">FAQ</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Privacy Policy</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Cookie Policy</a></li>
+        </ul>
+      </div>
+
+      <div class="py-10 lg:pl-10 motion-item motion-soft-up" style="--motion-delay:355ms">
+        <h4 class="text-[14px] lg:text-[15px] font-semibold mb-5">Contact Info</h4>
+        <div class="text-[13px] lg:text-[14px] text-white">
+          <div class="flex items-center gap-3 pb-4 border-b border-white/10">
+            <span class="w-9 h-9 rounded-[8px] bg-brand-red flex items-center justify-center shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.79.62 2.64a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6 6l1.26-1.26a2 2 0 0 1 2.11-.45c.85.29 1.74.5 2.64.62A2 2 0 0 1 22 16.92z"/></svg></span>
+            <span>(782) 444-6566</span>
+          </div>
+          <div class="flex items-center gap-3 py-4 border-b border-white/10">
+            <span class="w-9 h-9 rounded-[8px] bg-brand-red flex items-center justify-center shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span>
+            <span>support@coachnow.com</span>
+          </div>
+          <div class="flex items-start gap-3 pt-4">
+            <span class="w-9 h-9 rounded-[8px] bg-brand-red flex items-center justify-center shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 12-9 12S3 17 3 10a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+            <span class="leading-[1.2]">Murrieta &amp; Temecula,<br>California</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-6 text-center text-[11px] lg:text-[12px] text-zinc-300 motion-item motion-soft-up" style="--motion-delay:440ms">
+      © 2026 <span class="text-brand-red font-medium">CoachNow.</span> All Rights Reserved. Design by <a href="https://texaswebstudio.co/" target="_blank" rel="noopener noreferrer" class="text-brand-red font-medium hover:underline">Texas Web Studio</a>
+    </div>
+  </div>
+</footer>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="assets/js/coach-profile.js"></script>
+</body>
+</html>

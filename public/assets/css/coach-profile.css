@@ -1,0 +1,573 @@
+
+  *,
+  *::before,
+  *::after,
+  html,
+  body,
+  input,
+  select,
+  textarea,
+  button {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  }
+
+
+
+  #siteHeader {
+    background: transparent !important;
+    transition: padding .28s ease, background .28s ease, box-shadow .28s ease, backdrop-filter .28s ease;
+  }
+
+  #siteHeader.nav-scrolled {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    background: #191615 !important;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.20);
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+
+  #siteHeader.nav-scrolled img[alt="CoachNow Logo"] {
+    height: 2.25rem !important;
+  }
+
+  #siteHeader.nav-scrolled .nav-action {
+    transform: scale(0.92);
+    transform-origin: center;
+  }
+
+  @media (max-width: 1023px) {
+    #siteHeader.nav-scrolled {
+      padding-top: 7px !important;
+      padding-bottom: 7px !important;
+    }
+    #siteHeader.nav-scrolled img[alt="CoachNow Logo"] {
+      height: 2rem !important;
+    }
+  }
+
+
+
+  .section-main-title { font-size: 2.65rem !important; line-height:1.03 !important; }
+  @media (max-width: 1023px) {
+    .section-main-title { font-size: 2.3rem !important; }
+  }
+  @media (max-width: 639px) {
+    .section-main-title { font-size: 1.95rem !important; }
+  }
+
+
+
+  @media (min-width: 1600px) and (max-width: 1919px) {
+    body { overflow-x: hidden; }
+    [class*="max-w-[1220px]"] {
+      max-width: 1320px !important;
+      zoom: 1.04;
+    }
+    #siteHeader > div {
+      max-width: 1480px !important;
+    }
+  }
+
+  @media (min-width: 1920px) {
+    body { overflow-x: hidden; }
+    [class*="max-w-[1220px]"] {
+      max-width: 1450px !important;
+      zoom: 1.08;
+    }
+    #siteHeader > div {
+      max-width: 1600px !important;
+    }
+  }
+
+  @media (min-width: 2400px) {
+    [class*="max-w-[1220px]"] {
+      max-width: 1650px !important;
+      zoom: 1.10;
+    }
+    #siteHeader > div {
+      max-width: 1800px !important;
+    }
+  }
+
+
+
+  html.preloader-active,
+  html.preloader-active body {
+    overflow: hidden !important;
+  }
+
+  #coachnowPreloader {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    pointer-events: all;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  #coachnowPreloader .preloader-bars {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+  }
+
+  #coachnowPreloader .preloader-bar {
+    height: 100%;
+    background: #191615;
+    border-right: 1px solid rgba(255,255,255,0.025);
+    transform: translateY(0);
+    will-change: transform;
+    transition: transform .78s cubic-bezier(.76,0,.24,1);
+    transition-delay: var(--exit-delay);
+  }
+
+  #coachnowPreloader .preloader-bar:nth-child(even) {
+    background: #171413;
+  }
+
+  #coachnowPreloader .preloader-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    transition: opacity .28s ease, transform .28s ease;
+  }
+
+  #coachnowPreloader .preloader-logo-ring {
+    width: 112px;
+    height: 112px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: rgba(255,255,255,.045);
+    border: 1px solid rgba(255,255,255,.09);
+    box-shadow: 0 16px 50px rgba(0,0,0,.28);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  #coachnowPreloader .preloader-logo-ring::before {
+    content: "";
+    position: absolute;
+    inset: -7px;
+    border-radius: inherit;
+    border: 2px solid rgba(255,255,255,.15);
+    border-top-color: #DA020C;
+    border-right-color: #DA020C;
+    animation: coachnowPreloaderSpin .85s linear infinite;
+  }
+
+  #coachnowPreloader .preloader-logo-ring::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    box-shadow: inset 0 0 24px rgba(218,2,12,.08);
+    pointer-events: none;
+  }
+
+  #coachnowPreloader .preloader-logo {
+    width: 76px;
+    height: auto;
+    object-fit: contain;
+    display: block;
+  }
+
+  @keyframes coachnowPreloaderSpin {
+    to { transform: rotate(360deg); }
+  }
+
+  #coachnowPreloader.is-loaded {
+    background: transparent;
+  }
+
+  #coachnowPreloader.is-loaded .preloader-center {
+    opacity: 0;
+    transform: scale(.88);
+  }
+
+  #coachnowPreloader.is-loaded .preloader-bar {
+    transform: translateY(-105%);
+  }
+
+  #coachnowPreloader.is-finished {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  @media (max-width: 767px) {
+    #coachnowPreloader .preloader-logo-ring {
+      width: 90px;
+      height: 90px;
+    }
+    #coachnowPreloader .preloader-logo {
+      width: 60px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #coachnowPreloader .preloader-logo-ring::before { animation-duration: 1.6s; }
+    #coachnowPreloader .preloader-bar { transition-duration: .35s; }
+  }
+
+
+
+  #hero .hero-fade-target {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+    filter: blur(5px);
+    will-change: opacity, transform, filter;
+  }
+
+  html.hero-motion-started #hero .hero-fade-target {
+    animation: coachnowHeroFadeUp .78s cubic-bezier(.22,1,.36,1) forwards;
+    animation-delay: var(--hero-delay, 0ms);
+  }
+
+  .motion-section .motion-item {
+    opacity: 0;
+    filter: blur(3px);
+    will-change: opacity, transform, filter;
+    transition:
+      opacity .78s cubic-bezier(.22,1,.36,1),
+      transform .92s cubic-bezier(.22,1,.36,1),
+      filter .78s ease;
+    transition-delay: var(--motion-delay, 0ms);
+  }
+
+  .motion-section .motion-from-left { transform: translate3d(-46px,0,0); }
+  .motion-section .motion-from-right { transform: translate3d(46px,0,0); }
+  .motion-section .motion-from-up { transform: translate3d(0,34px,0); }
+  .motion-section .motion-soft-up { transform: translate3d(0,22px,0); }
+  .motion-section .motion-pop { transform: translate3d(0,20px,0) scale(.96); }
+
+  .motion-section.is-visible .motion-item {
+    opacity: 1;
+    transform: translate3d(0,0,0) scale(1);
+    filter: blur(0);
+  }
+
+  @keyframes coachnowHeroFadeUp {
+    0% {
+      opacity: 0;
+      transform: translate3d(0,18px,0);
+      filter: blur(5px);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0,0,0);
+      filter: blur(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #hero .hero-fade-target,
+    .motion-section .motion-item {
+      opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
+
+
+  #coachnowScrollProgress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    z-index: 100000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .35s ease;
+  }
+
+  #coachnowScrollProgressBar {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #DA020C;
+    transform: scaleX(0);
+    transform-origin: left center;
+    will-change: transform;
+    box-shadow: 0 0 10px rgba(218,2,12,.35);
+  }
+
+  #coachnowScrollBubble {
+    position: fixed;
+    right: 0;
+    top: 82px;
+    width: 48px;
+    height: 48px;
+    z-index: 9998;
+    border-radius: 24px 0 24px 24px;
+    border: 1px solid rgba(255,255,255,.24);
+    border-right: 0;
+    background: #DA020C;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translate3d(16px,0,0) scale(.92);
+    opacity: 0;
+    pointer-events: none;
+    cursor: pointer;
+    box-shadow: 0 10px 28px rgba(0,0,0,.18), 0 0 0 5px rgba(218,2,12,.08);
+    transition: opacity .35s ease, transform .45s cubic-bezier(.22,1,.36,1), box-shadow .25s ease;
+    will-change: top, border-radius, transform, opacity;
+  }
+
+  #coachnowScrollBubble:hover {
+    transform: translate3d(0,0,0) scale(1.06);
+    box-shadow: 0 14px 34px rgba(0,0,0,.22), 0 0 0 7px rgba(218,2,12,.10);
+  }
+
+  #coachnowScrollBubble .scroll-bubble-percent {
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 700;
+    transition: opacity .2s ease, transform .2s ease;
+  }
+
+  #coachnowScrollBubble .scroll-bubble-arrow {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    opacity: 0;
+    transform: translateY(5px);
+    transition: opacity .2s ease, transform .2s ease;
+  }
+
+  #coachnowScrollBubble:hover .scroll-bubble-percent {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  #coachnowScrollBubble:hover .scroll-bubble-arrow {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  html.scroll-progress-ready #coachnowScrollProgress {
+    opacity: 1;
+  }
+
+  #coachnowScrollBubble {
+    transform-origin: top right;
+  }
+
+  #coachnowScrollBubble.is-scrolling {
+    pointer-events: auto;
+    animation: bubbleInflateIn .46s cubic-bezier(.18,.89,.32,1.28) both;
+  }
+
+  #coachnowScrollBubble.is-idle {
+    pointer-events: none;
+    animation: bubblePopOut .38s cubic-bezier(.55,.06,.68,.19) both;
+  }
+
+  @keyframes bubbleInflateIn {
+    0% { opacity:0; transform:translate3d(0,0,0) scale(.08); filter:blur(2px); }
+    62% { opacity:1; transform:translate3d(0,0,0) scale(1.10); filter:blur(0); }
+    100% { opacity:1; transform:translate3d(0,0,0) scale(1); filter:blur(0); }
+  }
+
+  @keyframes bubblePopOut {
+    0% { opacity:1; transform:translate3d(0,0,0) scale(1); filter:blur(0); }
+    42% { opacity:1; transform:translate3d(0,0,0) scale(1.13); filter:blur(0); }
+    100% { opacity:0; transform:translate3d(0,0,0) scale(.06); filter:blur(2px); }
+  }
+
+  @media (max-width: 767px) {
+    #coachnowScrollProgress { height: 2px; }
+    #coachnowScrollBubble {
+      right: 0;
+      width: 42px;
+      height: 42px;
+    }
+    #coachnowScrollBubble .scroll-bubble-percent { font-size: 9px; }
+    #coachnowScrollBubble .scroll-bubble-arrow { width: 16px; height: 16px; }
+  }
+
+
+
+  .home-hero-bg {
+    background-image:
+      linear-gradient(90deg, rgba(12,13,14,0.82) 0%, rgba(12,13,14,0.58) 34%, rgba(12,13,14,0.12) 68%, rgba(12,13,14,0.02) 100%),
+      linear-gradient(180deg, rgba(12,13,14,0.10) 0%, rgba(12,13,14,0.08) 43%, rgba(10,11,12,0.58) 100%),
+      url('../hero-bg.png');
+    background-size: cover;
+    background-position: center bottom;
+  }
+
+  .profile-summary {
+    position: relative;
+    background-image:
+      linear-gradient(90deg, rgba(12,13,14,0.15) 0%, rgba(12,13,14,0.55) 42%, rgba(12,13,14,0.88) 100%),
+      url('../Rectangle 8-1.png');
+    background-size: cover;
+    background-position: center left;
+  }
+
+  .profile-summary-copy {
+    position: relative;
+  }
+
+  @media (max-width: 767px) {
+    .profile-summary {
+      background-position: center top;
+    }
+    .profile-summary-copy {
+      background: linear-gradient(180deg, transparent 0%, rgba(12,13,14,0.72) 28%, rgba(12,13,14,0.92) 100%);
+    }
+  }
+
+  @media (min-width: 768px) {
+    .profile-summary {
+      background-position: left center;
+    }
+  }
+
+  .profile-tab.active {
+    color: #191615 !important;
+    border-bottom-color: #DA020C !important;
+  }
+
+  #booking {
+    position: relative;
+    z-index: 15;
+    overflow: visible;
+  }
+
+  #booking > div:first-child {
+    overflow: visible;
+  }
+
+  .profile-panel[hidden] {
+    display: none !important;
+  }
+
+  /* ==================== BOOKING DATE CALENDAR ==================== */
+  .booking-date-field.is-open {
+    z-index: 40;
+  }
+
+  .booking-calendar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 50;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(24, 24, 27, 0.08);
+    padding: 14px;
+    width: 100%;
+  }
+
+  .booking-calendar.hidden {
+    display: none !important;
+  }
+
+  .booking-calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .booking-calendar-month {
+    font-size: 14px;
+    font-weight: 650;
+    color: #18181b;
+  }
+
+  .booking-calendar-nav {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #52525b;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .booking-calendar-nav:hover {
+    background: #f4f4f5;
+    color: #da020c;
+  }
+
+  .booking-calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 4px;
+  }
+
+  .booking-calendar-weekdays span {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #a1a1aa;
+    padding: 4px 0;
+  }
+
+  .booking-calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+
+  .booking-calendar-day {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 550;
+    color: #27272a;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .booking-calendar-day:hover:not(:disabled) {
+    background: #fff0f1;
+    color: #da020c;
+  }
+
+  .booking-calendar-day.is-muted {
+    color: #d4d4d8;
+  }
+
+  .booking-calendar-day.is-today {
+    box-shadow: inset 0 0 0 1.5px #da020c;
+  }
+
+  .booking-calendar-day.is-selected {
+    background: #da020c;
+    color: #fff;
+  }
+
+  .booking-calendar-day:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 639px) {
+    .booking-date-field.is-open {
+      margin-bottom: 300px;
+    }
+  }

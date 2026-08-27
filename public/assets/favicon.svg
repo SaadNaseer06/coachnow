@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CoachNow">
+  <rect width="64" height="64" rx="12" fill="#0C0D0E"/>
+  <path d="M32 10 L48 16.5 V34.5 C48 45 39.5 52.5 32 56 C24.5 52.5 16 45 16 34.5 V16.5 Z" fill="#0C0D0E" stroke="#DA020C" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M32 10 L48 16.5 V34.5 C48 45 39.5 52.5 32 56" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linejoin="round"/>
+  <text x="19.2" y="40.5" font-family="Arial Black, Impact, sans-serif" font-size="22" font-style="italic" font-weight="900" fill="#DA020C">C</text>
+  <text x="33.2" y="40.5" font-family="Arial Black, Impact, sans-serif" font-size="22" font-style="italic" font-weight="900" fill="#FFFFFF">N</text>
+</svg>

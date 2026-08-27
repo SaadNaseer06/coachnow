@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth hero-motion-pending">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="icon" type="image/png" href="assets/favicon-32.png" sizes="32x32">
+  <link rel="icon" type="image/png" href="assets/favicon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <title>CoachNow - Contact</title>
+  <meta name="description" content="Get in touch with the CoachNow team about finding a coach or joining the platform.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'] },
+          colors: {
+            brand: {
+              red: '#DA020C',
+              'red-hover': '#BF020A',
+              'red-light': '#FFF0F1',
+              'red-subtle': 'rgba(218, 2, 12, 0.08)',
+              dark: '#0C0D0E',
+              surface: '#141618',
+              'surface-2': '#1B1E22',
+            }
+          },
+          boxShadow: {
+            'brand-glow': '0 4px 20px rgba(218, 2, 12, 0.35)',
+            'card-hover': '0 18px 36px rgba(0, 0, 0, 0.1)',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://unpkg.com/lenis@1.3.26/dist/lenis.css">
+  <link rel="stylesheet" href="assets/css/find-a-coach.css">
+  <link rel="stylesheet" href="assets/css/inner-pages.css">
+
+</head><body class="font-sans bg-white text-zinc-900 antialiased selection:bg-brand-red selection:text-white">
+  <div id="coachnowScrollProgress" aria-hidden="true"><span id="coachnowScrollProgressBar"></span></div>
+  <button id="coachnowScrollBubble" type="button" aria-label="Scroll back to top" title="Back to top">
+    <span class="scroll-bubble-percent">0%</span>
+    <svg class="scroll-bubble-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"></path><path d="m6 11 6-6 6 6"></path></svg>
+  </button>
+  <div id="coachnowPreloader" aria-hidden="true">
+    <div class="preloader-bars">
+      <span class="preloader-bar" style="--exit-delay:.705s"></span><span class="preloader-bar" style="--exit-delay:.650s"></span><span class="preloader-bar" style="--exit-delay:.595s"></span><span class="preloader-bar" style="--exit-delay:.540s"></span><span class="preloader-bar" style="--exit-delay:.485s"></span><span class="preloader-bar" style="--exit-delay:.430s"></span><span class="preloader-bar" style="--exit-delay:.375s"></span><span class="preloader-bar" style="--exit-delay:.320s"></span><span class="preloader-bar" style="--exit-delay:.265s"></span><span class="preloader-bar" style="--exit-delay:.210s"></span><span class="preloader-bar" style="--exit-delay:.155s"></span><span class="preloader-bar" style="--exit-delay:.100s"></span>
+    </div>
+    <div class="preloader-center"><div class="preloader-logo-ring"><img src="assets/Logo-3 1.svg" alt="" class="preloader-logo"></div></div>
+  </div>
+
+  <header id="siteHeader" class="fixed top-0 left-0 w-full z-50 transition-all duration-300 bg-gradient-to-b from-black/80 via-black/40 to-transparent py-4 md:py-5">
+    <div class="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+      <a href="index.html" class="flex items-center group shrink-0">
+        <img src="assets/logo.png" alt="CoachNow Logo" class="h-9 md:h-11 w-auto object-contain transition-all duration-300">
+      </a>
+      <nav class="hidden lg:flex items-center bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-full p-1 shadow-lg">
+        <ul class="flex items-center gap-0.5 list-none m-0 p-0 text-[11px] xl:text-xs font-normal">
+          <li><a href="index.html" class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">Home</a></li>
+          <li><a href="find-a-coach.html" class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">Find a Coach</a></li>
+          <li><a href="become-a-coach.html" class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">Become a Coach</a></li>
+          <li><a href="index.html#how-it-works" class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">How It Works</a></li>
+          <li><a href="about.html" class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">About</a></li>
+          <li><a href="faq.html" class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">FAQ</a></li>
+          <li><a href="contact.html" class="block px-4 py-2 rounded-full bg-brand-red text-white font-medium shadow-[0_2px_10px_rgba(218,2,12,0.35)] transition-all">Contact</a></li>
+        </ul>
+      </nav>
+      <div class="flex items-center gap-3 shrink-0">
+        <a href="login.html" class="nav-action hidden sm:inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-2.5 rounded-full border border-white/40 bg-black/30 backdrop-blur-md hover:bg-white/15 hover:border-white transition-all duration-300">Login</a>
+        <a href="become-a-coach.html" class="nav-action inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-3 rounded-full bg-brand-red hover:bg-brand-red-hover shadow-brand-glow hover:-translate-y-0.5 transition-all duration-300">Join CoachNow</a>
+        <button id="mobileMenuBtn" class="lg:hidden flex flex-col justify-center items-center gap-1.5 w-9 h-9 text-white bg-white/10 rounded-full border border-white/20" aria-label="Toggle Navigation">
+          <span class="w-4 h-0.5 bg-white transition-transform"></span><span class="w-4 h-0.5 bg-white transition-opacity"></span><span class="w-4 h-0.5 bg-white transition-transform"></span>
+        </button>
+      </div>
+    </div>
+    <div id="mobileMenuDrawer" class="hidden lg:hidden px-4 pt-3 pb-5 mt-2 bg-[#191615] backdrop-blur-2xl border-b border-zinc-800 transition-all">
+      <ul class="flex flex-col gap-2 text-sm font-medium text-zinc-200">
+        <li><a href="index.html" class="block px-4 py-2 rounded-lg hover:bg-white/10">Home</a></li>
+        <li><a href="find-a-coach.html" class="block px-4 py-2 rounded-lg hover:bg-white/10">Find a Coach</a></li>
+        <li><a href="become-a-coach.html" class="block px-4 py-2 rounded-lg hover:bg-white/10">Become a Coach</a></li>
+        <li><a href="index.html#how-it-works" class="block px-4 py-2 rounded-lg hover:bg-white/10">How It Works</a></li>
+        <li><a href="about.html" class="block px-4 py-2 rounded-lg hover:bg-white/10">About</a></li>
+        <li><a href="faq.html" class="block px-4 py-2 rounded-lg hover:bg-white/10">FAQ</a></li>
+        <li><a href="contact.html" class="block px-4 py-2 rounded-lg bg-brand-red text-white font-semibold">Contact</a></li>
+        <li class="pt-2 border-t border-zinc-800 flex gap-2">
+          <a href="login.html" class="flex-1 text-center py-2 rounded-lg border border-white/30 text-white font-semibold">Login</a>
+          <a href="become-a-coach.html" class="flex-1 text-center py-2 rounded-lg bg-brand-red text-white font-semibold">Join</a>
+        </li>
+      </ul>
+    </div>
+  </header>  <main>
+    <section id="hero" class="relative min-h-[420px] lg:min-h-[460px] pt-[106px] pb-[64px] flex items-center bg-zinc-950 text-white overflow-hidden" style="background-image: linear-gradient(90deg, rgba(12,13,14,0.82) 0%, rgba(12,13,14,0.58) 34%, rgba(12,13,14,0.12) 68%, rgba(12,13,14,0.02) 100%), linear-gradient(180deg, rgba(12,13,14,0.10) 0%, rgba(12,13,14,0.08) 43%, rgba(10,11,12,0.58) 100%), url('assets/hero-bg.png'); background-size: cover; background-position: center bottom;">
+      <div class="max-w-[1506px] mx-auto px-5 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 w-full relative z-10">
+        <div class="hero-fade-target inline-flex items-center px-4 py-2 rounded-full bg-brand-red text-white text-xs sm:text-sm font-medium tracking-[0.01em] uppercase mb-4 shadow-[0_4px_14px_rgba(218,2,12,0.3)]" style="--hero-delay:40ms">GET IN TOUCH</div>
+        <h1 class="hero-fade-target max-w-[900px] text-4xl sm:text-5xl md:text-[3.2rem] lg:text-[3.5rem] font-medium tracking-[0.01em] text-white leading-none mb-4" style="--hero-delay:110ms">Let's Connect and Get You Moving</h1>
+        <p class="hero-fade-target text-[13px] sm:text-[14px] lg:text-[15px] text-zinc-200/90 max-w-[680px] leading-[1.55] font-light" style="--hero-delay:180ms">Have a question about finding a coach, joining CoachNow, or becoming a founding coach? Send us a message.</p>
+      </div>
+    </section>    <section class="py-20 lg:py-24 bg-white motion-section">
+      <div class="max-w-[1220px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-16">
+        <div class="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-5 items-stretch">
+          <div class="rounded-[14px] bg-brand-red text-white p-6 flex flex-col justify-between motion-item motion-from-left">
+            <div>
+              <h3 class="text-[20px] font-medium leading-tight mb-2">Have A Question?</h3>
+              <p class="text-[12px] text-white/85 leading-[1.55] mb-6">We're here to help you find the right next step with CoachNow.</p>
+              <div class="space-y-4 text-[13px]">
+                <div><div class="text-white/70 text-[11px] uppercase tracking-wide mb-1">Phone</div>(782) 444-6566</div>
+                <div><div class="text-white/70 text-[11px] uppercase tracking-wide mb-1">Email</div>support@coachnow.com</div>
+                <div><div class="text-white/70 text-[11px] uppercase tracking-wide mb-1">Location</div>Murrieta &amp; Temecula, CA</div>
+              </div>
+            </div>
+            <a href="find-a-coach.html" class="mt-8 inline-flex self-start items-center gap-2 px-4 py-2 rounded-full bg-white text-brand-red text-[12px] font-medium">Find a Coach →</a>
+          </div>
+          <div class="form-card p-5 lg:p-7 motion-item motion-from-right" style="--motion-delay:100ms">
+            <form onsubmit="return false;">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label class="block"><span class="block text-[12px] font-medium text-[#191615] mb-2">Your Name</span><input type="text" placeholder="Enter your name" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10"></label>
+                <label class="block"><span class="block text-[12px] font-medium text-[#191615] mb-2">Email Address</span><input type="email" placeholder="Enter your email" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10"></label>
+              </div>
+              <label class="block mt-4"><span class="block text-[12px] font-medium text-[#191615] mb-2">How can we help?</span><select class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none"><option>Finding a Coach</option><option>Becoming a Coach</option><option>General Question</option></select></label>
+              <label class="block mt-4"><span class="block text-[12px] font-medium text-[#191615] mb-2">Message</span><textarea rows="5" placeholder="Tell us a little more" class="w-full rounded-[10px] border border-zinc-300 px-4 py-3 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10 resize-y"></textarea></label>
+              <div class="mt-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+                <label class="flex items-start gap-2 text-[11px] text-zinc-500 leading-[1.45]"><input type="checkbox" class="mt-0.5 w-4 h-4 rounded border-zinc-300 accent-[#DA020C]"><span>By submitting this form, you agree to our Privacy Policy and Terms &amp; Conditions.</span></label>
+                <button type="submit" class="inline-flex items-center justify-center px-7 h-11 rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-[13px] font-semibold transition-colors shrink-0">Contact Us Now</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>  <footer id="footer" class="bg-[#191615] text-white pt-12 pb-5 motion-section">
+    <div class="max-w-[1220px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-16">
+      <div class="grid grid-cols-1 lg:grid-cols-[0.95fr_1.35fr] gap-8 lg:gap-12 items-center pb-9 border-b border-white/10 motion-item motion-soft-up">
+        <a href="index.html" class="inline-flex items-center"><img src="assets/logo.png" alt="CoachNow Logo" class="h-10 lg:h-11 w-auto object-contain"></a>
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 lg:justify-end">
+          <div class="text-[14px] lg:text-[15px] font-semibold leading-[1.55] shrink-0">Stay Connected<br>With CoachNow</div>
+          <form onsubmit="return false;" class="flex w-full sm:w-[470px] gap-3">
+            <input type="email" placeholder="Enter Your E-mail Address *" class="min-w-0 flex-1 h-11 rounded-[7px] bg-[#302D2D] border border-white/5 px-4 text-[12px] lg:text-[13px] text-white placeholder:text-zinc-300 outline-none focus:border-brand-red transition-colors">
+            <button type="submit" class="h-11 px-8 rounded-[7px] bg-brand-red hover:bg-brand-red-hover text-[12px] lg:text-[13px] font-medium transition-colors">Subscribe</button>
+          </form>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.3fr_.78fr_.78fr_1.12fr] gap-0 border-b border-white/10">
+        <div class="py-10 lg:pr-10 lg:border-r border-white/10 motion-item motion-soft-up" style="--motion-delay:100ms">
+          <p class="text-[12px] lg:text-[13px] text-zinc-400 leading-[1.85] max-w-[320px]">CoachNow helps athletes and families discover trusted local coaches, compare training options, and book sessions that fit their goals and schedules.</p>
+          <div class="flex gap-2.5 mt-6">
+            <a href="#" aria-label="Facebook" class="w-8 h-8 rounded-[7px] border border-zinc-600 text-white flex items-center justify-center text-[13px] font-semibold hover:bg-brand-red hover:border-brand-red transition-all">f</a>
+            <a href="#" aria-label="X" class="w-8 h-8 rounded-[7px] border border-zinc-600 text-white flex items-center justify-center text-[12px] hover:bg-brand-red hover:border-brand-red transition-all">𝕏</a>
+            <a href="#" aria-label="LinkedIn" class="w-8 h-8 rounded-[7px] border border-zinc-600 text-white flex items-center justify-center text-[12px] font-semibold hover:bg-brand-red hover:border-brand-red transition-all">in</a>
+            <a href="#" aria-label="Instagram" class="w-8 h-8 rounded-[7px] border border-zinc-600 text-white flex items-center justify-center hover:bg-brand-red hover:border-brand-red transition-all"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] fill-none stroke-current stroke-[1.8]"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.2" cy="6.8" r="1.2" fill="currentColor" stroke="none"></circle></svg></a>
+          </div>
+        </div>
+        <div class="py-10 lg:px-10 lg:border-r border-white/10 motion-item motion-soft-up" style="--motion-delay:185ms">
+          <h4 class="text-[14px] lg:text-[15px] font-semibold mb-5">Explore</h4>
+          <ul class="space-y-3 text-[12px] lg:text-[13px] text-zinc-400">
+            <li><a href="find-a-coach.html" class="hover:text-white transition-colors">Find a Coach</a></li>
+            <li><a href="index.html#how-it-works" class="hover:text-white transition-colors">How It Works</a></li>
+            <li><a href="index.html#training" class="hover:text-white transition-colors">Training Options</a></li>
+            <li><a href="become-a-coach.html" class="hover:text-white transition-colors">Become a Coach</a></li>
+            <li><a href="become-a-coach.html" class="hover:text-white transition-colors">Founding Coaches</a></li>
+          </ul>
+        </div>
+        <div class="py-10 lg:px-10 lg:border-r border-white/10 motion-item motion-soft-up" style="--motion-delay:270ms">
+          <h4 class="text-[14px] lg:text-[15px] font-semibold mb-5">Company</h4>
+          <ul class="space-y-3 text-[12px] lg:text-[13px] text-zinc-400">
+            <li><a href="about.html" class="hover:text-white transition-colors">About CoachNow</a></li>
+            <li><a href="contact.html" class="hover:text-white transition-colors">Contact</a></li>
+            <li><a href="faq.html" class="hover:text-white transition-colors">FAQ</a></li>
+            <li><a href="#" class="hover:text-white transition-colors">Privacy Policy</a></li>
+            <li><a href="#" class="hover:text-white transition-colors">Cookie Policy</a></li>
+          </ul>
+        </div>
+        <div class="py-10 lg:pl-10 motion-item motion-soft-up" style="--motion-delay:355ms">
+          <h4 class="text-[14px] lg:text-[15px] font-semibold mb-5">Contact Info</h4>
+          <div class="text-[13px] lg:text-[14px] text-white">
+            <div class="flex items-center gap-3 pb-4 border-b border-white/10"><span class="w-9 h-9 rounded-[8px] bg-brand-red flex items-center justify-center shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.79.62 2.64a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6 6l1.26-1.26a2 2 0 0 1 2.11-.45c.85.29 1.74.5 2.64.62A2 2 0 0 1 22 16.92z"/></svg></span><span>(782) 444-6566</span></div>
+            <div class="flex items-center gap-3 py-4 border-b border-white/10"><span class="w-9 h-9 rounded-[8px] bg-brand-red flex items-center justify-center shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><span>support@coachnow.com</span></div>
+            <div class="flex items-start gap-3 pt-4"><span class="w-9 h-9 rounded-[8px] bg-brand-red flex items-center justify-center shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 12-9 12S3 17 3 10a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="2.5"/></svg></span><span class="leading-[1.2]">Murrieta &amp; Temecula,<br>California</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="pt-6 text-center text-[11px] lg:text-[12px] text-zinc-300 motion-item motion-soft-up" style="--motion-delay:440ms">© 2026 <span class="text-brand-red font-medium">CoachNow.</span> All Rights Reserved. Design by <a href="https://texaswebstudio.co/" target="_blank" rel="noopener noreferrer" class="text-brand-red font-medium hover:underline">Texas Web Studio</a></div>
+    </div>
+  </footer>
+  <script src="assets/js/coach-profile.js"></script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="../assets/favicon.ico" sizes="any">
+  <title>Athletes · Admin · CoachNow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+          colors: { brand: { red: '#DA020C', 'red-hover': '#BF020A', dark: '#191615' } }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body class="admin-body font-sans antialiased">
+  <div id="adminSidebarBackdrop" class="admin-sidebar-backdrop" aria-hidden="true"></div>
+  <div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar">
+      <a href="index.html" class="admin-brand">
+        <img src="../assets/logo.png" alt="CoachNow">
+        <span class="admin-brand-badge">Admin</span>
+      </a>
+      <nav class="admin-nav" aria-label="Admin">
+        <div class="admin-nav-label">Overview</div>
+        <a href="index.html" class="admin-nav-link" data-page="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Dashboard</a>
+        <div class="admin-nav-label">Manage</div>
+        <a href="coaches.html" class="admin-nav-link" data-page="coaches.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Coaches</a>
+        <a href="bookings.html" class="admin-nav-link" data-page="bookings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Bookings</a>
+        <a href="locations.html" class="admin-nav-link" data-page="locations.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Locations</a>
+        <a href="athletes.html" class="admin-nav-link" data-page="athletes.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Athletes</a>
+        <div class="admin-nav-label">System</div>
+        <a href="../index.html" class="admin-nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>View Website</a>
+        <a href="../login.html" class="admin-nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign Out</a>
+      </nav>
+      <div class="admin-sidebar-footer">
+        <div class="admin-user">
+          <div class="admin-user-avatar">CN</div>
+          <div class="admin-user-meta"><div class="admin-user-name">Admin User</div><div class="admin-user-role">Platform Admin</div></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-topbar">
+        <div class="flex items-center gap-3 min-w-0">
+          <button type="button" id="adminMenuBtn" class="admin-menu-btn" aria-label="Open menu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <div class="admin-page-title">
+            <h1>Athletes</h1>
+            <p>Families and players booking training sessions</p>
+          </div>
+        </div>
+      </header>
+
+      <main class="admin-content">
+        <div class="admin-toolbar">
+          <div class="admin-filters">
+            <input class="admin-input" type="search" placeholder="Search athletes…">
+            <select class="admin-select">
+              <option>All activity</option>
+              <option>Active this month</option>
+              <option>New</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Athlete / Family</th>
+                  <th>Email</th>
+                  <th>Sessions</th>
+                  <th>Last Booking</th>
+                  <th>Preferred Park</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><div class="admin-person"><div class="admin-person-fallback">JM</div><div><strong>Jordan M.</strong><span>Ages 10–12</span></div></div></td>
+                  <td>jordan@email.com</td>
+                  <td>12</td>
+                  <td>Today</td>
+                  <td>Sommers Bend</td>
+                  <td><span class="admin-badge admin-badge-green">Active</span></td>
+                </tr>
+                <tr>
+                  <td><div class="admin-person"><div class="admin-person-fallback">AS</div><div><strong>Ava S.</strong><span>Ages 8–10</span></div></div></td>
+                  <td>ava@email.com</td>
+                  <td>7</td>
+                  <td>Today</td>
+                  <td>Sommers Bend</td>
+                  <td><span class="admin-badge admin-badge-green">Active</span></td>
+                </tr>
+                <tr>
+                  <td><div class="admin-person"><div class="admin-person-fallback">DR</div><div><strong>Diego R.</strong><span>Ages 12–14</span></div></div></td>
+                  <td>diego@email.com</td>
+                  <td>5</td>
+                  <td>Tomorrow</td>
+                  <td>Los Alamos</td>
+                  <td><span class="admin-badge admin-badge-green">Active</span></td>
+                </tr>
+                <tr>
+                  <td><div class="admin-person"><div class="admin-person-fallback">NK</div><div><strong>Noah K.</strong><span>Team player</span></div></div></td>
+                  <td>noah@email.com</td>
+                  <td>3</td>
+                  <td>Sat</td>
+                  <td>Birdsall</td>
+                  <td><span class="admin-badge admin-badge-zinc">New</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../assets/js/admin.js"></script>
+</body>
+</html>

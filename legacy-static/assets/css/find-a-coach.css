@@ -1,0 +1,662 @@
+
+    *,
+    *::before,
+    *::after,
+    html,
+    body,
+    input,
+    select,
+    textarea,
+    button {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+    }
+
+    body {
+      overflow-x: hidden;
+    }
+  
+
+
+    #siteHeader {
+      background: transparent !important;
+      transition:
+        padding .28s ease,
+        background .28s ease,
+        box-shadow .28s ease,
+        backdrop-filter .28s ease;
+    }
+
+    #siteHeader.nav-scrolled {
+      padding-top: 8px !important;
+      padding-bottom: 8px !important;
+      background: #191615 !important;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.20);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    #siteHeader.nav-scrolled img[alt="CoachNow Logo"] {
+      height: 2.25rem !important;
+    }
+
+    #siteHeader.nav-scrolled .nav-action {
+      transform: scale(0.92);
+      transform-origin: center;
+    }
+
+    @media (max-width: 1023px) {
+      #siteHeader.nav-scrolled {
+        padding-top: 7px !important;
+        padding-bottom: 7px !important;
+      }
+
+      #siteHeader.nav-scrolled img[alt="CoachNow Logo"] {
+        height: 2rem !important;
+      }
+    }
+  
+
+
+    .section-main-title {
+      font-size: 2.65rem !important;
+      line-height: 1.03 !important;
+    }
+
+    @media (max-width: 1023px) {
+      .section-main-title {
+        font-size: 2.3rem !important;
+      }
+    }
+
+    @media (max-width: 639px) {
+      .section-main-title {
+        font-size: 1.95rem !important;
+      }
+    }
+
+    /* Find page typography - intentionally based on homepage sizing */
+    #resultsSection .filter-title {
+      font-size: 13px !important;
+    }
+
+    #resultsSection .filter-copy,
+    #resultsSection .filter-option {
+      font-size: 12px !important;
+      line-height: 1.5 !important;
+    }
+
+    #resultsSection .coach-name {
+      font-size: 17px !important;
+      line-height: 1.25 !important;
+      font-weight: 650 !important;
+    }
+
+    #resultsSection .coach-role {
+      font-size: 12px !important;
+      line-height: 1.45 !important;
+      margin-top: 2px !important;
+      margin-bottom: 10px !important;
+    }
+
+    #resultsSection .coach-meta {
+      font-size: 12px !important;
+      line-height: 1.45 !important;
+      margin-bottom: 6px !important;
+    }
+
+    #resultsSection .coach-price {
+      font-size: 18px !important;
+      line-height: 1.2 !important;
+    }
+
+    #resultsSection .coach-price + span {
+      font-size: 11px !important;
+    }
+
+    #resultsSection .coach-button {
+      font-size: 12px !important;
+      min-width: 128px;
+      height: 40px !important;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    #resultsSection .coach-button-primary {
+      box-shadow: 0 4px 14px rgba(218, 2, 12, 0.22);
+    }
+
+    #resultsSection .coach-actions {
+      align-self: center;
+    }
+
+    #resultsSection .coach-result {
+      gap: 1rem !important;
+      padding: 0.9rem !important;
+    }
+
+    #resultsSection .coach-result > img {
+      height: 168px !important;
+    }
+
+    @media (min-width: 768px) {
+      #resultsSection .coach-result {
+        grid-template-columns: 180px minmax(0, 1fr) 128px !important;
+      }
+
+      #resultsSection .coach-result > img {
+        width: 180px !important;
+        height: 168px !important;
+      }
+    }
+
+    /* Active rating chips must stay white on hover (not red-on-red) */
+    .rating-filter.bg-brand-red,
+    .rating-filter.bg-brand-red:hover,
+    .rating-filter.bg-brand-red:focus {
+      color: #fff !important;
+      background-color: #DA020C !important;
+      border-color: #DA020C !important;
+    }
+
+    .rating-filter:not(.bg-brand-red):hover {
+      color: #DA020C;
+      border-color: #DA020C;
+    }
+
+    @media (max-width: 767px) {
+      #resultsSection .coach-name {
+        font-size: 16px !important;
+      }
+
+      #resultsSection .coach-role,
+      #resultsSection .coach-meta,
+      #resultsSection .coach-button {
+        font-size: 12px !important;
+      }
+
+      #resultsSection .coach-price {
+        font-size: 17px !important;
+      }
+
+      #resultsSection .coach-button {
+        min-width: 0;
+        width: 100%;
+      }
+
+      #resultsSection .coach-result > img {
+        height: 180px !important;
+      }
+    }
+  
+
+
+    @media (min-width: 1600px) and (max-width: 1919px) {
+      body {
+        overflow-x: hidden;
+      }
+
+      [class*="max-w-[1220px]"] {
+        max-width: 1320px !important;
+        zoom: 1.04;
+      }
+
+      #siteHeader > div {
+        max-width: 1480px !important;
+      }
+    }
+
+    @media (min-width: 1920px) {
+      body {
+        overflow-x: hidden;
+      }
+
+      [class*="max-w-[1220px]"] {
+        max-width: 1450px !important;
+        zoom: 1.08;
+      }
+
+      #siteHeader > div {
+        max-width: 1600px !important;
+      }
+    }
+
+    @media (min-width: 2400px) {
+      [class*="max-w-[1220px]"] {
+        max-width: 1650px !important;
+        zoom: 1.10;
+      }
+
+      #siteHeader > div {
+        max-width: 1800px !important;
+      }
+    }
+  
+
+
+    html.preloader-active,
+    html.preloader-active body {
+      overflow: hidden !important;
+    }
+
+    #coachnowPreloader {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      pointer-events: all;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    #coachnowPreloader .preloader-bars {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+    }
+
+    #coachnowPreloader .preloader-bar {
+      height: 100%;
+      background: #191615;
+      border-right: 1px solid rgba(255,255,255,0.025);
+      transform: translateY(0);
+      will-change: transform;
+      transition: transform .78s cubic-bezier(.76,0,.24,1);
+      transition-delay: var(--exit-delay);
+    }
+
+    #coachnowPreloader .preloader-bar:nth-child(even) {
+      background: #171413;
+    }
+
+    #coachnowPreloader .preloader-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 3;
+      transition: opacity .28s ease, transform .28s ease;
+    }
+
+    #coachnowPreloader .preloader-logo-ring {
+      width: 112px;
+      height: 112px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: rgba(255,255,255,.045);
+      border: 1px solid rgba(255,255,255,.09);
+      box-shadow: 0 16px 50px rgba(0,0,0,.28);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    #coachnowPreloader .preloader-logo-ring::before {
+      content: "";
+      position: absolute;
+      inset: -7px;
+      border-radius: inherit;
+      border: 2px solid rgba(255,255,255,.15);
+      border-top-color: #DA020C;
+      border-right-color: #DA020C;
+      animation: coachnowPreloaderSpin .85s linear infinite;
+    }
+
+    #coachnowPreloader .preloader-logo-ring::after {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      box-shadow: inset 0 0 24px rgba(218,2,12,.08);
+      pointer-events: none;
+    }
+
+    #coachnowPreloader .preloader-logo {
+      width: 76px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    @keyframes coachnowPreloaderSpin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    #coachnowPreloader.is-loaded {
+      background: transparent;
+    }
+
+    #coachnowPreloader.is-loaded .preloader-center {
+      opacity: 0;
+      transform: scale(.88);
+    }
+
+    #coachnowPreloader.is-loaded .preloader-bar {
+      transform: translateY(-105%);
+    }
+
+    #coachnowPreloader.is-finished {
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    @media (max-width: 767px) {
+      #coachnowPreloader .preloader-logo-ring {
+        width: 90px;
+        height: 90px;
+      }
+
+      #coachnowPreloader .preloader-logo {
+        width: 60px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #coachnowPreloader .preloader-logo-ring::before {
+        animation-duration: 1.6s;
+      }
+
+      #coachnowPreloader .preloader-bar {
+        transition-duration: .35s;
+      }
+    }
+  
+
+
+    #hero .hero-fade-target {
+      opacity: 0;
+      transform: translate3d(0, 18px, 0);
+      filter: blur(5px);
+      will-change: opacity, transform, filter;
+    }
+
+    html.hero-motion-started #hero .hero-fade-target {
+      animation: coachnowHeroFadeUp .78s cubic-bezier(.22,1,.36,1) forwards;
+      animation-delay: var(--hero-delay, 0ms);
+    }
+
+    .motion-section .motion-item {
+      opacity: 0;
+      filter: blur(3px);
+      will-change: opacity, transform, filter;
+      transition:
+        opacity .78s cubic-bezier(.22,1,.36,1),
+        transform .92s cubic-bezier(.22,1,.36,1),
+        filter .78s ease;
+      transition-delay: var(--motion-delay, 0ms);
+    }
+
+    .motion-section .motion-from-left {
+      transform: translate3d(-46px,0,0);
+    }
+
+    .motion-section .motion-from-right {
+      transform: translate3d(46px,0,0);
+    }
+
+    .motion-section .motion-soft-up {
+      transform: translate3d(0,22px,0);
+    }
+
+    .motion-section .motion-pop {
+      transform: translate3d(0,20px,0) scale(.96);
+    }
+
+    .motion-section.is-visible .motion-item {
+      opacity: 1;
+      transform: translate3d(0,0,0) scale(1);
+      filter: blur(0);
+    }
+
+    @keyframes coachnowHeroFadeUp {
+      0% {
+        opacity: 0;
+        transform: translate3d(0,18px,0);
+        filter: blur(5px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translate3d(0,0,0);
+        filter: blur(0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #hero .hero-fade-target,
+      .motion-section .motion-item {
+        opacity: 1 !important;
+        transform: none !important;
+        filter: none !important;
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  
+
+
+    #coachnowScrollProgress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      z-index: 100000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .35s ease;
+    }
+
+    #coachnowScrollProgressBar {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #DA020C;
+      transform: scaleX(0);
+      transform-origin: left center;
+      will-change: transform;
+      box-shadow: 0 0 10px rgba(218,2,12,.35);
+    }
+
+    #coachnowScrollBubble {
+      position: fixed;
+      right: 0;
+      top: 82px;
+      width: 48px;
+      height: 48px;
+      z-index: 9998;
+      border-radius: 24px 0 24px 24px;
+      border: 1px solid rgba(255,255,255,.24);
+      border-right: 0;
+      background: #DA020C;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: translate3d(16px,0,0) scale(.92);
+      opacity: 0;
+      pointer-events: none;
+      cursor: pointer;
+      box-shadow:
+        0 10px 28px rgba(0,0,0,.18),
+        0 0 0 5px rgba(218,2,12,.08);
+      transition:
+        opacity .35s ease,
+        transform .45s cubic-bezier(.22,1,.36,1),
+        box-shadow .25s ease;
+      will-change: top, border-radius, transform, opacity;
+      transform-origin: top right;
+    }
+
+    #coachnowScrollBubble:hover {
+      transform: translate3d(0,0,0) scale(1.06);
+      box-shadow:
+        0 14px 34px rgba(0,0,0,.22),
+        0 0 0 7px rgba(218,2,12,.10);
+    }
+
+    #coachnowScrollBubble .scroll-bubble-percent {
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 700;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+
+    #coachnowScrollBubble .scroll-bubble-arrow {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      opacity: 0;
+      transform: translateY(5px);
+      transition: opacity .2s ease, transform .2s ease;
+    }
+
+    #coachnowScrollBubble:hover .scroll-bubble-percent {
+      opacity: 0;
+      transform: translateY(-5px);
+    }
+
+    #coachnowScrollBubble:hover .scroll-bubble-arrow {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    html.scroll-progress-ready #coachnowScrollProgress {
+      opacity: 1;
+    }
+
+    #coachnowScrollBubble.is-scrolling {
+      pointer-events: auto;
+      animation: bubbleInflateIn .46s cubic-bezier(.18,.89,.32,1.28) both;
+    }
+
+    #coachnowScrollBubble.is-idle {
+      pointer-events: none;
+      animation: bubblePopOut .38s cubic-bezier(.55,.06,.68,.19) both;
+    }
+
+    @keyframes bubbleInflateIn {
+      0% {
+        opacity: 0;
+        transform: translate3d(0,0,0) scale(.08);
+        filter: blur(2px);
+      }
+
+      62% {
+        opacity: 1;
+        transform: translate3d(0,0,0) scale(1.10);
+        filter: blur(0);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translate3d(0,0,0) scale(1);
+        filter: blur(0);
+      }
+    }
+
+    @keyframes bubblePopOut {
+      0% {
+        opacity: 1;
+        transform: translate3d(0,0,0) scale(1);
+        filter: blur(0);
+      }
+
+      42% {
+        opacity: 1;
+        transform: translate3d(0,0,0) scale(1.13);
+        filter: blur(0);
+      }
+
+      100% {
+        opacity: 0;
+        transform: translate3d(0,0,0) scale(.06);
+        filter: blur(2px);
+      }
+    }
+
+    @media (max-width: 767px) {
+      #coachnowScrollProgress {
+        height: 2px;
+      }
+
+      #coachnowScrollBubble {
+        width: 42px;
+        height: 42px;
+      }
+
+      #coachnowScrollBubble .scroll-bubble-percent {
+        font-size: 9px;
+      }
+
+      #coachnowScrollBubble .scroll-bubble-arrow {
+        width: 16px;
+        height: 16px;
+      }
+    }
+  
+
+
+    .range-track {
+      position: relative;
+      height: 4px;
+      border-radius: 999px;
+      background: #D4D4D8;
+    }
+
+    .range-track::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      width: 72%;
+      top: 0;
+      bottom: 0;
+      border-radius: inherit;
+      background: #DA020C;
+    }
+
+    .range-dot {
+      position: absolute;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #DA020C;
+      transform: translateY(-50%);
+    }
+
+    .range-dot.start {
+      left: 0;
+    }
+
+    .range-dot.end {
+      left: 72%;
+      transform: translate(-50%, -50%);
+    }
+
+    .filter-checkbox {
+      width: 15px;
+      height: 15px;
+      accent-color: #DA020C;
+      flex: 0 0 auto;
+    }
+
+    @media (max-width: 1023px) {
+      #filtersPanel {
+        position: static !important;
+      }
+    }
+  

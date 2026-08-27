@@ -1,0 +1,91 @@
+/* Inner marketing pages — FAQ, About, Become a Coach, Contact, Login */
+
+.faq-item {
+  border: 1px solid #e4e4e7;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+  transition: border-color .25s ease, box-shadow .25s ease;
+}
+
+.faq-item.is-open {
+  border-color: rgba(218, 2, 12, 0.35);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.05);
+}
+
+.faq-item button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  text-align: left;
+  padding: 18px 20px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: #191615;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.faq-item button .faq-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #f4f4f5;
+  color: #191615;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background .25s ease, color .25s ease, transform .25s ease;
+}
+
+.faq-item.is-open button .faq-icon {
+  background: #DA020C;
+  color: #fff;
+  transform: rotate(45deg);
+}
+
+.faq-item .faq-body {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height .38s cubic-bezier(.22,1,.36,1), opacity .28s ease, padding .28s ease;
+  padding: 0 20px;
+}
+
+.faq-item.is-open .faq-body {
+  max-height: 320px;
+  opacity: 1;
+  padding: 0 20px 18px;
+}
+
+.faq-item .faq-body p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #71717a;
+  font-weight: 300;
+}
+
+.auth-card,
+.form-card {
+  border: 1px solid rgba(228, 228, 231, 0.9);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.04);
+}
+
+.benefit-card {
+  border: 1px solid rgba(228, 228, 231, 0.9);
+  border-radius: 16px;
+  background: #f7f7f7;
+  padding: 22px;
+  transition: transform .25s ease, box-shadow .25s ease, background .25s ease;
+}
+
+.benefit-card:hover {
+  transform: translateY(-3px);
+  background: #fff;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.06);
+}

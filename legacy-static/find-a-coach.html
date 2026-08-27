@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth hero-motion-pending">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="icon" type="image/png" href="assets/favicon-32.png" sizes="32x32">
+  <link rel="icon" type="image/png" href="assets/favicon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+  <title>CoachNow - Find a Coach Near You</title>
+  <meta name="description"
+    content="Search trusted local coaches by location, sport, date, session type, experience, rating, and availability.">
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&display=swap"
+    rel="stylesheet">
+
+  <!-- Global Font Definition -->
+  
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              red: '#DA020C',
+              'red-hover': '#BF020A',
+              'red-light': '#FFF0F1',
+              'red-subtle': 'rgba(218, 2, 12, 0.08)',
+              dark: '#0C0D0E',
+              surface: '#141618',
+              'surface-2': '#1B1E22',
+            }
+          },
+          boxShadow: {
+            'brand-glow': '0 4px 20px rgba(218, 2, 12, 0.35)',
+            'card-hover': '0 18px 36px rgba(0, 0, 0, 0.1)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- ==================== NAVBAR ==================== -->
+  
+
+  <!-- ==================== SHARED HOME-PAGE TYPOGRAPHY ==================== -->
+  
+
+  <!-- ==================== LARGE DESKTOP SCALING ==================== -->
+  
+
+  <!-- ==================== PRELOADER ==================== -->
+  
+
+  <!-- ==================== PAGE MOTION ==================== -->
+  
+
+  <!-- ==================== SCROLL PROGRESS ==================== -->
+  
+
+  <!-- ==================== FIND PAGE DETAILS ==================== -->
+  
+
+  <!-- Lenis stylesheet -->
+  <link rel="stylesheet" href="https://unpkg.com/lenis@1.3.26/dist/lenis.css">
+<link rel="stylesheet" href="assets/css/find-a-coach.css">
+</head>
+
+
+<body class="font-sans bg-white text-zinc-900 antialiased selection:bg-brand-red selection:text-white">
+
+  <!-- ==================== SCROLL PROGRESS ==================== -->
+  <div id="coachnowScrollProgress" aria-hidden="true">
+    <span id="coachnowScrollProgressBar"></span>
+  </div>
+
+  <button id="coachnowScrollBubble" type="button" aria-label="Scroll back to top" title="Back to top">
+    <span class="scroll-bubble-percent">0%</span>
+
+    <svg class="scroll-bubble-arrow"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true">
+      <path d="M12 19V5"></path>
+      <path d="m6 11 6-6 6 6"></path>
+    </svg>
+  </button>
+
+
+  <!-- ==================== 12-BAR PAGE PRELOADER ==================== -->
+  <div id="coachnowPreloader" aria-hidden="true">
+    <div class="preloader-bars">
+      <span class="preloader-bar" style="--exit-delay:.705s"></span>
+      <span class="preloader-bar" style="--exit-delay:.650s"></span>
+      <span class="preloader-bar" style="--exit-delay:.595s"></span>
+      <span class="preloader-bar" style="--exit-delay:.540s"></span>
+      <span class="preloader-bar" style="--exit-delay:.485s"></span>
+      <span class="preloader-bar" style="--exit-delay:.430s"></span>
+      <span class="preloader-bar" style="--exit-delay:.375s"></span>
+      <span class="preloader-bar" style="--exit-delay:.320s"></span>
+      <span class="preloader-bar" style="--exit-delay:.265s"></span>
+      <span class="preloader-bar" style="--exit-delay:.210s"></span>
+      <span class="preloader-bar" style="--exit-delay:.155s"></span>
+      <span class="preloader-bar" style="--exit-delay:.100s"></span>
+    </div>
+
+    <div class="preloader-center">
+      <div class="preloader-logo-ring">
+        <img src="assets/Logo-3 1.svg" alt="" class="preloader-logo">
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== TOP NAVIGATION ==================== -->
+  <header id="siteHeader"
+    class="fixed top-0 left-0 w-full z-50 transition-all duration-300 bg-gradient-to-b from-black/80 via-black/40 to-transparent py-4 md:py-5">
+
+    <div class="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+
+      <!-- Logo -->
+      <a href="index.html" class="flex items-center group shrink-0">
+        <img src="assets/logo.png"
+          alt="CoachNow Logo"
+          class="h-9 md:h-11 w-auto object-contain transition-all duration-300">
+      </a>
+
+      <!-- Desktop Navigation -->
+      <nav
+        class="hidden lg:flex items-center bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-full p-1 shadow-lg">
+
+        <ul class="flex items-center gap-0.5 list-none m-0 p-0 text-[11px] xl:text-xs font-normal">
+
+          <li>
+            <a href="index.html"
+              class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">
+              Home
+            </a>
+          </li>
+
+          <li>
+            <a href="#hero"
+              class="block px-4 py-2 rounded-full bg-brand-red text-white font-medium shadow-[0_2px_10px_rgba(218,2,12,0.35)] transition-all">
+              Find a Coach
+            </a>
+          </li>
+
+          <li>
+            <a href="become-a-coach.html"
+              class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">
+              Become a Coach
+            </a>
+          </li>
+
+          <li>
+            <a href="index.html#how-it-works"
+              class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">
+              How It Works
+            </a>
+          </li>
+
+          <li>
+            <a href="about.html"
+              class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">
+              About
+            </a>
+          </li>
+
+          <li>
+            <a href="faq.html"
+              class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">
+              FAQ
+            </a>
+          </li>
+
+          <li>
+            <a href="contact.html"
+              class="block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200">
+              Contact
+            </a>
+          </li>
+
+        </ul>
+      </nav>
+
+      <!-- Right Buttons -->
+      <div class="flex items-center gap-3 shrink-0">
+
+        <a href="login.html"
+          class="nav-action hidden sm:inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-2.5 rounded-full border border-white/40 bg-black/30 backdrop-blur-md hover:bg-white/15 hover:border-white transition-all duration-300">
+          Login
+        </a>
+
+        <a href="become-a-coach.html"
+          class="nav-action inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-3 rounded-full bg-brand-red hover:bg-brand-red-hover shadow-brand-glow hover:-translate-y-0.5 transition-all duration-300">
+          Join CoachNow
+        </a>
+
+        <button id="mobileMenuBtn"
+          class="lg:hidden flex flex-col justify-center items-center gap-1.5 w-9 h-9 text-white bg-white/10 rounded-full border border-white/20"
+          aria-label="Toggle Navigation">
+          <span class="w-4 h-0.5 bg-white transition-transform"></span>
+          <span class="w-4 h-0.5 bg-white transition-opacity"></span>
+          <span class="w-4 h-0.5 bg-white transition-transform"></span>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Mobile Drawer -->
+    <div id="mobileMenuDrawer"
+      class="hidden lg:hidden px-4 pt-3 pb-5 mt-2 bg-[#191615] backdrop-blur-2xl border-b border-zinc-800 transition-all">
+
+      <ul class="flex flex-col gap-2 text-sm font-medium text-zinc-200">
+        <li>
+          <a href="index.html"
+            class="block px-4 py-2 rounded-lg hover:bg-white/10">
+            Home
+          </a>
+        </li>
+
+        <li>
+          <a href="#hero"
+            class="block px-4 py-2 rounded-lg bg-brand-red text-white font-semibold">
+            Find a Coach
+          </a>
+        </li>
+
+        <li>
+          <a href="become-a-coach.html"
+            class="block px-4 py-2 rounded-lg hover:bg-white/10">
+            Become a Coach
+          </a>
+        </li>
+
+        <li>
+          <a href="index.html#how-it-works"
+            class="block px-4 py-2 rounded-lg hover:bg-white/10">
+            How It Works
+          </a>
+        </li>
+
+        <li>
+          <a href="about.html"
+            class="block px-4 py-2 rounded-lg hover:bg-white/10">
+            About
+          </a>
+        </li>
+
+        <li>
+          <a href="faq.html"
+            class="block px-4 py-2 rounded-lg hover:bg-white/10">
+            FAQ
+          </a>
+        </li>
+
+        <li>
+          <a href="contact.html"
+            class="block px-4 py-2 rounded-lg hover:bg-white/10">
+            Contact
+          </a>
+        </li>
+
+        <li class="pt-2 border-t border-zinc-800 flex gap-2">
+          <a href="login.html"
+            class="flex-1 text-center py-2 rounded-lg border border-white/30 text-white font-semibold">
+            Login
+          </a>
+
+          <a href="become-a-coach.html"
+            class="flex-1 text-center py-2 rounded-lg bg-brand-red text-white font-semibold">
+            Join
+          </a>
+        </li>
+      </ul>
+    </div>
+
+  </header>
+
+
+  <main>
+
+    <!-- ==================== FIND A COACH HERO ==================== -->
+    <section id="hero"
+      class="relative min-h-[650px] lg:min-h-[680px] pt-[106px] pb-[72px] flex items-center bg-zinc-950 text-white overflow-hidden"
+      style="
+        background-image:
+          linear-gradient(90deg, rgba(12,13,14,0.82) 0%, rgba(12,13,14,0.58) 34%, rgba(12,13,14,0.12) 68%, rgba(12,13,14,0.02) 100%),
+          linear-gradient(180deg, rgba(12,13,14,0.10) 0%, rgba(12,13,14,0.08) 43%, rgba(10,11,12,0.58) 100%),
+          url('assets/hero-bg.png');
+        background-size: cover;
+        background-position: center bottom;
+      ">
+
+      <div class="max-w-[1506px] mx-auto px-5 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 w-full relative z-10">
+
+        <div class="w-full">
+
+          <!-- Badge -->
+          <div
+            class="hero-fade-target inline-flex items-center px-4 py-2 xl:px-5 xl:py-2.5 rounded-full bg-brand-red text-white text-xs sm:text-sm xl:text-[0.95rem] 2xl:text-base font-medium tracking-[0.01em] uppercase mb-4 xl:mb-5 shadow-[0_4px_14px_rgba(218,2,12,0.3)]"
+            style="--hero-delay:40ms;">
+            FIND. BOOK. PLAY.
+          </div>
+
+          <!-- Heading -->
+          <h1
+            class="hero-fade-target max-w-[900px] text-4xl sm:text-5xl md:text-[3.35rem] lg:text-[3.65rem] xl:text-[3.9rem] 2xl:text-[4.25rem] font-medium tracking-[0.01em] text-white leading-none mb-4 xl:mb-5"
+            style="--hero-delay:120ms;">
+            Find a Coach Near You
+          </h1>
+
+          <!-- Intro -->
+          <p
+            class="hero-fade-target text-[12px] sm:text-[12.5px] md:text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-[15px] text-zinc-200/90 max-w-[650px] xl:max-w-[720px] 2xl:max-w-[760px] tracking-[0.002em] leading-[1.55] mb-[36px] xl:mb-[40px] font-light"
+            style="--hero-delay:190ms;">
+            Search trusted local coaches, compare their experience, ratings,
+            pricing, and availability, and find training that fits your goals
+            and schedule.
+          </p>
+
+
+          <!-- SAME SEARCH FORM AS HOME PAGE -->
+          <div class="w-full max-w-[1100px]">
+
+            <div class="hero-fade-target mb-5"
+              style="--hero-delay:300ms;">
+
+              <h2
+                class="text-lg sm:text-[1.35rem] xl:text-[1.45rem] 2xl:text-[1.55rem] font-medium text-white tracking-tight leading-none">
+                Find a Coach
+              </h2>
+
+              <p
+                class="text-[11px] sm:text-xs xl:text-[0.8rem] 2xl:text-[0.84rem] text-zinc-300/80 mt-1.5 font-light">
+                Search trusted coaches near you and find a session that works
+                for your schedule.
+              </p>
+            </div>
+
+
+            <form id="coachSearchForm"
+              onsubmit="return false;"
+              class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.32fr_1.06fr_1fr_1fr_0.95fr] gap-3 items-start">
+
+              <!-- Where -->
+              <div class="hero-fade-target flex flex-col"
+                style="--hero-delay:500ms;">
+
+                <label for="locationInput"
+                  class="text-[11px] sm:text-xs font-semibold text-white mb-1.5 pl-1">
+                  Where?
+                </label>
+
+                <div
+                  class="relative flex items-center min-w-0 overflow-hidden bg-white rounded-xl h-12 sm:h-[50px] px-3 shadow-lg focus-within:ring-2 focus-within:ring-brand-red transition-all">
+
+                  <svg class="w-4 h-4 min-w-4 min-h-4 text-zinc-500 shrink-0 mr-2"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+
+                  <input type="text"
+                    id="locationInput"
+                    placeholder="City or ZIP Code"
+                    class="min-w-0 flex-1 bg-transparent text-zinc-900 text-sm font-medium outline-none placeholder:text-zinc-400">
+                </div>
+
+                <button type="button"
+                  id="useLocationBtn"
+                  class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs text-zinc-300 hover:text-white mt-1.5 pl-1 transition-colors">
+
+                  <svg class="w-3 h-3"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+
+                  <span>Use My Location</span>
+                </button>
+              </div>
+
+
+              <!-- When -->
+              <div class="hero-fade-target flex flex-col"
+                style="--hero-delay:605ms;">
+
+                <label for="whenSelect"
+                  class="text-[11px] sm:text-xs font-semibold text-white mb-1.5 pl-1">
+                  When?
+                </label>
+
+                <div
+                  class="relative flex items-center min-w-0 overflow-hidden bg-white rounded-xl h-12 sm:h-[50px] px-3 shadow-lg focus-within:ring-2 focus-within:ring-brand-red transition-all">
+
+                  <svg class="w-4 h-4 min-w-4 min-h-4 text-zinc-500 shrink-0 mr-2"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+
+                  <select id="whenSelect"
+                    class="min-w-0 flex-1 bg-transparent text-zinc-900 text-sm font-medium outline-none appearance-none cursor-pointer pr-7">
+
+                    <option value="today" selected>Today</option>
+                    <option value="tomorrow">Tomorrow</option>
+                    <option value="this-weekend">This Weekend</option>
+                    <option value="next-week">Next Week</option>
+                  </select>
+
+                  <svg class="w-3.5 h-3.5 text-zinc-500 absolute right-3 pointer-events-none"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+
+                <button type="button"
+                  id="chooseDateBtn"
+                  class="text-[11px] sm:text-xs text-zinc-300 hover:text-white mt-1.5 pl-1 text-left transition-colors">
+                  Choose a Date
+                </button>
+              </div>
+
+
+              <!-- Sport -->
+              <div class="hero-fade-target flex flex-col"
+                style="--hero-delay:710ms;">
+
+                <label for="sportSelect"
+                  class="text-[11px] sm:text-xs font-semibold text-white mb-1.5 pl-1">
+                  Sport
+                </label>
+
+                <div
+                  class="relative flex items-center min-w-0 overflow-hidden bg-white rounded-xl h-12 sm:h-[50px] px-3 shadow-lg focus-within:ring-2 focus-within:ring-brand-red transition-all">
+
+                  <svg class="w-4 h-4 min-w-4 min-h-4 text-zinc-500 shrink-0 mr-2"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+                    <path d="M2 12h20"></path>
+                  </svg>
+
+                  <select id="sportSelect"
+                    class="min-w-0 flex-1 bg-transparent text-zinc-900 text-sm font-medium outline-none appearance-none cursor-pointer pr-7">
+
+                    <option value="soccer" selected>Soccer</option>
+                    <option value="futsal">Futsal</option>
+                    <option value="fitness">Performance &amp; Speed</option>
+                  </select>
+
+                  <svg class="w-3.5 h-3.5 text-zinc-500 absolute right-3 pointer-events-none"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+              </div>
+
+
+              <!-- Session Type -->
+              <div class="hero-fade-target flex flex-col"
+                style="--hero-delay:815ms;">
+
+                <label for="sessionTypeSelect"
+                  class="text-[11px] sm:text-xs font-semibold text-white mb-1.5 pl-1">
+                  Session Type
+                </label>
+
+                <div
+                  class="relative flex items-center min-w-0 overflow-hidden bg-white rounded-xl h-12 sm:h-[50px] px-3 shadow-lg focus-within:ring-2 focus-within:ring-brand-red transition-all">
+
+                  <svg class="w-4 h-4 min-w-4 min-h-4 text-zinc-500 shrink-0 mr-2"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polygon points="12 8 16 12 12 16 8 12 12 8"></polygon>
+                  </svg>
+
+                  <select id="sessionTypeSelect"
+                    class="min-w-0 flex-1 bg-transparent text-zinc-900 text-sm font-medium outline-none appearance-none cursor-pointer pr-7">
+
+                    <option value="all" selected>All Types</option>
+                    <option value="1on1">1-on-1 Training</option>
+                    <option value="group">Small Group</option>
+                    <option value="camp">Clinics &amp; Camps</option>
+                  </select>
+
+                  <svg class="w-3.5 h-3.5 text-zinc-500 absolute right-3 pointer-events-none"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+              </div>
+
+
+              <!-- Search Button -->
+              <div class="hero-fade-target flex flex-col sm:col-span-2 lg:col-span-1 pt-0 lg:pt-[24px]"
+                style="--hero-delay:920ms;">
+
+                <button type="submit"
+                  id="heroSearchBtn"
+                  class="w-full h-12 sm:h-[50px] bg-brand-red hover:bg-brand-red-hover text-white font-bold text-sm rounded-xl shadow-brand-glow hover:-translate-y-0.5 transition-all flex items-center justify-center">
+                  Find a Coach
+                </button>
+              </div>
+
+            </form>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ==================== FILTERS + RESULTS ==================== -->
+    <section id="resultsSection"
+      class="motion-section py-20 lg:py-24 bg-white">
+
+      <div class="max-w-[1220px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-16">
+
+        <div class="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-6 lg:gap-7 items-start">
+
+
+          <!-- ==================== FILTER PANEL ==================== -->
+          <aside id="filtersPanel"
+            class="motion-item motion-from-left sticky top-[92px] rounded-[18px] bg-[#F5F5F5] border border-zinc-200/70 p-5 lg:p-6">
+
+            <div class="flex items-center justify-between pb-4">
+
+              <div class="flex items-center gap-2 text-[14px] lg:text-[15px] font-semibold text-[#191615]">
+                <svg class="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round">
+                  <path d="M4 5h16"></path>
+                  <path d="M7 12h10"></path>
+                  <path d="M10 19h4"></path>
+                </svg>
+
+                Filters
+              </div>
+
+              <button id="clearFilters"
+                type="button"
+                class="text-[11px] lg:text-[12px] font-semibold text-brand-red hover:text-brand-red-hover transition-colors">
+                Clear all
+              </button>
+            </div>
+
+
+            <!-- Distance -->
+            <div class="border-t border-zinc-200 py-5">
+
+              <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-5">
+                <span>Distance</span>
+                <span>⌃</span>
+              </div>
+
+              <div class="relative pt-7 mb-3">
+                <output id="distanceValue" for="distanceRange"
+                  class="absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-md bg-brand-red px-2 py-1 text-[10px] font-semibold leading-none text-white shadow-sm">
+                  50 mi
+                </output>
+                <input id="distanceRange" type="range" min="0" max="50" value="50" step="1"
+                  aria-label="Maximum distance in miles"
+                  aria-valuetext="50 miles"
+                  class="block w-full h-2 accent-[#DA020C] cursor-pointer">
+              </div>
+
+              <div class="flex justify-between text-[10px] lg:text-[11px] text-zinc-500">
+                <span>0 mi</span>
+                <span>25 mi</span>
+                <span>50 mi</span>
+              </div>
+            </div>
+
+
+            <!-- Price -->
+            <div class="border-t border-zinc-200 py-5">
+
+              <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-4">
+                <span>Price (per session)</span>
+                <span>⌃</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+
+                <input id="minPrice"
+                  type="number"
+                  placeholder="$ Min"
+                  class="h-10 rounded-[8px] border border-zinc-300 bg-white px-3 text-[12px] lg:text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+
+                <input id="maxPrice"
+                  type="number"
+                  placeholder="$ Max"
+                  class="h-10 rounded-[8px] border border-zinc-300 bg-white px-3 text-[12px] lg:text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+              </div>
+            </div>
+
+
+            <!-- Rating -->
+            <div class="border-t border-zinc-200 py-5">
+
+              <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-4">
+                <span>Rating</span>
+                <span>⌃</span>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+
+                <button type="button"
+                  class="rating-filter px-3 py-2 rounded-[7px] border border-brand-red bg-brand-red text-white text-[11px] lg:text-[12px]"
+                  data-rating="0">
+                  All
+                </button>
+
+                <button type="button"
+                  class="rating-filter px-3 py-2 rounded-[7px] border border-zinc-300 bg-white text-zinc-600 text-[11px] lg:text-[12px] hover:border-brand-red hover:text-brand-red transition-colors"
+                  data-rating="1">
+                  1+ ★
+                </button>
+
+                <button type="button"
+                  class="rating-filter px-3 py-2 rounded-[7px] border border-zinc-300 bg-white text-zinc-600 text-[11px] lg:text-[12px] hover:border-brand-red hover:text-brand-red transition-colors"
+                  data-rating="2">
+                  2+ ★
+                </button>
+
+                <button type="button"
+                  class="rating-filter px-3 py-2 rounded-[7px] border border-zinc-300 bg-white text-zinc-600 text-[11px] lg:text-[12px] hover:border-brand-red hover:text-brand-red transition-colors"
+                  data-rating="3">
+                  3+ ★
+                </button>
+
+                <button type="button"
+                  class="rating-filter px-3 py-2 rounded-[7px] border border-zinc-300 bg-white text-zinc-600 text-[11px] lg:text-[12px] hover:border-brand-red hover:text-brand-red transition-colors"
+                  data-rating="4">
+                  4+ ★
+                </button>
+              </div>
+            </div>
+
+
+            <!-- Experience -->
+            <div class="border-t border-zinc-200 py-5">
+
+              <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-4">
+                <span>Experience</span>
+                <span>⌃</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-x-3 gap-y-3 filter-option text-zinc-500">
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="experience" value="1-3">
+                  <span>1–3 Years</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="experience" value="4-5">
+                  <span>4–5 Years</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="experience" value="6-7">
+                  <span>6–7 Years</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="experience" value="8-10">
+                  <span>8–10 Years</span>
+                </label>
+              </div>
+            </div>
+
+
+            <!-- Age Group -->
+            <div class="border-t border-zinc-200 py-5">
+
+              <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-4">
+                <span>Age Group</span>
+                <span>⌃</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-x-3 gap-y-3 filter-option text-zinc-500">
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="age" value="youth-5-8">
+                  <span>Youth (5–8)</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="age" value="youth-9-12">
+                  <span>Youth (9–12)</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="age" value="teen">
+                  <span>Teen (13–18)</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="age" value="adult">
+                  <span>Adult (18+)</span>
+                </label>
+              </div>
+            </div>
+
+
+            <!-- Session Type -->
+            <div class="border-t border-zinc-200 py-5">
+
+              <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-4">
+                <span>Session Type</span>
+                <span>⌃</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-x-3 gap-y-3 filter-option text-zinc-500">
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="session" value="1on1">
+                  <span>Private Training</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="session" value="group">
+                  <span>Group Training</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="session" value="semi-private">
+                  <span>Semi-Private</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="session" value="camp">
+                  <span>Clinic / Workshop</span>
+                </label>
+              </div>
+            </div>
+
+
+            <!-- Availability -->
+            <div class="border-t border-zinc-200 py-5">
+
+              <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-4">
+                <span>Availability</span>
+                <span>⌃</span>
+              </div>
+
+              <div class="space-y-3 filter-option text-zinc-500">
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="availability" value="weekday-morning">
+                  <span>Weekdays (Morning)</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="availability" value="weekday-afternoon">
+                  <span>Weekdays (Afternoon)</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="availability" value="weekday-evening">
+                  <span>Weekdays (Evening)</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="availability" value="weekend-morning">
+                  <span>Weekends (Morning)</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="availability" value="weekend-afternoon">
+                  <span>Weekends (Afternoon)</span>
+                </label>
+
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" class="filter-checkbox" data-filter="availability" value="weekend-evening">
+                  <span>Weekends (Evening)</span>
+                </label>
+              </div>
+            </div>
+
+
+            <!-- Filter Buttons -->
+            <div class="grid grid-cols-2 gap-3 pt-2">
+
+              <button id="resetFilters"
+                type="button"
+                class="h-11 rounded-[10px] border border-zinc-500 bg-white text-[#191615] text-[12px] lg:text-[13px] font-medium hover:border-brand-red hover:text-brand-red transition-colors">
+                Reset
+              </button>
+
+              <button id="applyFilters"
+                type="button"
+                class="h-11 rounded-[10px] bg-brand-red hover:bg-brand-red-hover text-white text-[12px] lg:text-[13px] font-semibold transition-colors">
+                Apply Filters
+              </button>
+            </div>
+
+          </aside>
+
+
+          <!-- ==================== COACH RESULTS ==================== -->
+          <div id="coachResults" class="space-y-5">
+
+
+            <!-- Coach Alex -->
+            <article
+              class="coach-result motion-item motion-from-right grid grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)_135px] gap-5 items-center rounded-[18px] bg-[#F5F5F5] border border-zinc-200/60 p-4 lg:p-5"
+              style="--motion-delay:80ms;"
+              data-price="45"
+              data-rating="4.9"
+              data-distance="2.1"
+              data-sport="soccer"
+              data-experience="6-7"
+              data-age="youth-5-8 youth-9-12 teen"
+              data-session="1on1"
+              data-availability="weekday-morning weekday-evening weekend-morning"
+              data-when="today tomorrow this-weekend next-week">
+
+              <img src="assets/Rectangle 8-1.png"
+                alt="Coach Alex"
+                class="w-full md:w-[250px] h-[200px] rounded-[14px] object-cover object-center">
+
+              <div class="min-w-0">
+
+                <h2 class="coach-name font-semibold text-[#191615]">
+                  Coach Alex
+                </h2>
+
+                <p class="coach-role text-zinc-500 mt-1 mb-4">
+                  Professional Soccer Coach
+                </p>
+
+                <div class="coach-meta text-[#191615] mb-2">
+                  <span class="text-amber-500">★</span>
+                  <span class="font-semibold">4.9</span>
+                  <span class="text-zinc-500">(128 Reviews)</span>
+                </div>
+
+                <div class="coach-meta text-zinc-500 mb-2">
+                  Private Training
+                  <span class="mx-1">•</span>
+                  Ages 8–14
+                </div>
+
+                <div class="coach-meta flex items-center gap-2 text-zinc-500 mb-3">
+                  <svg class="w-4 h-4 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  <span>2.1 miles away</span>
+                </div>
+
+                <div class="flex items-baseline gap-1.5">
+                  <span class="coach-price text-brand-red font-bold">$45</span>
+                  <span class="text-[11px] xl:text-[12px] text-zinc-400">
+                    / Session
+                  </span>
+                </div>
+              </div>
+
+              <div class="coach-actions grid grid-cols-2 md:grid-cols-1 gap-3 w-full md:w-auto">
+
+                <a href="coach-profile.html"
+                  class="coach-button coach-button-primary h-11 px-4 rounded-[10px] bg-brand-red border border-brand-red text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-brand-red-hover shadow-sm transition-all">
+                  View Profile
+                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                </a>
+
+                <a href="coach-profile.html#booking"
+                   class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
+                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  View Times
+                </a>
+              </div>
+
+            </article>
+
+
+            <!-- Coach Maria -->
+            <article
+              class="coach-result motion-item motion-from-right grid grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)_135px] gap-5 items-center rounded-[18px] bg-[#F5F5F5] border border-zinc-200/60 p-4 lg:p-5"
+              style="--motion-delay:180ms;"
+              data-price="45"
+              data-rating="4.9"
+              data-distance="5.8"
+              data-sport="soccer futsal"
+              data-experience="8-10"
+              data-age="youth-5-8 youth-9-12 teen"
+              data-session="group camp"
+              data-availability="weekday-afternoon weekend-morning weekend-afternoon"
+              data-when="tomorrow this-weekend next-week">
+
+              <img src="assets/Rectangle 8-2.png"
+                alt="Coach Maria"
+                class="w-full md:w-[250px] h-[200px] rounded-[14px] object-cover object-center">
+
+              <div class="min-w-0">
+
+                <h2 class="coach-name font-semibold text-[#191615]">
+                  Coach Maria
+                </h2>
+
+                <p class="coach-role text-zinc-500 mt-1 mb-4">
+                  Professional Soccer Coach
+                </p>
+
+                <div class="coach-meta text-[#191615] mb-2">
+                  <span class="text-amber-500">★</span>
+                  <span class="font-semibold">4.9</span>
+                  <span class="text-zinc-500">(128 Reviews)</span>
+                </div>
+
+                <div class="coach-meta text-zinc-500 mb-2">
+                  Small Group Soccer
+                  <span class="mx-1">•</span>
+                  Ages 8–16
+                </div>
+
+                <div class="coach-meta flex items-center gap-2 text-zinc-500 mb-3">
+                  <svg class="w-4 h-4 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  <span>2.1 miles away</span>
+                </div>
+
+                <div class="flex items-baseline gap-1.5">
+                  <span class="coach-price text-brand-red font-bold">$45</span>
+                  <span class="text-[11px] xl:text-[12px] text-zinc-400">
+                    / Session
+                  </span>
+                </div>
+              </div>
+
+              <div class="coach-actions grid grid-cols-2 md:grid-cols-1 gap-3 w-full md:w-auto">
+
+                <a href="coach-profile.html"
+                  class="coach-button coach-button-primary h-11 px-4 rounded-[10px] bg-brand-red border border-brand-red text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-brand-red-hover shadow-sm transition-all">
+                  View Profile
+                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                </a>
+
+                <a href="coach-profile.html#booking"
+                   class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
+                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  View Times
+                </a>
+              </div>
+
+            </article>
+
+
+            <!-- Coach Mike -->
+            <article
+              class="coach-result motion-item motion-from-right grid grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)_135px] gap-5 items-center rounded-[18px] bg-[#F5F5F5] border border-zinc-200/60 p-4 lg:p-5"
+              style="--motion-delay:280ms;"
+              data-price="45"
+              data-rating="4.9"
+              data-distance="12.4"
+              data-sport="soccer fitness"
+              data-experience="4-5"
+              data-age="teen adult"
+              data-session="group semi-private"
+              data-availability="weekday-evening weekend-afternoon weekend-evening"
+              data-when="today this-weekend next-week">
+
+              <img src="assets/Rectangle 8.png"
+                alt="Coach Mike"
+                class="w-full md:w-[250px] h-[200px] rounded-[14px] object-cover object-center">
+
+              <div class="min-w-0">
+
+                <h2 class="coach-name font-semibold text-[#191615]">
+                  Coach Mike
+                </h2>
+
+                <p class="coach-role text-zinc-500 mt-1 mb-4">
+                  Professional Soccer Coach
+                </p>
+
+                <div class="coach-meta text-[#191615] mb-2">
+                  <span class="text-amber-500">★</span>
+                  <span class="font-semibold">4.9</span>
+                  <span class="text-zinc-500">(128 Reviews)</span>
+                </div>
+
+                <div class="coach-meta text-zinc-500 mb-2">
+                  Team Training
+                  <span class="mx-1">•</span>
+                  Advanced Players
+                </div>
+
+                <div class="coach-meta flex items-center gap-2 text-zinc-500 mb-3">
+                  <svg class="w-4 h-4 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  <span>2.1 miles away</span>
+                </div>
+
+                <div class="flex items-baseline gap-1.5">
+                  <span class="coach-price text-brand-red font-bold">$45</span>
+                  <span class="text-[11px] xl:text-[12px] text-zinc-400">
+                    / Session
+                  </span>
+                </div>
+              </div>
+
+              <div class="coach-actions grid grid-cols-2 md:grid-cols-1 gap-3 w-full md:w-auto">
+
+                <a href="coach-profile.html"
+                  class="coach-button coach-button-primary h-11 px-4 rounded-[10px] bg-brand-red border border-brand-red text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-brand-red-hover shadow-sm transition-all">
+                  View Profile
+                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                </a>
+
+                <a href="coach-profile.html#booking"
+                   class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
+                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  View Times
+                </a>
+              </div>
+
+            </article>
+
+
+            <!-- Coach Alex Duplicate -->
+            <article
+              class="coach-result motion-item motion-from-right grid grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)_135px] gap-5 items-center rounded-[18px] bg-[#F5F5F5] border border-zinc-200/60 p-4 lg:p-5"
+              style="--motion-delay:380ms;"
+              data-price="45"
+              data-rating="4.9"
+              data-distance="22"
+              data-sport="soccer"
+              data-experience="1-3"
+              data-age="youth-5-8 youth-9-12"
+              data-session="1on1 camp"
+              data-availability="weekday-morning weekday-afternoon weekend-evening"
+              data-when="tomorrow next-week">
+
+              <img src="assets/Rectangle 8-1.png"
+                alt="Coach Alex"
+                class="w-full md:w-[250px] h-[200px] rounded-[14px] object-cover object-center">
+
+              <div class="min-w-0">
+
+                <h2 class="coach-name font-semibold text-[#191615]">
+                  Coach Alex
+                </h2>
+
+                <p class="coach-role text-zinc-500 mt-1 mb-4">
+                  Professional Soccer Coach
+                </p>
+
+                <div class="coach-meta text-[#191615] mb-2">
+                  <span class="text-amber-500">★</span>
+                  <span class="font-semibold">4.9</span>
+                  <span class="text-zinc-500">(128 Reviews)</span>
+                </div>
+
+                <div class="coach-meta text-zinc-500 mb-2">
+                  Private Training
+                  <span class="mx-1">•</span>
+                  Ages 8–14
+                </div>
+
+                <div class="coach-meta flex items-center gap-2 text-zinc-500 mb-3">
+                  <svg class="w-4 h-4 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  <span>2.1 miles away</span>
+                </div>
+
+                <div class="flex items-baseline gap-1.5">
+                  <span class="coach-price text-brand-red font-bold">$45</span>
+                  <span class="text-[11px] xl:text-[12px] text-zinc-400">
+                    / Session
+                  </span>
+                </div>
+              </div>
+
+              <div class="coach-actions grid grid-cols-2 md:grid-cols-1 gap-3 w-full md:w-auto">
+
+                <a href="coach-profile.html"
+                  class="coach-button coach-button-primary h-11 px-4 rounded-[10px] bg-brand-red border border-brand-red text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-brand-red-hover shadow-sm transition-all">
+                  View Profile
+                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                </a>
+
+                <a href="coach-profile.html#booking"
+                   class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
+                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  View Times
+                </a>
+              </div>
+
+            </article>
+
+            <div id="noCoachResults" class="hidden rounded-[18px] border border-zinc-200 bg-[#F5F5F5] p-10 text-center" role="status">
+              <h2 class="text-lg font-semibold text-[#191615]">No coaches match these filters</h2>
+              <p class="mt-2 text-sm text-zinc-500">Try increasing the distance or clearing one or more filters.</p>
+              <button id="emptyResetFilters" type="button"
+                class="mt-5 h-10 px-5 rounded-[10px] bg-brand-red hover:bg-brand-red-hover text-white text-sm font-semibold transition-colors">
+                Clear Filters
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer id="footer"
+    class="motion-section bg-[#191615] text-white pt-12 pb-5">
+
+    <div class="max-w-[1220px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-16">
+
+      <!-- Footer Top -->
+      <div
+        class="motion-item motion-soft-up grid grid-cols-1 lg:grid-cols-[0.95fr_1.35fr] gap-8 lg:gap-12 items-center pb-9 border-b border-white/10">
+
+        <a href="index.html" class="inline-flex items-center">
+          <img src="assets/logo.png"
+            alt="CoachNow Logo"
+            class="h-10 lg:h-11 w-auto object-contain">
+        </a>
+
+        <div
+          class="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 lg:justify-end">
+
+          <div
+            class="text-[14px] lg:text-[15px] font-semibold leading-[1.55] shrink-0">
+            Stay Connected<br>
+            With CoachNow
+          </div>
+
+          <form onsubmit="return false;"
+            class="flex w-full sm:w-[470px] gap-3">
+
+            <input type="email"
+              placeholder="Enter Your E-mail Address *"
+              class="min-w-0 flex-1 h-11 rounded-[7px] bg-[#302D2D] border border-white/5 px-4 text-[12px] lg:text-[13px] text-white placeholder:text-zinc-300 outline-none focus:border-brand-red transition-colors">
+
+            <button type="submit"
+              class="h-11 px-8 rounded-[7px] bg-brand-red hover:bg-brand-red-hover text-[12px] lg:text-[13px] font-medium transition-colors">
+              Subscribe
+            </button>
+          </form>
+        </div>
+      </div>
+
+
+      <!-- Footer Columns -->
+      <div
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.3fr_.78fr_.78fr_1.12fr] gap-0 border-b border-white/10">
+
+        <!-- About -->
+        <div
+          class="motion-item motion-soft-up py-10 lg:pr-10 lg:border-r border-white/10"
+          style="--motion-delay:100ms;">
+
+          <p
+            class="text-[12px] lg:text-[13px] text-zinc-400 leading-[1.85] max-w-[320px]">
+            CoachNow helps athletes and families discover trusted local coaches,
+            compare training options, and book sessions that fit their goals and
+            schedules. From individual coaching to group sessions, find the right
+            training and keep moving forward.
+          </p>
+
+          <div class="flex gap-2.5 mt-6">
+
+            <a href="#"
+              aria-label="Facebook"
+              class="w-8 h-8 rounded-[7px] border border-zinc-600 bg-transparent text-white flex items-center justify-center text-[13px] font-semibold transition-all duration-200 hover:bg-brand-red hover:border-brand-red">
+              f
+            </a>
+
+            <a href="#"
+              aria-label="X"
+              class="w-8 h-8 rounded-[7px] border border-zinc-600 bg-transparent text-white flex items-center justify-center text-[12px] transition-all duration-200 hover:bg-brand-red hover:border-brand-red">
+              𝕏
+            </a>
+
+            <a href="#"
+              aria-label="LinkedIn"
+              class="w-8 h-8 rounded-[7px] border border-zinc-600 bg-transparent text-white flex items-center justify-center text-[12px] font-semibold transition-all duration-200 hover:bg-brand-red hover:border-brand-red">
+              in
+            </a>
+
+            <a href="#"
+              aria-label="Instagram"
+              class="w-8 h-8 rounded-[7px] border border-zinc-600 bg-transparent text-white flex items-center justify-center text-[12px] transition-all duration-200 hover:bg-brand-red hover:border-brand-red">
+              ◎
+            </a>
+          </div>
+        </div>
+
+
+        <!-- Explore -->
+        <div
+          class="motion-item motion-soft-up py-10 lg:px-10 lg:border-r border-white/10"
+          style="--motion-delay:185ms;">
+
+          <h4 class="text-[14px] lg:text-[15px] font-semibold mb-5">
+            Explore
+          </h4>
+
+          <ul class="space-y-3 text-[12px] lg:text-[13px] text-zinc-400">
+
+            <li>
+              <a href="#hero" class="hover:text-white transition-colors">
+                Find a Coach
+              </a>
+            </li>
+
+            <li>
+              <a href="index.html#how-it-works" class="hover:text-white transition-colors">
+                How It Works
+              </a>
+            </li>
+
+            <li>
+              <a href="index.html#training" class="hover:text-white transition-colors">
+                Training Options
+              </a>
+            </li>
+
+            <li>
+              <a href="become-a-coach.html" class="hover:text-white transition-colors">
+                Become a Coach
+              </a>
+            </li>
+
+            <li>
+              <a href="become-a-coach.html" class="hover:text-white transition-colors">
+                Founding Coaches
+              </a>
+            </li>
+          </ul>
+        </div>
+
+
+        <!-- Company -->
+        <div
+          class="motion-item motion-soft-up py-10 lg:px-10 lg:border-r border-white/10"
+          style="--motion-delay:270ms;">
+
+          <h4 class="text-[14px] lg:text-[15px] font-semibold mb-5">
+            Company
+          </h4>
+
+          <ul class="space-y-3 text-[12px] lg:text-[13px] text-zinc-400">
+
+            <li>
+              <a href="about.html" class="hover:text-white transition-colors">
+                About CoachNow
+              </a>
+            </li>
+
+            <li>
+              <a href="contact.html" class="hover:text-white transition-colors">
+                Contact
+              </a>
+            </li>
+
+            <li>
+              <a href="faq.html" class="hover:text-white transition-colors">
+                FAQ
+              </a>
+            </li>
+
+            <li>
+              <a href="#" class="hover:text-white transition-colors">
+                Privacy Policy
+              </a>
+            </li>
+
+            <li>
+              <a href="#" class="hover:text-white transition-colors">
+                Cookie Policy
+              </a>
+            </li>
+          </ul>
+        </div>
+
+
+        <!-- Contact -->
+        <div
+          class="motion-item motion-soft-up py-10 lg:pl-10"
+          style="--motion-delay:355ms;">
+
+          <h4 class="text-[14px] lg:text-[15px] font-semibold mb-5">
+            Contact Info
+          </h4>
+
+          <div class="text-[13px] lg:text-[14px] text-white">
+
+            <div
+              class="flex items-center gap-3 pb-4 border-b border-white/10">
+
+              <span
+                class="w-9 h-9 rounded-[8px] bg-brand-red flex items-center justify-center shrink-0">
+
+                <svg class="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8">
+
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.79.62 2.64a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6 6l1.26-1.26a2 2 0 0 1 2.11-.45c.85.29 1.74.5 2.64.62A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+              </span>
+
+              <span>(782) 444-6566</span>
+            </div>
+
+
+            <div
+              class="flex items-center gap-3 py-4 border-b border-white/10">
+
+              <span
+                class="w-9 h-9 rounded-[8px] bg-brand-red flex items-center justify-center shrink-0">
+
+                <svg class="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8">
+
+                  <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                  <path d="m3 7 9 6 9-6"></path>
+                </svg>
+              </span>
+
+              <span>support@coachnow.com</span>
+            </div>
+
+
+            <div class="flex items-start gap-3 pt-4">
+
+              <span
+                class="w-9 h-9 rounded-[8px] bg-brand-red flex items-center justify-center shrink-0">
+
+                <svg class="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8">
+
+                  <path d="M21 10c0 7-9 12-9 12S3 17 3 10a9 9 0 1 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="2.5"></circle>
+                </svg>
+              </span>
+
+              <span class="leading-[1.2]">
+                Murrieta &amp; Temecula,<br>
+                California
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Copyright -->
+      <div
+        class="motion-item motion-soft-up pt-6 text-center text-[11px] lg:text-[12px] text-zinc-300"
+        style="--motion-delay:440ms;">
+
+        © 2026
+        <span class="text-brand-red font-medium">CoachNow.</span>
+        All Rights Reserved. Design by
+        <a href="https://texaswebstudio.co/" target="_blank" rel="noopener noreferrer" class="text-brand-red font-medium hover:underline">Texas Web Studio</a>
+      </div>
+
+    </div>
+  </footer>
+
+
+  <!-- ==================== NAVBAR SCRIPT ==================== -->
+  
+
+
+  <!-- ==================== HERO + SECTION MOTION ==================== -->
+  
+
+
+  <!-- ==================== SCROLL PROGRESS ==================== -->
+  
+
+
+  <!-- ==================== PRELOADER BEHAVIOR ==================== -->
+  
+
+
+  <!-- ==================== BUBBLE ACTIVITY ==================== -->
+  
+
+
+  <!-- ==================== SIMPLE FILTER UI ==================== -->
+  
+
+
+  <!-- ==================== LARGE-SCREEN TEXT SCALING ==================== -->
+  
+
+
+  <!-- ==================== LENIS SMOOTH SCROLL ==================== -->
+  <!-- Loaded after all page-critical scripts so it cannot trap the preloader. -->
+  <script src="https://unpkg.com/lenis@1.3.26/dist/lenis.min.js"></script>
+
+  
+
+
+  <!-- Native fallback for bubble when Lenis does not load -->
+  
+
+<script src="assets/js/find-a-coach.js"></script>
+</body>
+</html>

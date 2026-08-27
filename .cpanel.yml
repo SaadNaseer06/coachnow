@@ -1,0 +1,21 @@
+---
+# cPanel Git Version Control — runs when you click "Deploy HEAD Commit"
+# or when a GitHub webhook triggers a pull + deploy.
+#
+# BEFORE FIRST DEPLOY:
+# 1. Replace YOUR_CPANEL_USER below with your cPanel username.
+# 2. Clone this repo to /home/YOUR_CPANEL_USER/coachnow (recommended path).
+# 3. Create .env on the server (never commit .env).
+# 4. Point your domain document root to /home/YOUR_CPANEL_USER/coachnow/public
+
+deployment:
+  tasks:
+    - export APP_DIR=/home/YOUR_CPANEL_USER/coachnow
+    - cd $APP_DIR
+    - /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction
+    - /usr/local/bin/php artisan migrate --force --no-interaction
+    - /usr/local/bin/php artisan config:cache --no-interaction
+    - /usr/local/bin/php artisan route:cache --no-interaction
+    - /usr/local/bin/php artisan view:cache --no-interaction
+    - /usr/local/bin/php artisan storage:link --no-interaction || true
+    - /bin/chmod -R ug+rwx storage bootstrap/cache
