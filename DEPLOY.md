@@ -1,36 +1,37 @@
 # Auto-deploy: GitHub → cPanel
 
-After **one-time setup**, every `git push origin main` updates the live site automatically. No SSH, no manual pull, no terminal commands.
+After **one-time setup**, every `git push origin main` updates the live site automatically.
 
 ```
-Your PC  →  git push  →  GitHub  →  webhook  →  cPanel pulls + deploys
+Your PC  →  git push  →  GitHub Actions  →  SSH into cPanel  →  git pull + deploy  →  live
 ```
 
 ---
 
-## One-time setup (about 10 minutes)
+## One-time setup
 
-Do these steps **once**. After that, only `git push` is needed.
+### A — cPanel (server)
 
-### Step 1 — Connect GitHub repo in cPanel
+#### 1. Enable SSH
+cPanel → **Security** → **SSH Access** → enable / manage keys.
 
-1. Log in to **cPanel**
-2. Open **Git Version Control**
-3. Click **Create**
-4. Fill in:
-   - **Clone URL:** `https://github.com/SaadNaseer06/coachnow.git`
-   - **Repository Path:** `/home/serverlinktestwe/public_html/coachnow.serverlinktestwebsites.com`
-5. Click **Create**
+Generate a key pair (or use Terminal):
 
-> Use a **GitHub Personal Access Token** as the password if the repo is private  
-> (GitHub → Settings → Developer settings → Personal access tokens).
+```bash
+ssh-keygen -t ed25519 -C "github-deploy" -f ~/.ssh/github_deploy -N ""
+cat ~/.ssh/github_deploy.pub >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
 
-### Step 2 — Create `.env` on the server (one time)
+Copy the **private** key — you will paste it into GitHub:
 
-cPanel → **File Manager** → open your site folder:
+```bash
+cat ~/.ssh/github_deploy
+```
 
-1. Copy `.env.example` → rename to `.env`
-2. Edit `.env` — minimum settings:
+#### 2. Create `.env` on the server
+
+cPanel → **File Manager** → site folder → copy `.env.example` to `.env`:
 
 ```env
 APP_ENV=production
@@ -42,85 +43,78 @@ SESSION_DRIVER=database
 CACHE_STORE=database
 ```
 
-Save the file. Do **not** commit `.env` to GitHub.
+#### 3. First deploy (Terminal, one time)
 
-### Step 3 — First deploy (one click)
-
-1. cPanel → **Git Version Control** → **Manage** (your repo)
-2. Click **Pull or Deploy**
-
-cPanel will:
-- Pull the latest code from GitHub
-- Run `.cpanel.yml` → `deploy/cpanel-deploy.sh`
-- Install Composer dependencies, migrate DB, rebuild caches
-
-Wait until it finishes (may take 1–3 minutes the first time).
-
-### Step 4 — Add GitHub repository secret (enables auto-deploy)
-
-This is the **only GitHub-side config** you need. Do **not** add a GitHub Webhook if you use this method.
-
-1. In cPanel **Git Version Control → Manage**, copy the **Pull or Deploy URL**  
-   (a long `https://...` link — same URL used for manual deploy)
-2. Open **GitHub** → [coachnow](https://github.com/SaadNaseer06/coachnow) → **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. Set:
-
-| Field | Value |
-|-------|--------|
-| **Name** | `CPANEL_DEPLOY_URL` |
-| **Secret** | Paste the cPanel Pull or Deploy URL |
-
-5. Click **Add secret**
-
-**Done.** On every `git push origin main`, GitHub Actions calls that URL → cPanel pulls and deploys.
-
-Verify: after pushing, open **Actions** tab on GitHub — the **Deploy to cPanel** workflow should show green.
+```bash
+cd ~/public_html/coachnow.serverlinktestwebsites.com
+bash deploy/cpanel-deploy.sh
+```
 
 ---
 
-## Daily workflow (after setup)
+### B — GitHub (repository secrets)
 
-On your PC:
+Open: **https://github.com/SaadNaseer06/coachnow/settings/secrets/actions**
+
+Add these **6 repository secrets**:
+
+| Secret name | Value |
+|-------------|--------|
+| `CPANEL_SSH_HOST` | `serverlinktestwebsites.com` (or your server IP) |
+| `CPANEL_SSH_USER` | `serverlinktestwe` |
+| `CPANEL_SSH_KEY` | Full private key from step A (`-----BEGIN ... END-----`) |
+| `CPANEL_DEPLOY_PATH` | `/home/serverlinktestwe/public_html/coachnow.serverlinktestwebsites.com` |
+| `GITHUB_DEPLOY_TOKEN` | GitHub Personal Access Token (repo read access) |
+| `CPANEL_SSH_PORT` | `22` (optional — omit if default) |
+
+**GitHub token** (for private repo pull on server):
+
+1. GitHub → **Settings → Developer settings → Personal access tokens**
+2. Generate token with **Contents: Read** on the `coachnow` repo
+3. Paste as `GITHUB_DEPLOY_TOKEN`
+
+**Done.** Push to test:
 
 ```bash
-git add .
-git commit -m "Describe your change"
 git push origin main
 ```
 
-Within ~30–60 seconds, cPanel pulls and deploys. Refresh the site to see changes.
+Check **GitHub → Actions → Deploy to cPanel** — should show green.
+
+---
+
+## Daily workflow
+
+```bash
+git add .
+git commit -m "Your change"
+git push origin main
+```
+
+Site updates in ~30–60 seconds. No cPanel clicks, no manual commands.
 
 ---
 
 ## What runs on each deploy
 
-File **`.cpanel.yml`** triggers **`deploy/cpanel-deploy.sh`**, which:
+`deploy/remote-deploy.sh` (via SSH):
 
-1. `composer install --no-dev`
-2. Creates `database/database.sqlite` if missing
-3. `php artisan migrate --force`
-4. Clears and rebuilds config / route / view caches
-5. `php artisan storage:link`
-6. Fixes permissions on `storage/`, `bootstrap/cache/`, `database/`
+1. `git fetch` + `git reset --hard origin/main`
+2. `deploy/cpanel-deploy.sh` → composer install, migrate, cache rebuild
 
 ---
 
-## Alternative: GitHub Webhook (skip if you use the secret)
+## Alternative: cPanel webhook only (no SSH)
 
-Only use this if you prefer not to use GitHub Actions:
+If SSH is not available on your host, use one secret instead:
 
-1. GitHub → **Settings → Webhooks → Add webhook**
-2. **Payload URL** = same cPanel Pull or Deploy URL
-3. **Events:** Just the push event
+| Secret | Value |
+|--------|--------|
+| `CPANEL_DEPLOY_URL` | cPanel → Git Version Control → Manage → Pull or Deploy URL |
 
-Do **not** use both the secret **and** the webhook — that deploys twice per push.
+Also click **Update from Remote** once in cPanel so `.cpanel.yml` exists on the server.
 
----
-
-## Site layout (document root = project root)
-
-This project uses root **`index.php`** + **`.htaccess`** because cPanel points the domain at the project folder (not `public/`). Assets in `public/assets/` are served via rewrite rules — no extra config needed after deploy.
+Do **not** configure both SSH secrets and `CPANEL_DEPLOY_URL`.
 
 ---
 
@@ -128,23 +122,23 @@ This project uses root **`index.php`** + **`.htaccess`** because cPanel points t
 
 | Issue | Fix |
 |-------|-----|
-| Webhook shows red ✗ | Confirm Payload URL matches cPanel exactly; repo path in Step 1 is correct |
-| Push does nothing | cPanel → Git → Manage → check **Pull or Deploy** manually once; review deploy log |
-| 500 error | File Manager → check `.env` exists with `APP_KEY=` set; re-run Pull or Deploy |
-| CSS/images 404 | Confirm root `.htaccess` and `index.php` exist after pull; hard-refresh browser |
-| Composer fails | cPanel → MultiPHP INI Editor → enable `allow_url_fopen` for PHP 8.2 |
-| Check server state | One-time in Terminal: `bash deploy/check-server.sh` |
+| Actions fails: permission denied | Check `CPANEL_SSH_KEY` is the full private key; public key is in `authorized_keys` |
+| Actions fails: git fetch | Set `GITHUB_DEPLOY_TOKEN` with repo read access |
+| Actions skipped / error "No deploy secrets" | Add secrets from table above |
+| 500 on site | Ensure `.env` exists on server with `APP_KEY=` set |
+| CSS/images 404 | Confirm root `.htaccess` and `index.php` exist after deploy |
+| Check server | SSH in and run: `bash deploy/check-server.sh` |
 
 ---
 
-## Requirements on cPanel
+## Requirements
 
-- PHP **8.2+** (Select PHP Version)
-- Extensions: `mbstring`, `openssl`, `pdo`, `tokenizer`, `xml`, `ctype`, `json`, `bcmath`, `fileinfo`
+- PHP **8.2+** on cPanel
+- SSH access enabled
 - Writable `storage/` and `bootstrap/cache/`
 
 ## Security
 
-- Never commit `.env` (in `.gitignore`)
-- Keep `APP_DEBUG=false` in production
-- Use a private GitHub repo
+- Never commit `.env` or SSH private keys to GitHub
+- Use `APP_DEBUG=false` in production
+- Rotate `GITHUB_DEPLOY_TOKEN` if exposed

@@ -1,6 +1,5 @@
-# Triggers cPanel pull + deploy on every push to main.
-# One-time setup: GitHub → Settings → Secrets → Actions → CPANEL_DEPLOY_URL
-# Value = cPanel → Git Version Control → Manage → Pull or Deploy URL
+# Auto-deploy on every push to main.
+# One-time setup: add GitHub repository secrets (see DEPLOY.md).
 
 name: Deploy to cPanel
 
@@ -12,12 +11,36 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Skip if using GitHub webhook directly (recommended in DEPLOY.md)
-    if: ${{ secrets.CPANEL_DEPLOY_URL != '' }}
     steps:
-      - name: Trigger cPanel pull and deploy
+      - name: Deploy via SSH (recommended)
+        if: ${{ secrets.CPANEL_SSH_HOST != '' }}
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GITHUB_DEPLOY_TOKEN: ${{ secrets.GITHUB_DEPLOY_TOKEN }}
+          CPANEL_DEPLOY_PATH: ${{ secrets.CPANEL_DEPLOY_PATH }}
+        with:
+          host: ${{ secrets.CPANEL_SSH_HOST }}
+          username: ${{ secrets.CPANEL_SSH_USER }}
+          key: ${{ secrets.CPANEL_SSH_KEY }}
+          port: ${{ secrets.CPANEL_SSH_PORT || 22 }}
+          envs: GITHUB_DEPLOY_TOKEN,CPANEL_DEPLOY_PATH
+          script: |
+            set -e
+            APP_DIR="${CPANEL_DEPLOY_PATH:-/home/serverlinktestwe/public_html/coachnow.serverlinktestwebsites.com}"
+            cd "$APP_DIR"
+            bash deploy/remote-deploy.sh
+
+      - name: Deploy via cPanel webhook (alternative)
+        if: ${{ secrets.CPANEL_SSH_HOST == '' && secrets.CPANEL_DEPLOY_URL != '' }}
         env:
           CPANEL_DEPLOY_URL: ${{ secrets.CPANEL_DEPLOY_URL }}
         run: |
           curl -fsS -X POST "$CPANEL_DEPLOY_URL"
-          echo "cPanel deploy triggered."
+          echo "cPanel webhook deploy triggered."
+
+      - name: Deploy secrets not configured
+        if: ${{ secrets.CPANEL_SSH_HOST == '' && secrets.CPANEL_DEPLOY_URL == '' }}
+        run: |
+          echo "::error::No deploy secrets configured."
+          echo "Add SSH secrets (recommended) or CPANEL_DEPLOY_URL — see DEPLOY.md"
+          exit 1
