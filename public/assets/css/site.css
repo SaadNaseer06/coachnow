@@ -1,8 +1,30 @@
-/* Shared layout: mobile nav + responsive base */
-html,
-body {
-  overflow-x: clip;
+/* Shared layout: mobile nav + single-page scroll */
+html {
+  overflow-x: hidden;
+  overflow-y: auto;
   max-width: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  overflow-y: visible;
+  max-width: 100%;
+  min-height: 100%;
+}
+
+/* Lenis smooth scroll — one scroll root only (prevents double scrollbars) */
+html.lenis {
+  height: auto;
+  overflow: hidden;
+}
+
+html.lenis body {
+  height: auto;
+  overflow: visible;
+}
+
+html.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
 }
 
 img,
@@ -48,12 +70,12 @@ body.mobile-nav-open {
 #mobileMenuDrawer {
   position: relative;
   z-index: 1;
-  max-height: calc(100vh - 72px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 #mobileMenuDrawer.is-open {
+  max-height: calc(100vh - 72px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   animation: mobileMenuIn 0.22s ease-out;
 }
 

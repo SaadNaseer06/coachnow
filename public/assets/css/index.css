@@ -121,7 +121,7 @@
       text, cards, images, icons, buttons and spacing inside 1220px sections.
     */
     @media (min-width: 1600px) and (max-width: 1919px) {
-      body { overflow-x: hidden; }
+      html { overflow-x: hidden; }
 
       [class*="max-w-[1220px]"] {
         max-width: 1320px !important;
@@ -134,7 +134,7 @@
     }
 
     @media (min-width: 1920px) {
-      body { overflow-x: hidden; }
+      html { overflow-x: hidden; }
 
       [class*="max-w-[1220px]"] {
         max-width: 1450px !important;
@@ -586,7 +586,10 @@
   
 
 
-  html { scroll-behavior: smooth; }
+  /* scroll-behavior handled by Lenis when active; avoid duplicate smooth scroll */
+  html:not(.lenis) {
+    scroll-behavior: smooth;
+  }
 
   /* Bubble stays hidden until the user is actively scrolling. */
   #coachnowScrollBubble {

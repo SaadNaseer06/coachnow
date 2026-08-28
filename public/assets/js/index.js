@@ -1128,6 +1128,9 @@
     syncTouch: false
   });
 
+  document.documentElement.classList.add('lenis', 'lenis-smooth');
+  window.coachNowLenis = lenis;
+
   function raf(time) {
     lenis.raf(time);
     requestAnimationFrame(raf);
