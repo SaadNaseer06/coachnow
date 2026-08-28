@@ -24,7 +24,7 @@
           </div>
 
           <h1 class="max-w-[760px] xl:max-w-[900px] 2xl:max-w-[980px] text-4xl sm:text-5xl md:text-[3.35rem] lg:text-[3.65rem] xl:text-[3.9rem] 2xl:text-[4.25rem] font-medium tracking-[0.01em] text-white leading-none mb-4 xl:mb-5">
-            <span class="block">Find the Right Coach.</span>
+            <span class="block">Find the Right adasdasdas Coach.</span>
             <span class="block mt-3">Train With Confidence.</span>
           </h1>
 
