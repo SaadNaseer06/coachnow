@@ -1,0 +1,45 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+    RewriteBase /
+
+    # Block web access to Laravel internals
+    RewriteRule ^(app|bootstrap|config|database|resources|routes|storage|vendor|tests)(/|$) - [F,L]
+    RewriteRule ^\.env - [F,L]
+    RewriteRule ^(composer\.(json|lock)|artisan|package\.json|composer\.phar)$ - [F,L]
+
+    # Static files live in public/ — map common paths explicitly (works on more cPanel hosts)
+    RewriteRule ^assets/(.*)$ public/assets/$1 [L]
+    RewriteRule ^favicon\.ico$ public/favicon.ico [L]
+    RewriteRule ^favicon\.svg$ public/assets/favicon.svg [L]
+    RewriteRule ^favicon-([0-9]+)\.png$ public/assets/favicon-$1.png [L]
+    RewriteRule ^apple-touch-icon\.png$ public/assets/apple-touch-icon.png [L]
+    RewriteRule ^robots\.txt$ public/robots.txt [L]
+
+    # Fallback: any file that exists under public/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{DOCUMENT_ROOT}/public/%{REQUEST_URI} -f
+    RewriteRule ^(.*)$ public/$1 [L]
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Handle X-XSRF-Token Header
+    RewriteCond %{HTTP:x-xsrf-token} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # Redirect Trailing Slashes If Not A Folder...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Front controller
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>

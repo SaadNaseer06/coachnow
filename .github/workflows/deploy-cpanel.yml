@@ -1,0 +1,23 @@
+name: Deploy to cPanel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger cPanel pull and deploy
+        env:
+          CPANEL_DEPLOY_URL: ${{ secrets.CPANEL_DEPLOY_URL }}
+        run: |
+          if [ -z "$CPANEL_DEPLOY_URL" ]; then
+            echo "CPANEL_DEPLOY_URL secret not set — skip auto-deploy."
+            echo "Add it in GitHub: Settings → Secrets → Actions"
+            echo "Value = cPanel Git → Manage → Pull or Deploy webhook URL"
+            exit 0
+          fi
+          curl -fsS -X POST "$CPANEL_DEPLOY_URL"
+          echo "cPanel deploy triggered."

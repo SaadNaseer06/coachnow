@@ -1,21 +1,19 @@
 ---
-# cPanel Git Version Control — runs when you click "Deploy HEAD Commit"
-# or when a GitHub webhook triggers a pull + deploy.
-#
-# BEFORE FIRST DEPLOY:
-# 1. Replace YOUR_CPANEL_USER below with your cPanel username.
-# 2. Clone this repo to /home/YOUR_CPANEL_USER/coachnow (recommended path).
-# 3. Create .env on the server (never commit .env).
-# 4. Point your domain document root to /home/YOUR_CPANEL_USER/coachnow/public
+# cPanel auto-deploy (Git Version Control → Deploy HEAD / GitHub webhook)
+# Path matches: public_html/coachnow.serverlinktestwebsites.com
 
 deployment:
   tasks:
-    - export APP_DIR=/home/YOUR_CPANEL_USER/coachnow
+    - export APP_DIR=/home/serverlinktestwe/public_html/coachnow.serverlinktestwebsites.com
     - cd $APP_DIR
-    - /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction
+    - /usr/local/bin/php -d allow_url_fopen=On composer.phar install --no-dev --optimize-autoloader --no-interaction 2>/dev/null || /usr/local/bin/php -d allow_url_fopen=On /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction
+    - test -f database/database.sqlite || /usr/bin/touch database/database.sqlite
     - /usr/local/bin/php artisan migrate --force --no-interaction
+    - /usr/local/bin/php artisan config:clear --no-interaction
+    - /usr/local/bin/php artisan cache:clear --no-interaction
+    - /usr/local/bin/php artisan view:clear --no-interaction
     - /usr/local/bin/php artisan config:cache --no-interaction
     - /usr/local/bin/php artisan route:cache --no-interaction
     - /usr/local/bin/php artisan view:cache --no-interaction
     - /usr/local/bin/php artisan storage:link --no-interaction || true
-    - /bin/chmod -R ug+rwx storage bootstrap/cache
+    - /bin/chmod -R ug+rwx storage bootstrap/cache database
