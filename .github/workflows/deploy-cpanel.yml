@@ -21,6 +21,7 @@ jobs:
           host: ${{ secrets.CPANEL_SSH_HOST }}
           username: ${{ secrets.CPANEL_SSH_USER }}
           key: ${{ secrets.CPANEL_SSH_KEY }}
+          passphrase: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
           port: 22
           envs: GITHUB_DEPLOY_TOKEN,CPANEL_DEPLOY_PATH
           script: |

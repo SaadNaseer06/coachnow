@@ -15,19 +15,21 @@ Your PC  →  git push  →  GitHub Actions  →  SSH into cPanel  →  git pull
 #### 1. Enable SSH
 cPanel → **Security** → **SSH Access** → enable / manage keys.
 
-Generate a key pair (or use Terminal):
+Generate a deploy key **with no passphrase** (required for GitHub Actions):
 
 ```bash
 ssh-keygen -t ed25519 -C "github-deploy" -f ~/.ssh/github_deploy -N ""
 cat ~/.ssh/github_deploy.pub >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys ~/.ssh/github_deploy
 ```
 
-Copy the **private** key — you will paste it into GitHub:
+Copy the **private** key — paste the full output into GitHub secret `CPANEL_SSH_KEY`:
 
 ```bash
 cat ~/.ssh/github_deploy
 ```
+
+> If your key has a passphrase, either add secret `CPANEL_SSH_PASSPHRASE` with that passphrase, or regenerate with `-N ""` (recommended).
 
 #### 2. Create `.env` on the server
 
@@ -122,7 +124,7 @@ Do **not** configure both SSH secrets and `CPANEL_DEPLOY_URL`.
 
 | Issue | Fix |
 |-------|-----|
-| Actions fails: permission denied | Check `CPANEL_SSH_KEY` is the full private key; public key is in `authorized_keys` |
+| Actions fails: passphrase protected | Regenerate key with `-N ""` and update `CPANEL_SSH_KEY`, or add `CPANEL_SSH_PASSPHRASE` secret |
 | Actions fails: git fetch | Set `DEPLOY_TOKEN` with repo read access |
 | Actions skipped / error "No deploy secrets" | Add secrets from table above |
 | 500 on site | Ensure `.env` exists on server with `APP_KEY=` set |
