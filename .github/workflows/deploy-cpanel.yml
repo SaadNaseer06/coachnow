@@ -27,5 +27,22 @@ jobs:
           script: |
             set -e
             APP_DIR="${CPANEL_DEPLOY_PATH:-/home/serverlinktestwe/public_html/coachnow.serverlinktestwebsites.com}"
+            REPO="SaadNaseer06/coachnow"
+            BRANCH="main"
             cd "$APP_DIR"
-            bash deploy/remote-deploy.sh
+
+            if [ -n "$GITHUB_DEPLOY_TOKEN" ]; then
+              git remote set-url origin "https://x-access-token:${GITHUB_DEPLOY_TOKEN}@github.com/${REPO}.git"
+            fi
+
+            git fetch origin "$BRANCH"
+            git reset --hard "origin/${BRANCH}"
+
+            if [ -f deploy/cpanel-deploy.sh ]; then
+              bash deploy/cpanel-deploy.sh
+            elif [ -f deploy/remote-deploy.sh ]; then
+              bash deploy/remote-deploy.sh
+            else
+              echo "Deploy scripts missing after git pull — check repo path and DEPLOY_TOKEN."
+              exit 1
+            fi
