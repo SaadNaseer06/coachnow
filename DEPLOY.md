@@ -5,8 +5,10 @@ Push code to GitHub from your PC; cPanel pulls and runs Laravel deploy steps aut
 ## Overview
 
 ```
-Your PC  →  git push  →  GitHub  →  webhook / Deploy  →  cPanel server
+Your PC  →  git push  →  GitHub Actions  →  SSH  →  cPanel (git pull + deploy)
 ```
+
+After a **one-time setup** below, every `git push origin main` deploys automatically. No manual Terminal commands.
 
 ## Part 1 — GitHub (one time, on your PC)
 
@@ -128,23 +130,83 @@ Common fixes:
 - Missing SQLite file → `touch database/database.sqlite`
 - Permissions → `chmod -R 775 storage bootstrap/cache database`
 
-### 5. Auto-deploy pipeline (push → live on cPanel)
+### 5. Auto-deploy (one-time setup — push goes live automatically)
 
-The repo includes:
+GitHub Actions SSHs into your cPanel server on every push to `main`, pulls the latest code, and runs the deploy script. **No cPanel webhook or manual Terminal commands needed after setup.**
 
-- **`.cpanel.yml`** — runs on cPanel **Deploy HEAD Commit** (composer, migrate, cache)
-- **`.github/workflows/deploy-cpanel.yml`** — triggers cPanel webhook on every push to `main`
+#### Step A — Enable SSH on cPanel
 
-**One-time setup:**
+1. cPanel → **SSH Access** (must be enabled by your host)
+2. You will use a **new key pair** just for GitHub Actions (no passphrase)
 
-1. **cPanel → Git Version Control → Manage** your repo  
-2. Copy the **Pull or Deploy webhook URL** (sometimes under “Deploy” or “Webhook”)
-3. **GitHub → coachnow → Settings → Secrets and variables → Actions → New secret**
-   - Name: `CPANEL_DEPLOY_URL`
-   - Value: paste the cPanel webhook URL
-4. In cPanel, click **Pull or Deploy** once to run the first deploy with `.cpanel.yml`
+On your **Windows PC** (PowerShell):
 
-**Daily workflow:**
+```powershell
+ssh-keygen -t ed25519 -C "github-actions-coachnow" -f "$env:USERPROFILE\.ssh\coachnow_deploy" -N '""'
+```
+
+This creates:
+- Private key: `C:\Users\YOU\.ssh\coachnow_deploy` → goes to GitHub
+- Public key: `C:\Users\YOU\.ssh\coachnow_deploy.pub` → goes to cPanel
+
+#### Step B — Add public key to cPanel
+
+1. Open `coachnow_deploy.pub` in Notepad and copy the whole line
+2. cPanel → **SSH Access → Manage SSH Keys → Import Key**
+3. Paste the public key, name it `github-actions`, click **Import**
+4. Click **Manage** → **Authorize**
+
+#### Step C — Create a GitHub Personal Access Token
+
+1. GitHub → **Settings → Developer settings → Personal access tokens → Tokens (classic)**
+2. **Generate new token (classic)** → check **`repo`**
+3. Copy the token (starts with `ghp_...`)
+
+This token lets the server pull your **private** repo during deploy.
+
+#### Step D — Add GitHub Actions secrets
+
+GitHub → **coachnow repo → Settings → Secrets and variables → Actions → New repository secret**
+
+Add each secret:
+
+| Secret name | Value |
+|-------------|--------|
+| `CPANEL_SSH_HOST` | `serverlinktestwebsites.com` (your server hostname) |
+| `CPANEL_SSH_USER` | `serverlinktestwe` |
+| `CPANEL_SSH_KEY` | Entire **private** key from `coachnow_deploy` (including `-----BEGIN...` lines) |
+| `CPANEL_SSH_PORT` | `22` (optional; omit if default) |
+| `CPANEL_DEPLOY_PATH` | `/home/serverlinktestwe/public_html/coachnow.serverlinktestwebsites.com` |
+| `GITHUB_DEPLOY_TOKEN` | Your `ghp_...` token from Step C |
+
+#### Step E — First deploy (one manual pull to get latest deploy scripts)
+
+In cPanel **Terminal** (last time you need this):
+
+```bash
+cd ~/public_html/coachnow.serverlinktestwebsites.com
+git remote set-url origin https://SaadNaseer06:YOUR_TOKEN@github.com/SaadNaseer06/coachnow.git
+git pull origin main
+bash deploy/cpanel-deploy.sh
+```
+
+Replace `YOUR_TOKEN` with the same token from Step C.
+
+#### Step F — Test auto-deploy
+
+On your PC:
+
+```bash
+git add .
+git commit -m "Test auto-deploy"
+git push origin main
+```
+
+Check **GitHub → Actions** tab — the “Deploy to cPanel” workflow should run and succeed.
+
+---
+
+### Daily workflow (after setup)
 
 ```bash
 git add .
@@ -152,15 +214,9 @@ git commit -m "Your change"
 git push origin main
 ```
 
-GitHub Actions calls the cPanel webhook → server pulls code → `.cpanel.yml` runs deploy tasks.
+That’s it. GitHub deploys to cPanel automatically within ~1 minute.
 
-**No webhook on your host?** After each push: cPanel → Git → **Manage → Pull or Deploy**, or Terminal:
-
-```bash
-cd ~/public_html/coachnow.serverlinktestwebsites.com
-git pull origin main
-bash deploy/cpanel-deploy.sh
-```
+**Optional:** cPanel **Git → Pull or Deploy** still works if you want a manual deploy, but you should not need it.
 
 ### 6. Fix asset 404s (CSS / images / JS)
 
@@ -180,7 +236,7 @@ Hard-refresh the browser (Ctrl+Shift+R).
 
 ## Part 3 — Every time you ship a feature
 
-On your PC:
+On your PC only:
 
 ```bash
 git add .
@@ -188,17 +244,7 @@ git commit -m "Add booking flow"
 git push origin main
 ```
 
-On cPanel (if no webhook):
-
-- **Git Version Control** → **Manage** → **Pull or Deploy**
-
-Or Terminal:
-
-```bash
-cd ~/coachnow
-git pull origin main
-bash deploy/cpanel-deploy.sh
-```
+Auto-deploy runs via GitHub Actions (see Part 2, section 5).
 
 ## Requirements on cPanel
 

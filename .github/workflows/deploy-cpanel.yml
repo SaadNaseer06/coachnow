@@ -9,15 +9,19 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger cPanel pull and deploy
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
         env:
-          CPANEL_DEPLOY_URL: ${{ secrets.CPANEL_DEPLOY_URL }}
-        run: |
-          if [ -z "$CPANEL_DEPLOY_URL" ]; then
-            echo "CPANEL_DEPLOY_URL secret not set — skip auto-deploy."
-            echo "Add it in GitHub: Settings → Secrets → Actions"
-            echo "Value = cPanel Git → Manage → Pull or Deploy webhook URL"
-            exit 0
-          fi
-          curl -fsS -X POST "$CPANEL_DEPLOY_URL"
-          echo "cPanel deploy triggered."
+          GITHUB_DEPLOY_TOKEN: ${{ secrets.GITHUB_DEPLOY_TOKEN }}
+          CPANEL_DEPLOY_PATH: ${{ secrets.CPANEL_DEPLOY_PATH }}
+        with:
+          host: ${{ secrets.CPANEL_SSH_HOST }}
+          username: ${{ secrets.CPANEL_SSH_USER }}
+          key: ${{ secrets.CPANEL_SSH_KEY }}
+          port: ${{ secrets.CPANEL_SSH_PORT || 22 }}
+          envs: GITHUB_DEPLOY_TOKEN,CPANEL_DEPLOY_PATH
+          script: |
+            set -e
+            APP_DIR="${CPANEL_DEPLOY_PATH:-/home/serverlinktestwe/public_html/coachnow.serverlinktestwebsites.com}"
+            cd "$APP_DIR"
+            bash deploy/remote-deploy.sh

@@ -6,6 +6,8 @@ APP_DIR="${APP_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$APP_DIR"
 
 PHP="${PHP_BIN:-php}"
+
+if [ -f composer.phar ]; then
   $PHP -d allow_url_fopen=On composer.phar install --no-dev --optimize-autoloader --no-interaction
 elif command -v composer >/dev/null 2>&1; then
   $PHP -d allow_url_fopen=On "$(command -v composer)" install --no-dev --optimize-autoloader --no-interaction
