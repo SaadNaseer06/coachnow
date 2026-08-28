@@ -64,14 +64,14 @@ Add these **6 repository secrets**:
 | `CPANEL_SSH_USER` | `serverlinktestwe` |
 | `CPANEL_SSH_KEY` | Full private key from step A (`-----BEGIN ... END-----`) |
 | `CPANEL_DEPLOY_PATH` | `/home/serverlinktestwe/public_html/coachnow.serverlinktestwebsites.com` |
-| `GITHUB_DEPLOY_TOKEN` | GitHub Personal Access Token (repo read access) |
+| `DEPLOY_TOKEN` | GitHub Personal Access Token (repo read access) |
 | `CPANEL_SSH_PORT` | `22` (optional — omit if default) |
 
 **GitHub token** (for private repo pull on server):
 
 1. GitHub → **Settings → Developer settings → Personal access tokens**
 2. Generate token with **Contents: Read** on the `coachnow` repo
-3. Paste as `GITHUB_DEPLOY_TOKEN`
+3. Paste as `DEPLOY_TOKEN`
 
 **Done.** Push to test:
 
@@ -123,7 +123,7 @@ Do **not** configure both SSH secrets and `CPANEL_DEPLOY_URL`.
 | Issue | Fix |
 |-------|-----|
 | Actions fails: permission denied | Check `CPANEL_SSH_KEY` is the full private key; public key is in `authorized_keys` |
-| Actions fails: git fetch | Set `GITHUB_DEPLOY_TOKEN` with repo read access |
+| Actions fails: git fetch | Set `DEPLOY_TOKEN` with repo read access |
 | Actions skipped / error "No deploy secrets" | Add secrets from table above |
 | 500 on site | Ensure `.env` exists on server with `APP_KEY=` set |
 | CSS/images 404 | Confirm root `.htaccess` and `index.php` exist after deploy |
@@ -141,4 +141,4 @@ Do **not** configure both SSH secrets and `CPANEL_DEPLOY_URL`.
 
 - Never commit `.env` or SSH private keys to GitHub
 - Use `APP_DEBUG=false` in production
-- Rotate `GITHUB_DEPLOY_TOKEN` if exposed
+- Rotate `DEPLOY_TOKEN` if exposed

@@ -16,7 +16,7 @@ jobs:
         if: ${{ secrets.CPANEL_SSH_HOST != '' }}
         uses: appleboy/ssh-action@v1.2.0
         env:
-          GITHUB_DEPLOY_TOKEN: ${{ secrets.GITHUB_DEPLOY_TOKEN }}
+          GITHUB_DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN || secrets.GITHUB_DEPLOY_TOKEN }}
           CPANEL_DEPLOY_PATH: ${{ secrets.CPANEL_DEPLOY_PATH }}
         with:
           host: ${{ secrets.CPANEL_SSH_HOST }}
