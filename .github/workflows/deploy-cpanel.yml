@@ -1,10 +1,8 @@
-# Optional fallback — prefer GitHub → cPanel webhook (see DEPLOY.md "One-time setup").
-# Only use this if your host does not allow GitHub webhooks to the cPanel deploy URL.
-#
-# Setup: GitHub → Settings → Secrets → Actions → CPANEL_DEPLOY_URL
-# Value: cPanel → Git Version Control → Manage → Pull or Deploy URL
+# Triggers cPanel pull + deploy on every push to main.
+# One-time setup: GitHub → Settings → Secrets → Actions → CPANEL_DEPLOY_URL
+# Value = cPanel → Git Version Control → Manage → Pull or Deploy URL
 
-name: Deploy to cPanel (optional)
+name: Deploy to cPanel
 
 on:
   push:

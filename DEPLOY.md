@@ -56,28 +56,26 @@ cPanel will:
 
 Wait until it finishes (may take 1–3 minutes the first time).
 
-### Step 4 — Connect GitHub webhook (enables auto-deploy)
+### Step 4 — Add GitHub repository secret (enables auto-deploy)
 
-This is what makes every future push deploy automatically.
+This is the **only GitHub-side config** you need. Do **not** add a GitHub Webhook if you use this method.
 
 1. In cPanel **Git Version Control → Manage**, copy the **Pull or Deploy URL**  
-   (also called deploy webhook URL — a long `https://...` link)
-2. Open **GitHub** → [coachnow repo](https://github.com/SaadNaseer06/coachnow) → **Settings** → **Webhooks** → **Add webhook**
-3. Configure:
+   (a long `https://...` link — same URL used for manual deploy)
+2. Open **GitHub** → [coachnow](https://github.com/SaadNaseer06/coachnow) → **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Set:
 
 | Field | Value |
 |-------|--------|
-| **Payload URL** | Paste the cPanel Pull or Deploy URL |
-| **Content type** | `application/json` |
-| **Secret** | Leave empty |
-| **Which events?** | **Just the push event** |
-| **Active** | ✓ checked |
+| **Name** | `CPANEL_DEPLOY_URL` |
+| **Secret** | Paste the cPanel Pull or Deploy URL |
 
-4. Click **Add webhook**
+5. Click **Add secret**
 
-GitHub will send a test ping. A green ✓ on the webhook means cPanel accepted it.
+**Done.** On every `git push origin main`, GitHub Actions calls that URL → cPanel pulls and deploys.
 
-**Done.** Auto-deploy is live.
+Verify: after pushing, open **Actions** tab on GitHub — the **Deploy to cPanel** workflow should show green.
 
 ---
 
@@ -108,16 +106,15 @@ File **`.cpanel.yml`** triggers **`deploy/cpanel-deploy.sh`**, which:
 
 ---
 
-## Optional: GitHub Actions instead of webhook
+## Alternative: GitHub Webhook (skip if you use the secret)
 
-If your host blocks GitHub webhooks, use GitHub Actions as a fallback:
+Only use this if you prefer not to use GitHub Actions:
 
-1. Skip Step 4 above (do not add GitHub webhook)
-2. GitHub → **Settings → Secrets and variables → Actions**
-3. New secret: `CPANEL_DEPLOY_URL` = same cPanel Pull or Deploy URL
-4. Push to `main` — the workflow in `.github/workflows/deploy-cpanel.yml` triggers deploy
+1. GitHub → **Settings → Webhooks → Add webhook**
+2. **Payload URL** = same cPanel Pull or Deploy URL
+3. **Events:** Just the push event
 
-Use **either** the GitHub webhook **or** the Actions secret — not both (avoids double deploys).
+Do **not** use both the secret **and** the webhook — that deploys twice per push.
 
 ---
 
