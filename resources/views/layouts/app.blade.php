@@ -44,6 +44,7 @@
   </script>
 
   <link rel="stylesheet" href="https://unpkg.com/lenis@1.3.26/dist/lenis.css">
+  <link rel="stylesheet" href="{{ asset('assets/css/site.css') }}">
   @stack('styles')
 </head>
 <body class="font-sans bg-white text-zinc-900 antialiased selection:bg-brand-red selection:text-white">
@@ -56,6 +57,7 @@
   @include('partials.footer')
 
   <script src="https://unpkg.com/lenis@1.3.26/dist/lenis.min.js"></script>
+  <script src="{{ asset('assets/js/site.js') }}"></script>
   @stack('scripts')
 </body>
 </html>

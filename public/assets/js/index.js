@@ -1,16 +1,4 @@
 ﻿(() => {
-      const header = document.getElementById('siteHeader');
-      if (!header) return;
-
-      const updateNavbar = () => {
-        header.classList.toggle('nav-scrolled', window.scrollY > 24);
-      };
-
-      updateNavbar();
-      window.addEventListener('scroll', updateNavbar, { passive: true });
-    })();
-
-(() => {
       const HERO_HEADING_SELECTOR = '#hero h1';
 
       const getScale = () => {

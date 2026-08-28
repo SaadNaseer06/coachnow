@@ -203,25 +203,6 @@
   window.addEventListener('touchmove', showBubble, { passive: true });
 })();
 
-(() => {
-  const header = document.getElementById('siteHeader');
-  if (!header) return;
-
-  const updateNavbar = () => {
-    header.classList.toggle('nav-scrolled', window.scrollY > 24);
-  };
-
-  updateNavbar();
-  window.addEventListener('scroll', updateNavbar, { passive: true });
-
-  const btn = document.getElementById('mobileMenuBtn');
-  const drawer = document.getElementById('mobileMenuDrawer');
-  if (btn && drawer) {
-    btn.addEventListener('click', () => drawer.classList.toggle('hidden'));
-    drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', () => drawer.classList.add('hidden')));
-  }
-})();
-
 (function () {
   const bubble = document.getElementById('coachnowScrollBubble');
   if (bubble) {

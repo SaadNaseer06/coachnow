@@ -26,8 +26,11 @@
 
     <div class="flex items-center gap-3 shrink-0">
       <a href="{{ route('login') }}" class="nav-action hidden sm:inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-2.5 rounded-full border border-white/40 bg-black/30 backdrop-blur-md hover:bg-white/15 hover:border-white transition-all duration-300">Login</a>
-      <a href="{{ route('become-a-coach') }}" class="nav-action inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-3 rounded-full bg-brand-red hover:bg-brand-red-hover shadow-brand-glow hover:-translate-y-0.5 transition-all duration-300">Join CoachNow</a>
-      <button id="mobileMenuBtn" class="lg:hidden flex flex-col justify-center items-center gap-1.5 w-9 h-9 text-white bg-white/10 rounded-full border border-white/20" aria-label="Toggle Navigation">
+      <a href="{{ route('become-a-coach') }}" class="header-join-btn nav-action inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-3 rounded-full bg-brand-red hover:bg-brand-red-hover shadow-brand-glow hover:-translate-y-0.5 transition-all duration-300">
+        <span class="sm:hidden">Join</span>
+        <span class="hidden sm:inline">Join CoachNow</span>
+      </a>
+      <button type="button" id="mobileMenuBtn" class="lg:hidden relative z-[60] flex flex-col justify-center items-center gap-1.5 w-10 h-10 text-white bg-white/10 rounded-full border border-white/20 shrink-0" aria-label="Toggle Navigation" aria-expanded="false" aria-controls="mobileMenuDrawer">
         <span class="w-4 h-0.5 bg-white transition-transform"></span>
         <span class="w-4 h-0.5 bg-white transition-opacity"></span>
         <span class="w-4 h-0.5 bg-white transition-transform"></span>
