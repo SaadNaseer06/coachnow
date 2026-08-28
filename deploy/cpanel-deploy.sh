@@ -1,5 +1,5 @@
 #!/bin/bash
-# Post-deploy script for cPanel. Run from project root after git pull.
+# Post-deploy script for cPanel. Runs automatically via .cpanel.yml after git pull.
 set -e
 
 APP_DIR="${APP_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -12,8 +12,14 @@ if [ -f composer.phar ]; then
 elif command -v composer >/dev/null 2>&1; then
   $PHP -d allow_url_fopen=On "$(command -v composer)" install --no-dev --optimize-autoloader --no-interaction
 else
-  echo "Composer not found. Run: curl -o composer.phar https://getcomposer.org/download/latest-stable/composer.phar"
-  exit 1
+  echo "Composer not found. Downloading composer.phar..."
+  curl -sS https://getcomposer.org/installer | $PHP -- --install-dir="$APP_DIR" --filename=composer.phar
+  $PHP -d allow_url_fopen=On composer.phar install --no-dev --optimize-autoloader --no-interaction
+fi
+
+if [ ! -f .env ]; then
+  cp .env.example .env
+  $PHP artisan key:generate --force --no-interaction
 fi
 
 test -f database/database.sqlite || touch database/database.sqlite

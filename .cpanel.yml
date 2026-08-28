@@ -1,19 +1,10 @@
 ---
-# cPanel auto-deploy (Git Version Control → Deploy HEAD / GitHub webhook)
-# Path matches: public_html/coachnow.serverlinktestwebsites.com
+# Runs automatically when cPanel pulls from GitHub (Pull or Deploy / webhook).
+# One-time setup: connect repo in cPanel Git + add GitHub webhook — see DEPLOY.md
 
 deployment:
   tasks:
     - export APP_DIR=/home/serverlinktestwe/public_html/coachnow.serverlinktestwebsites.com
+    - export PHP_BIN=/usr/local/bin/php
     - cd $APP_DIR
-    - /usr/local/bin/php -d allow_url_fopen=On composer.phar install --no-dev --optimize-autoloader --no-interaction 2>/dev/null || /usr/local/bin/php -d allow_url_fopen=On /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction
-    - test -f database/database.sqlite || /usr/bin/touch database/database.sqlite
-    - /usr/local/bin/php artisan migrate --force --no-interaction
-    - /usr/local/bin/php artisan config:clear --no-interaction
-    - /usr/local/bin/php artisan cache:clear --no-interaction
-    - /usr/local/bin/php artisan view:clear --no-interaction
-    - /usr/local/bin/php artisan config:cache --no-interaction
-    - /usr/local/bin/php artisan route:cache --no-interaction
-    - /usr/local/bin/php artisan view:cache --no-interaction
-    - /usr/local/bin/php artisan storage:link --no-interaction || true
-    - /bin/chmod -R ug+rwx storage bootstrap/cache database
+    - /bin/bash deploy/cpanel-deploy.sh
