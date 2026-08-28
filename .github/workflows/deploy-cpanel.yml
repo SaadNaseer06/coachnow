@@ -17,32 +17,31 @@ jobs:
         env:
           GITHUB_DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
           CPANEL_DEPLOY_PATH: ${{ secrets.CPANEL_DEPLOY_PATH }}
+          PHP_BIN: /usr/local/bin/ea-php82
         with:
           host: ${{ secrets.CPANEL_SSH_HOST }}
           username: ${{ secrets.CPANEL_SSH_USER }}
           key: ${{ secrets.CPANEL_SSH_KEY }}
           passphrase: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
           port: 22
-          envs: GITHUB_DEPLOY_TOKEN,CPANEL_DEPLOY_PATH
+          envs: GITHUB_DEPLOY_TOKEN,CPANEL_DEPLOY_PATH,PHP_BIN
           script: |
             set -e
             APP_DIR="${CPANEL_DEPLOY_PATH:-/home/serverlinktestwe/public_html/coachnow.serverlinktestwebsites.com}"
             REPO="SaadNaseer06/coachnow"
             BRANCH="main"
+            export PHP_BIN="${PHP_BIN:-/usr/local/bin/ea-php82}"
+
+            echo "[deploy] Starting — $APP_DIR"
             cd "$APP_DIR"
 
+            echo "[deploy] Pulling latest from GitHub..."
             if [ -n "$GITHUB_DEPLOY_TOKEN" ]; then
               git remote set-url origin "https://x-access-token:${GITHUB_DEPLOY_TOKEN}@github.com/${REPO}.git"
             fi
-
             git fetch origin "$BRANCH"
             git reset --hard "origin/${BRANCH}"
 
-            if [ -f deploy/cpanel-deploy.sh ]; then
-              bash deploy/cpanel-deploy.sh
-            elif [ -f deploy/remote-deploy.sh ]; then
-              bash deploy/remote-deploy.sh
-            else
-              echo "Deploy scripts missing after git pull — check repo path and DEPLOY_TOKEN."
-              exit 1
-            fi
+            echo "[deploy] Running composer + artisan..."
+            export APP_DIR
+            bash deploy/cpanel-deploy.sh

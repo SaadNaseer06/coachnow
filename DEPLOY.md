@@ -99,10 +99,16 @@ Site updates in ~30–60 seconds. No cPanel clicks, no manual commands.
 
 ## What runs on each deploy
 
-`deploy/remote-deploy.sh` (via SSH):
+After `git pull`, **`deploy/cpanel-deploy.sh`** runs:
 
-1. `git fetch` + `git reset --hard origin/main`
-2. `deploy/cpanel-deploy.sh` → composer install, migrate, cache rebuild
+1. **PHP 8.2+** — uses `/usr/local/bin/ea-php82` (or auto-detects on server)
+2. **`composer install --no-dev`** — installs/updates PHP packages from `composer.lock`
+3. **`composer dump-autoload --optimize`**
+4. **`php artisan migrate --force`** — applies database migrations
+5. **`php artisan optimize:clear`** + **`php artisan cache:clear`**
+6. **`php artisan optimize`** — rebuilds config, route, view caches
+7. **`php artisan storage:link`**
+8. Fixes permissions on `storage/`, `bootstrap/cache/`, `database/`
 
 ---
 
