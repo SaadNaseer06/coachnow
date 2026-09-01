@@ -56,6 +56,11 @@ body.mobile-nav-open {
   display: inline-flex !important;
   align-items: center;
   gap: 5px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .nav-dropdown__caret {

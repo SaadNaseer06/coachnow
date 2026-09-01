@@ -3,6 +3,7 @@
   $navIdle = 'block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200';
   $mobileActive = 'block px-4 py-2 rounded-lg bg-brand-red text-white font-semibold';
   $mobileIdle = 'block px-4 py-2 rounded-lg hover:bg-white/10';
+  $dashboardActive = request()->routeIs('player-dashboard', 'coach.*');
 @endphp
 
 <header id="siteHeader" class="fixed top-0 left-0 w-full z-50 transition-all duration-300 bg-gradient-to-b from-black/80 via-black/40 to-transparent py-4 md:py-5">
@@ -12,12 +13,20 @@
     </a>
 
     <nav class="hidden lg:flex items-center bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-full p-1 shadow-lg">
-      <ul class="flex items-center gap-0.5 list-none m-0 p-0 text-[11px] xl:text-xs font-normal">
+      <ul class="flex items-center gap-0.5 list-none m-0 p-0 text-xs font-normal">
         <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $navActive : $navIdle }}">Home</a></li>
         <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile') ? $navActive : $navIdle }}">Find a Coach</a></li>
         <li><a href="{{ route('become-a-coach') }}" class="{{ request()->routeIs('become-a-coach') ? $navActive : $navIdle }}">Become a Coach</a></li>
-        <li><a href="{{ route('player-dashboard') }}" class="{{ request()->routeIs('player-dashboard') ? $navActive : $navIdle }}">Player Dashboard</a></li>
-        <li><a href="{{ route('coach.dashboard') }}" class="{{ request()->routeIs('coach.*') ? $navActive : $navIdle }}">Coach Dashboard</a></li>
+        <li class="nav-dropdown">
+          <button type="button" class="nav-dropdown__trigger {{ $dashboardActive ? $navActive : $navIdle }}" aria-haspopup="true" aria-expanded="false">
+            Dashboards
+            <svg class="nav-dropdown__caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="nav-dropdown__menu" role="menu">
+            <a href="{{ route('player-dashboard') }}" class="nav-dropdown__item {{ request()->routeIs('player-dashboard') ? 'is-active' : '' }}" role="menuitem">Player Dashboard</a>
+            <a href="{{ route('coach.dashboard') }}" class="nav-dropdown__item {{ request()->routeIs('coach.*') ? 'is-active' : '' }}" role="menuitem">Coach Dashboard</a>
+          </div>
+        </li>
         <li><a href="{{ route('home') }}#how-it-works" class="{{ $navIdle }}">How It Works</a></li>
         <li><a href="{{ route('about') }}" class="{{ request()->routeIs('about') ? $navActive : $navIdle }}">About</a></li>
         <li><a href="{{ route('faq') }}" class="{{ request()->routeIs('faq') ? $navActive : $navIdle }}">FAQ</a></li>
@@ -44,6 +53,7 @@
       <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $mobileActive : $mobileIdle }}">Home</a></li>
       <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile') ? $mobileActive : $mobileIdle }}">Find a Coach</a></li>
       <li><a href="{{ route('become-a-coach') }}" class="{{ request()->routeIs('become-a-coach') ? $mobileActive : $mobileIdle }}">Become a Coach</a></li>
+      <li class="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">Dashboards</li>
       <li><a href="{{ route('player-dashboard') }}" class="{{ request()->routeIs('player-dashboard') ? $mobileActive : $mobileIdle }}">Player Dashboard</a></li>
       <li><a href="{{ route('coach.dashboard') }}" class="{{ request()->routeIs('coach.*') ? $mobileActive : $mobileIdle }}">Coach Dashboard</a></li>
       <li><a href="{{ route('home') }}#how-it-works" class="{{ $mobileIdle }}">How It Works</a></li>
