@@ -40,7 +40,7 @@ Then open:
 
 ## Routes
 
-**Public:** `/`, `/find-a-coach`, `/become-a-coach`, `/player-dashboard`, `/about`, `/faq`, `/contact`, `/login`, `/coach-profile`
+**Public:** `/`, `/find-a-coach`, `/become-a-coach`, `/player-dashboard`, `/coach/schedule`, `/coach/dashboard`, `/coach/player-overview`, `/coach/add-report`, `/about`, `/faq`, `/contact`, `/login`, `/coach-profile`
 
 **Admin:** `/admin`, `/admin/schedule`, `/admin/coaches`, `/admin/bookings`, `/admin/locations`, `/admin/athletes`
 

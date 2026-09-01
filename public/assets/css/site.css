@@ -47,6 +47,84 @@ body.mobile-nav-open {
   z-index: 2;
 }
 
+/* Header dropdown (Coach Portal) */
+.nav-dropdown {
+  position: relative;
+}
+
+.nav-dropdown__trigger {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+}
+
+.nav-dropdown__caret {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.22s ease;
+}
+
+.nav-dropdown:hover .nav-dropdown__caret,
+.nav-dropdown:focus-within .nav-dropdown__caret {
+  transform: rotate(180deg);
+}
+
+.nav-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translate(-50%, 6px);
+  min-width: 190px;
+  padding: 6px;
+  border-radius: 14px;
+  background: #191615;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+}
+
+/* Invisible bridge so the pointer can travel from the trigger to the menu. */
+.nav-dropdown__menu::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -14px;
+  height: 14px;
+}
+
+.nav-dropdown:hover .nav-dropdown__menu,
+.nav-dropdown:focus-within .nav-dropdown__menu {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
+.nav-dropdown__item {
+  display: block;
+  padding: 9px 14px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #d4d4d8;
+  white-space: nowrap;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.nav-dropdown__item:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+}
+
+.nav-dropdown__item.is-active {
+  background: #da020c;
+  color: #fff;
+}
+
 #mobileMenuBtn {
   position: relative;
   z-index: 3;

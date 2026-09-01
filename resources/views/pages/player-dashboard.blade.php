@@ -179,30 +179,19 @@
 
       {{-- Sidebar --}}
       <aside class="space-y-6 lg:space-y-7">
-        {{-- AI --}}
-        <article class="player-ai-shell motion-item motion-soft-up">
-          <div class="flex items-center gap-2 mb-1">
-            <span class="w-2 h-2 rounded-full bg-brand-red animate-pulse"></span>
-            <p class="text-[11px] uppercase tracking-[0.1em] text-brand-red font-bold">CoachNow AI</p>
-          </div>
-          <h2 class="text-[1.15rem] font-semibold text-white mb-2">Training assistant</h2>
-          <p class="text-[13px] text-zinc-400 leading-[1.65] font-light mb-4">Get practice cues aligned with your coach's latest report.</p>
+        {{-- Focus of the week --}}
+        <article class="player-panel motion-item motion-soft-up">
+          <p class="player-section-kicker">This week</p>
+          <h2 class="text-[1.1rem] font-semibold text-[#191615] mb-3">Focus of the Week</h2>
+          <p class="text-[13px] text-zinc-600 leading-[1.65] font-light">Scan before receiving the ball and open your body to play forward with your first touch.</p>
+        </article>
 
-          <div class="flex flex-wrap gap-2 mb-4">
-            @foreach (['Scanning', 'Back foot touch', 'Finishing', 'Confidence'] as $prompt)
-              <button type="button" class="player-prompt-chip" data-player-prompt="{{ strtolower($prompt) }}">{{ $prompt }}</button>
-            @endforeach
-          </div>
-
-          <form id="playerAiForm" class="flex gap-2 mb-4">
-            <input id="playerAiInput" type="text" placeholder="Ask how to improve..." autocomplete="off" class="player-ai-input min-w-0 flex-1">
-            <button type="submit" class="h-[46px] px-4 rounded-xl bg-brand-red hover:bg-brand-red-hover text-white text-[13px] font-semibold transition-colors shrink-0">Ask</button>
-          </form>
-
-          <div id="playerAiAnswer" class="player-ai-answer">
-            <h3>Try "Scanning"</h3>
-            <p>Your guidance will appear here with coaching cues, a simple drill, and common mistakes to avoid.</p>
-          </div>
+        {{-- Coach notes summary --}}
+        <article class="player-panel motion-item motion-soft-up" style="--motion-delay:80ms">
+          <p class="player-section-kicker">From your coach</p>
+          <h2 class="text-[1.1rem] font-semibold text-[#191615] mb-3">Coach's Notes</h2>
+          <p class="text-[13px] text-zinc-600 leading-[1.65] font-light mb-4">Strong passing weight and positive attitude. Keep working on checking both shoulders earlier.</p>
+          <a href="#" class="text-[13px] font-semibold text-brand-red hover:underline">View Full Report</a>
         </article>
 
         {{-- Videos --}}
@@ -268,5 +257,4 @@
 
 @push('scripts')
   <script src="{{ asset('assets/js/coach-profile.js') }}"></script>
-  <script src="{{ asset('assets/js/player-dashboard.js') }}"></script>
 @endpush

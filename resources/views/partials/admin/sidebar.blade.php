@@ -1,7 +1,7 @@
 <aside class="admin-sidebar" id="adminSidebar">
   <a href="{{ route('admin.dashboard') }}" class="admin-brand">
     <img src="{{ asset('assets/logo.png') }}" alt="CoachNow">
-    <span class="admin-brand-badge">Admin</span>
+    <span class="admin-brand-label">Admin console</span>
   </a>
 
   <nav class="admin-nav" aria-label="Admin">

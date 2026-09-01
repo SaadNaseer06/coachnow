@@ -1,4 +1,4 @@
-/* Admin schedule — weekly calendar (used on /admin/schedule) */
+/* Admin schedule — weekly calendar (used on /admin/schedule and /coach/schedule) */
 
 .sched-toolbar {
   display: flex;
@@ -7,6 +7,23 @@
   gap: 16px;
   flex-wrap: wrap;
   margin-bottom: 16px;
+}
+
+.sched-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-bottom: 1px solid #ececee;
+  background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+}
+
+.sched-card-header .sched-toolbar {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .sched-toolbar-left,
@@ -252,14 +269,16 @@
 }
 
 .sched-event {
-  margin: 2px 4px;
-  padding: 6px 8px;
-  border-radius: 8px;
+  grid-column: 1;
+  margin: 2px 5px;
+  padding: 7px 9px;
+  border-radius: 9px;
   border-left: 3px solid transparent;
   overflow: hidden;
   z-index: 1;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .sched-event:hover {
@@ -296,18 +315,59 @@
 .sched-event--blue { background: #eff6ff; border-left-color: #3b82f6; color: #1d4ed8; }
 .sched-event--orange { background: #fff7ed; border-left-color: #f97316; color: #9a3412; }
 .sched-event--blocked,
-.sched-event.is-all-day { background: #f5efe6; border-left-color: #c4a882; color: #785f3f; }
+.sched-event.is-all-day {
+  background: repeating-linear-gradient(
+    -45deg,
+    #f8f4ee,
+    #f8f4ee 6px,
+    #f2ebe1 6px,
+    #f2ebe1 12px
+  );
+  border-left-color: #c4a882;
+  color: #785f3f;
+  opacity: 0.92;
+}
 
 .sched-calendar-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px 20px;
-  padding: 14px 18px;
+  gap: 12px 18px;
+  padding: 12px 18px;
   border-top: 1px solid #ececee;
   background: #fafafa;
   font-size: 11px;
   font-weight: 600;
   color: #52525b;
+}
+
+.sched-type-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.sched-type-badge--green { background: #dcfce7; color: #166534; }
+.sched-type-badge--yellow { background: #fef9c3; color: #854d0e; }
+.sched-type-badge--purple { background: #ede9fe; color: #5b21b6; }
+.sched-type-badge--blue { background: #dbeafe; color: #1d4ed8; }
+.sched-type-badge--orange { background: #ffedd5; color: #9a3412; }
+
+.sched-pending-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  margin-left: 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .sched-calendar-legend span {
