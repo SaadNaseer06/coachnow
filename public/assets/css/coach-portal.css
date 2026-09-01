@@ -508,6 +508,32 @@
   color: #a1a1aa;
 }
 
+.coach-keyword-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.coach-keyword-row .admin-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.coach-keyword-row .admin-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .coach-keyword-row {
+    flex-direction: column;
+  }
+
+  .coach-keyword-row .admin-btn {
+    width: 100%;
+  }
+}
+
 .coach-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

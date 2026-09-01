@@ -52,10 +52,10 @@
           <div class="player-stat-icon">
             <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
           </div>
-          <span class="text-[11px] font-semibold text-emerald-400 bg-emerald-400/10 px-2.5 py-1 rounded-full">+6 this month</span>
+          <span class="player-status-pill player-status-pill--green">On track</span>
         </div>
-        <p class="text-[11px] uppercase tracking-[0.1em] text-zinc-400 font-semibold mb-1">Development score</p>
-        <p class="text-[2.35rem] font-semibold leading-none text-white">78</p>
+        <p class="text-[11px] uppercase tracking-[0.1em] text-zinc-400 font-semibold mb-1">Overall progress</p>
+        <p class="text-[1.35rem] font-semibold leading-tight text-white">Improving steadily</p>
       </div>
 
       <div class="player-stat-card motion-item motion-soft-up" style="--motion-delay:80ms">
@@ -131,14 +131,27 @@
             <span class="text-[12px] text-zinc-400 font-medium">Updated Aug 4</span>
           </div>
 
-          <div class="space-y-4 pt-2">
-            @foreach ([['First touch', 82], ['Scanning', 61], ['Passing', 79], ['Finishing', 70], ['Confidence', 76]] as [$skill, $score])
+          <div class="space-y-3 pt-2">
+            @foreach ([
+              ['First touch', 'green', 'Strong'],
+              ['Scanning', 'yellow', 'Developing'],
+              ['Passing', 'green', 'Strong'],
+              ['Finishing', 'yellow', 'Developing'],
+              ['Confidence', 'green', 'Strong'],
+            ] as [$skill, $tone, $label])
               <div class="player-skill-row">
                 <span class="text-[13px] font-semibold text-zinc-700">{{ $skill }}</span>
-                <div class="player-skill-track"><div class="player-skill-fill" style="width: {{ $score }}%"></div></div>
-                <span class="text-[13px] font-bold text-[#191615] text-right">{{ $score }}</span>
+                <div class="player-skill-status">
+                  <span class="player-skill-dot player-skill-dot--{{ $tone }}" aria-hidden="true"></span>
+                  <span class="player-skill-label player-skill-label--{{ $tone }}">{{ $label }}</span>
+                </div>
               </div>
             @endforeach
+          </div>
+          <div class="player-skill-legend">
+            <span><i class="player-skill-dot player-skill-dot--green"></i> Strong</span>
+            <span><i class="player-skill-dot player-skill-dot--yellow"></i> Developing</span>
+            <span><i class="player-skill-dot player-skill-dot--red"></i> Needs work</span>
           </div>
         </article>
 

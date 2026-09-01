@@ -128,17 +128,86 @@
 }
 
 .player-skill-row {
-  display: grid;
-  grid-template-columns: 120px 1fr 42px;
+  display: flex;
   align-items: center;
-  gap: 0.85rem;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid #f4f4f5;
 }
 
-@media (max-width: 480px) {
-  .player-skill-row {
-    grid-template-columns: 1fr;
-    gap: 0.35rem;
-  }
+.player-skill-row:last-child {
+  border-bottom: 0;
+}
+
+.player-skill-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.player-skill-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.player-skill-dot--green {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+.player-skill-dot--yellow {
+  background: #eab308;
+  box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.18);
+}
+
+.player-skill-dot--red {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
+}
+
+.player-skill-label {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.player-skill-label--green { color: #166534; }
+.player-skill-label--yellow { color: #854d0e; }
+.player-skill-label--red { color: #991b1b; }
+
+.player-skill-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1.25rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f4f4f5;
+  font-size: 11px;
+  font-weight: 600;
+  color: #71717a;
+}
+
+.player-skill-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.player-status-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.player-status-pill--green {
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
 }
 
 .player-skill-track {

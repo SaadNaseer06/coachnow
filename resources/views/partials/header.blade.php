@@ -17,7 +17,7 @@
         <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile') ? $navActive : $navIdle }}">Find a Coach</a></li>
         <li><a href="{{ route('become-a-coach') }}" class="{{ request()->routeIs('become-a-coach') ? $navActive : $navIdle }}">Become a Coach</a></li>
         <li><a href="{{ route('player-dashboard') }}" class="{{ request()->routeIs('player-dashboard') ? $navActive : $navIdle }}">Player Dashboard</a></li>
-        {{-- <li><a href="{{ route('coach.dashboard') }}" class="{{ request()->routeIs('coach.*') ? $navActive : $navIdle }}">Coach Dashboard</a></li> --}}
+        <li><a href="{{ route('coach.dashboard') }}" class="{{ request()->routeIs('coach.*') ? $navActive : $navIdle }}">Coach Dashboard</a></li>
         <li><a href="{{ route('home') }}#how-it-works" class="{{ $navIdle }}">How It Works</a></li>
         <li><a href="{{ route('about') }}" class="{{ request()->routeIs('about') ? $navActive : $navIdle }}">About</a></li>
         <li><a href="{{ route('faq') }}" class="{{ request()->routeIs('faq') ? $navActive : $navIdle }}">FAQ</a></li>

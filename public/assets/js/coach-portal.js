@@ -134,6 +134,20 @@
       "'": '&#39;',
     })[char]);
 
+  const normalizeKeyword = (value) =>
+    String(value)
+      .trim()
+      .toLowerCase()
+      .replace(/^(improve|work on|focus on|practice)\s+/, '')
+      .replace(/\s+/g, ' ');
+
+  const findMatch = (keyword) => {
+    const normalized = normalizeKeyword(keyword);
+    if (!normalized) return null;
+
+    return Object.keys(library).find((key) => normalized.includes(key) || key.includes(normalized));
+  };
+
   const buildFallback = (keyword) => ({
     title: keyword,
     summary: `Session focused on ${keyword}. Review the technique and set a clear plan for practice at home.`,
@@ -145,12 +159,53 @@
   });
 
   let current = null;
+  let lastKeyword = '';
 
-  const render = (keyword) => {
-    const normalized = keyword.trim().toLowerCase();
-    const match = Object.keys(library).find((key) => normalized.includes(key));
-    const data = match ? library[match] : buildFallback(keyword.trim());
+  const applyToForm = (keyword = lastKeyword) => {
+    if (!current) return;
+
+    const fields = {
+      reportKeywords: keyword || lastKeyword,
+      reportFocus: current.focus,
+      reportWentWell: current.wentWell,
+      reportNeedsWork: current.needsWork,
+      reportHome: current.home,
+    };
+
+    Object.entries(fields).forEach(([id, value]) => {
+      const field = document.getElementById(id);
+      if (field) field.value = value;
+    });
+
+    const apply = document.getElementById('coachAiApply');
+    if (apply) {
+      apply.textContent = 'Applied to report';
+      window.setTimeout(() => {
+        apply.textContent = 'Apply to report again';
+      }, 1800);
+    }
+
+    const generateBtn = document.getElementById('reportGenerateBtn');
+    if (generateBtn) {
+      generateBtn.textContent = 'Report generated';
+      window.setTimeout(() => {
+        generateBtn.textContent = 'Generate with AI';
+      }, 1800);
+    }
+  };
+
+  const render = (keyword, autoApply = true) => {
+    const cleaned = keyword.trim();
+    if (!cleaned) return;
+
+    lastKeyword = cleaned;
+    const match = findMatch(cleaned);
+    const data = match ? library[match] : buildFallback(normalizeKeyword(cleaned) || cleaned);
     current = data;
+
+    if (input) input.value = cleaned;
+    const reportKeywords = document.getElementById('reportKeywords');
+    if (reportKeywords) reportKeywords.value = cleaned;
 
     const videos = data.videos
       .map(
@@ -178,42 +233,21 @@
         <p class="coach-ai__videos-label">Recommended videos</p>
         ${videos}
       </div>
-      ${document.getElementById('reportFocus') ? '<button type="button" class="coach-ai__apply" id="coachAiApply">Apply to report</button>' : ''}
+      ${document.getElementById('reportFocus') ? '<button type="button" class="coach-ai__apply" id="coachAiApply">Apply to report again</button>' : ''}
     `;
 
     const apply = document.getElementById('coachAiApply');
-    if (apply) apply.addEventListener('click', applyToForm);
-  };
+    if (apply) apply.addEventListener('click', () => applyToForm());
 
-  function applyToForm() {
-    if (!current) return;
-
-    const fields = {
-      reportFocus: current.focus,
-      reportWentWell: current.wentWell,
-      reportNeedsWork: current.needsWork,
-      reportHome: current.home,
-    };
-
-    Object.entries(fields).forEach(([id, value]) => {
-      const field = document.getElementById(id);
-      if (field) field.value = value;
-    });
-
-    const apply = document.getElementById('coachAiApply');
-    if (apply) {
-      apply.textContent = 'Applied to report';
-      window.setTimeout(() => {
-        apply.textContent = 'Apply to report';
-      }, 1800);
+    if (autoApply && document.getElementById('reportFocus')) {
+      applyToForm(cleaned);
     }
-  }
+  };
 
   chips.forEach((chip) => {
     chip.addEventListener('click', () => {
       chips.forEach((other) => other.classList.remove('is-active'));
       chip.classList.add('is-active');
-      input.value = chip.dataset.coachPrompt;
       render(chip.dataset.coachPrompt);
     });
   });
@@ -225,4 +259,27 @@
     chips.forEach((chip) => chip.classList.remove('is-active'));
     render(value);
   });
+
+  const reportGenerateBtn = document.getElementById('reportGenerateBtn');
+  const reportKeywords = document.getElementById('reportKeywords');
+
+  if (reportGenerateBtn && reportKeywords) {
+    const runFromReport = () => {
+      const value = reportKeywords.value.trim();
+      if (!value) {
+        reportKeywords.focus();
+        return;
+      }
+      if (input) input.value = value;
+      render(value);
+    };
+
+    reportGenerateBtn.addEventListener('click', runFromReport);
+    reportKeywords.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        runFromReport();
+      }
+    });
+  }
 })();

@@ -20,9 +20,12 @@
     </div>
     <div class="admin-card-body">
       <div class="coach-form-block">
-        <label class="coach-field-label" for="reportKeywords">Keywords worked on</label>
-        <textarea id="reportKeywords" class="admin-input coach-textarea" placeholder="scanning, back foot touch, finishing…"></textarea>
-        <p class="coach-field-hint">Use the training assistant to generate a draft, then edit the fields below.</p>
+        <label class="coach-field-label" for="reportKeywords">Session keywords</label>
+        <div class="coach-keyword-row">
+          <input id="reportKeywords" class="admin-input" type="text" placeholder="e.g. improve first touch, scanning, finishing">
+          <button type="button" class="admin-btn admin-btn-primary" id="reportGenerateBtn">Generate with AI</button>
+        </div>
+        <p class="coach-field-hint">Type a few words and click generate — the assistant fills the report below. Edit anything before saving.</p>
       </div>
 
       <div class="coach-form-block">
