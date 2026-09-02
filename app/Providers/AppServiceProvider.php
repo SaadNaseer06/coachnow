@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Support\DemoSessionRequests;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +21,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        View::composer('layouts.coach', function ($view) {
+            $view->with('sessionRequests', DemoSessionRequests::all());
+        });
+
         if (! $this->app->environment('local')) {
             $rootUrl = rtrim((string) config('app.url'), '/');
 

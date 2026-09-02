@@ -85,8 +85,8 @@
       section.classList.toggle('is-active', active);
     });
 
-    const pct = step >= 5 ? 100 : ((step - 1) / 4) * 100 + (step < 5 ? 25 : 0);
-    if (els.progressFill) els.progressFill.style.width = `${Math.min(pct, 100)}%`;
+    const pct = Math.min(step, 5) === 5 ? 100 : (Math.min(step, 4) / 4) * 100;
+    if (els.progressFill) els.progressFill.style.width = `${pct}%`;
 
     els.progressSteps.forEach((item) => {
       const n = Number(item.dataset.step);
@@ -94,7 +94,23 @@
       item.classList.toggle('is-done', n < step);
     });
 
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollToStage();
+  }
+
+  function scrollToStage() {
+    const anchor = document.querySelector('.req-body');
+    if (!anchor) return;
+
+    const header = document.getElementById('siteHeader');
+    const offset = (header ? header.offsetHeight : 0) + 16;
+
+    if (window.coachNowLenis) {
+      window.coachNowLenis.scrollTo(anchor, { offset: -offset });
+      return;
+    }
+
+    const top = anchor.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   }
 
   function renderTimeSlots(container, slots) {
@@ -267,6 +283,11 @@
       goToStep(3);
     };
     card.addEventListener('click', select);
+    card.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      select();
+    });
     card.querySelector('.req-loc-card__cta')?.addEventListener('click', (e) => {
       e.stopPropagation();
       select();
@@ -298,11 +319,50 @@
       state.notes = document.getElementById('reqNotes')?.value.trim() || '';
 
       const idNum = Math.floor(1000 + Math.random() * 9000);
-      if (els.requestId) els.requestId.textContent = `#CN-${idNum}`;
+      const requestId = `CN-${idNum}`;
+      if (els.requestId) els.requestId.textContent = `#${requestId}`;
+
+      saveSessionRequest(requestId);
+
       renderLiveSummary();
       startCountdown(ACCEPT_WINDOW_SECONDS);
       goToStep(5);
     });
+  }
+
+  function saveSessionRequest(requestId) {
+    const dateStr = state.selectedDate
+      ? state.selectedDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+      : state.date;
+    const when = [dateStr, state.selectedTime].filter(Boolean).join(' · ');
+
+    const payload = {
+      id: requestId,
+      initials: 'NR',
+      name: 'New session request',
+      location: state.locationName || state.location,
+      city: state.locationCity || '',
+      when,
+      session_type: state.sessionType,
+      age_range: state.ageRange,
+      price_range: state.priceRange,
+      sport: state.sport,
+      notes: state.notes,
+      status: 'open',
+      accept_seconds: ACCEPT_WINDOW_SECONDS,
+      posted: 'Just now',
+      createdAt: Date.now(),
+      acceptExpiresAt: Date.now() + ACCEPT_WINDOW_SECONDS * 1000,
+    };
+
+    try {
+      const key = 'coachnow_session_requests';
+      const existing = JSON.parse(localStorage.getItem(key) || '[]');
+      existing.unshift(payload);
+      localStorage.setItem(key, JSON.stringify(existing.slice(0, 20)));
+    } catch {
+      /* ignore storage errors in demo mode */
+    }
   }
 
   document.querySelectorAll('[data-go-step]').forEach((btn) => {
@@ -319,5 +379,11 @@
   renderTimeSlots(els.afternoonSlots, afternoonSlots);
   renderTimeSlots(els.eveningSlots, eveningSlots);
   setMinDate();
-  goToStep(1);
+
+  // Initial paint only — no scroll on first load.
+  els.steps.forEach((section) => {
+    const active = Number(section.dataset.step) === 1;
+    section.hidden = !active;
+    section.classList.toggle('is-active', active);
+  });
 })();

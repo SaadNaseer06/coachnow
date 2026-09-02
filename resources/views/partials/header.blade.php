@@ -3,7 +3,7 @@
   $navIdle = 'block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200';
   $mobileActive = 'block px-4 py-2 rounded-lg bg-brand-red text-white font-semibold';
   $mobileIdle = 'block px-4 py-2 rounded-lg hover:bg-white/10';
-  $dashboardActive = request()->routeIs('player-dashboard', 'coach.*', 'request-session');
+  $dashboardActive = request()->routeIs('player-dashboard', 'coach.*');
 @endphp
 
 <header id="siteHeader" class="fixed top-0 left-0 w-full z-50 transition-all duration-300 bg-gradient-to-b from-black/80 via-black/40 to-transparent py-4 md:py-5">

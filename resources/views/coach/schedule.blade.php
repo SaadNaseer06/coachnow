@@ -124,51 +124,6 @@
   </div>
 </div>
 
-<section class="admin-card coach-schedule-requests">
-  <div class="admin-card-header">
-    <div>
-      <h2>
-        Booking Requests
-        <span class="sched-pending-badge">{{ count($requests) }} pending</span>
-      </h2>
-      <p>Accept to add sessions to your calendar, or decline to notify the player</p>
-    </div>
-  </div>
-  <div class="admin-table-wrap">
-    <table class="admin-table">
-      <thead>
-        <tr>
-          <th>Player</th>
-          <th>When</th>
-          <th>Type</th>
-          <th>Notes</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        @foreach ($requests as $request)
-          @php $badge = $typeBadge($request['type']); @endphp
-          <tr>
-            <td>
-              <div class="admin-person">
-                <div class="admin-person-fallback">{{ $request['initials'] }}</div>
-                <div><strong>{{ $request['name'] }}</strong></div>
-              </div>
-            </td>
-            <td>{{ $request['when'] }}</td>
-            <td><span class="sched-type-badge sched-type-badge--{{ $badge }}">{{ $request['type'] }}</span></td>
-            <td class="text-zinc-500">{{ $request['note'] }}</td>
-            <td class="admin-table-actions">
-              <button type="button" class="admin-btn admin-btn-primary admin-btn-sm">Accept</button>
-              <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm">Decline</button>
-            </td>
-          </tr>
-        @endforeach
-      </tbody>
-    </table>
-  </div>
-</section>
-
 @include('partials.coach.subscription-note', [
   'subscriptionNote' => 'Schedule management and booking acceptance require an active Development Plus subscription.',
 ])
