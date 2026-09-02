@@ -25,10 +25,10 @@
     <div class="admin-kpi-value">2</div>
     <div class="admin-kpi-trend flat">From this week's sessions</div>
   </article>
-  <article class="admin-kpi">
-    <div class="admin-kpi-label">Booking Requests</div>
-    <div class="admin-kpi-value">{{ count($requests) }}</div>
-    <div class="admin-kpi-trend up">Awaiting your response</div>
+  <article class="admin-kpi coach-kpi-requests" id="coachOpenRequestsKpi" role="button" tabindex="0" aria-label="Open session requests">
+    <div class="admin-kpi-label">Open Session Requests</div>
+    <div class="admin-kpi-value" id="coachOpenRequestCount">{{ collect($sessionRequests ?? [])->where('status', 'open')->count() }}</div>
+    <div class="admin-kpi-trend up">Tap to review · From Request Session</div>
   </article>
 </section>
 
@@ -100,48 +100,6 @@
         @endforeach
       </div>
     </div>
-  </div>
-</section>
-
-<section class="admin-card">
-  <div class="admin-card-header">
-    <div>
-      <h2>Booking Requests</h2>
-      <p>Players waiting for you to accept a session</p>
-    </div>
-    <a href="{{ route('coach.schedule') }}" class="admin-btn admin-btn-ghost admin-btn-sm">Manage in schedule</a>
-  </div>
-  <div class="admin-table-wrap">
-    <table class="admin-table">
-      <thead>
-        <tr>
-          <th>Player</th>
-          <th>When</th>
-          <th>Session Type</th>
-          <th>Notes</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        @foreach ($requests as $request)
-          <tr>
-            <td>
-              <div class="admin-person">
-                <div class="admin-person-fallback">{{ $request['initials'] }}</div>
-                <div><strong>{{ $request['name'] }}</strong></div>
-              </div>
-            </td>
-            <td>{{ $request['when'] }}</td>
-            <td>{{ $request['type'] }}</td>
-            <td>{{ $request['note'] }}</td>
-            <td class="admin-table-actions">
-              <button type="button" class="admin-btn admin-btn-primary admin-btn-sm">Accept</button>
-              <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm">Decline</button>
-            </td>
-          </tr>
-        @endforeach
-      </tbody>
-    </table>
   </div>
 </section>
 

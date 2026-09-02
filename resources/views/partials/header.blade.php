@@ -16,6 +16,7 @@
       <ul class="flex items-center gap-0.5 list-none m-0 p-0 text-xs font-normal">
         <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $navActive : $navIdle }}">Home</a></li>
         <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile') ? $navActive : $navIdle }}">Find a Coach</a></li>
+        <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $navActive : $navIdle }}">Request Session</a></li>
         <li><a href="{{ route('become-a-coach') }}" class="{{ request()->routeIs('become-a-coach') ? $navActive : $navIdle }}">Become a Coach</a></li>
         <li class="nav-dropdown">
           <button type="button" class="nav-dropdown__trigger {{ $dashboardActive ? $navActive : $navIdle }}" aria-haspopup="true" aria-expanded="false">
@@ -52,6 +53,7 @@
     <ul class="flex flex-col gap-2 text-sm font-medium text-zinc-200">
       <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $mobileActive : $mobileIdle }}">Home</a></li>
       <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile') ? $mobileActive : $mobileIdle }}">Find a Coach</a></li>
+      <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $mobileActive : $mobileIdle }}">Request Session</a></li>
       <li><a href="{{ route('become-a-coach') }}" class="{{ request()->routeIs('become-a-coach') ? $mobileActive : $mobileIdle }}">Become a Coach</a></li>
       <li class="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">Dashboards</li>
       <li><a href="{{ route('player-dashboard') }}" class="{{ request()->routeIs('player-dashboard') ? $mobileActive : $mobileIdle }}">Player Dashboard</a></li>

@@ -19,6 +19,7 @@ Route::get('/contact', [PageController::class, 'contact'])->name('contact');
 Route::get('/login', [PageController::class, 'login'])->name('login');
 Route::get('/coach-profile', [PageController::class, 'coachProfile'])->name('coach-profile');
 Route::get('/player-dashboard', [PageController::class, 'playerDashboard'])->name('player-dashboard');
+Route::get('/request-session', [PageController::class, 'requestSession'])->name('request-session');
 
 /*
 |--------------------------------------------------------------------------

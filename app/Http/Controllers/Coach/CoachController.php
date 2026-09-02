@@ -23,7 +23,6 @@ class CoachController extends Controller
                 ['label' => 'Players', 'value' => '8', 'note' => 'Across all sessions'],
                 ['label' => 'Hours', 'value' => '12.5', 'note' => 'On the field'],
             ],
-            'requests' => $this->bookingRequests(),
         ]);
     }
 
@@ -32,7 +31,6 @@ class CoachController extends Controller
         return view('coach.dashboard', [
             'players' => $this->roster(),
             'today' => $this->todaySessions(),
-            'requests' => $this->bookingRequests(),
         ]);
     }
 
@@ -127,14 +125,6 @@ class CoachController extends Controller
 
             return $session;
         }, $sessions);
-    }
-
-    private function bookingRequests(): array
-    {
-        return [
-            ['name' => 'Ella Rodriguez', 'initials' => 'ER', 'when' => 'Sat, Aug 30 · 12:00 PM', 'type' => 'Small Group', 'note' => 'U12 · First touch focus'],
-            ['name' => 'Sam Doyle', 'initials' => 'SD', 'when' => 'Tue, Sep 2 · 5:30 PM', 'type' => 'Private Session', 'note' => 'U14 · Finishing'],
-        ];
     }
 
     private function todaySessions(): array

@@ -47,6 +47,29 @@ body.mobile-nav-open {
   z-index: 2;
 }
 
+/* Keep nav pills on one line and tighten spacing when the bar gets crowded */
+#siteHeader nav ul > li > a,
+#siteHeader nav ul .nav-dropdown__trigger {
+  white-space: nowrap;
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  #siteHeader nav ul {
+    font-size: 10.5px;
+  }
+
+  #siteHeader nav ul > li > a,
+  #siteHeader nav ul .nav-dropdown__trigger {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+
+  #siteHeader .nav-action {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
 /* Header dropdown (Coach Portal) */
 .nav-dropdown {
   position: relative;
