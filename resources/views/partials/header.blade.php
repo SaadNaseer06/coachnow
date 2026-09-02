@@ -3,7 +3,7 @@
   $navIdle = 'block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200';
   $mobileActive = 'block px-4 py-2 rounded-lg bg-brand-red text-white font-semibold';
   $mobileIdle = 'block px-4 py-2 rounded-lg hover:bg-white/10';
-  $dashboardActive = request()->routeIs('player-dashboard', 'coach.*', 'request-session');
+  $dashboardActive = request()->routeIs('player-dashboard', 'coach.*');
 @endphp
 
 <header id="siteHeader" class="fixed top-0 left-0 w-full z-50 transition-all duration-300 bg-gradient-to-b from-black/80 via-black/40 to-transparent py-4 md:py-5">
@@ -17,7 +17,6 @@
         <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $navActive : $navIdle }}">Home</a></li>
         <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile') ? $navActive : $navIdle }}">Find a Coach</a></li>
         <li><a href="{{ route('become-a-coach') }}" class="{{ request()->routeIs('become-a-coach') ? $navActive : $navIdle }}">Become a Coach</a></li>
-        <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $navActive : $navIdle }}">Request Session</a></li>
         <li class="nav-dropdown">
           <button type="button" class="nav-dropdown__trigger {{ $dashboardActive ? $navActive : $navIdle }}" aria-haspopup="true" aria-expanded="false">
             Dashboards
@@ -54,7 +53,6 @@
       <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $mobileActive : $mobileIdle }}">Home</a></li>
       <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile') ? $mobileActive : $mobileIdle }}">Find a Coach</a></li>
       <li><a href="{{ route('become-a-coach') }}" class="{{ request()->routeIs('become-a-coach') ? $mobileActive : $mobileIdle }}">Become a Coach</a></li>
-      <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $mobileActive : $mobileIdle }}">Request Session</a></li>
       <li class="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">Dashboards</li>
       <li><a href="{{ route('player-dashboard') }}" class="{{ request()->routeIs('player-dashboard') ? $mobileActive : $mobileIdle }}">Player Dashboard</a></li>
       <li><a href="{{ route('coach.dashboard') }}" class="{{ request()->routeIs('coach.*') ? $mobileActive : $mobileIdle }}">Coach Dashboard</a></li>

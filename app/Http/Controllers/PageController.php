@@ -48,9 +48,4 @@ class PageController extends Controller
     {
         return view('pages.player-dashboard');
     }
-
-    public function requestSession()
-    {
-        return view('pages.request-session');
-    }
 }
