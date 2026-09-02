@@ -27,6 +27,7 @@
         <h4 class="text-[14px] lg:text-[15px] font-semibold mb-5">Explore</h4>
         <ul class="space-y-3 text-[12px] lg:text-[13px] text-zinc-400">
           <li><a href="{{ route('find-a-coach') }}" class="hover:text-white transition-colors">Find a Coach</a></li>
+          <li><a href="{{ route('request-session') }}" class="hover:text-white transition-colors">Request Session</a></li>
           <li><a href="{{ route('player-dashboard') }}" class="hover:text-white transition-colors">Player Dashboard</a></li>
           <li><a href="{{ route('home') }}#how-it-works" class="hover:text-white transition-colors">How It Works</a></li>
           <li><a href="{{ route('home') }}#training" class="hover:text-white transition-colors">Training Options</a></li>
