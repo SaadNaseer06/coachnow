@@ -18,9 +18,9 @@
       <div>
         <h2 id="coachSessionRequestsTitle">
           Session requests
-          <span class="coach-req-badge" id="coachSessionRequestsModalBadge">{{ $openCount }} open</span>
+          <span class="coach-req-badge" id="coachSessionRequestsModalBadge">{{ $openCount }} need host</span>
         </h2>
-        <p>First coach to accept hosts it — others can join until 30 minutes before start.</p>
+        <p>Accept to host — the request stays open so other players can join. Parent confirms with a $10 deposit.</p>
       </div>
       <button type="button" class="coach-req-modal__close" data-close-session-requests aria-label="Close session requests">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -38,9 +38,61 @@
     <footer class="coach-req-modal__footer">
       <p class="coach-req-footnote">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
-        SMS alerts and live accept timers are in testing. Requests submitted on this device also appear here automatically.
+        SMS alerts and payments are in testing. Requests submitted on this device also appear here automatically.
       </p>
       <a href="{{ route('request-session') }}" class="admin-btn admin-btn-ghost admin-btn-sm" target="_blank" rel="noopener">View player flow</a>
     </footer>
+  </div>
+
+  <div id="coachDepositOverlay" class="coach-deposit" hidden>
+    <div class="coach-deposit__card" role="dialog" aria-labelledby="coachDepositTitle" aria-modal="true">
+      <p class="coach-deposit__kicker">Session accepted</p>
+      <h3 id="coachDepositTitle">Confirm with a $10 deposit</h3>
+      <p class="coach-deposit__copy">The parent confirms with a <strong>$10 deposit</strong> to lock this request — same idea as Uber, so coaches aren’t responding to fake posts. It goes toward the session. The session stays open for others to join.</p>
+      <div class="coach-deposit__amount">
+        <span>Deposit</span>
+        <strong>$10.00</strong>
+      </div>
+      @include('partials.payment-methods', ['payPrefix' => 'coachPay'])
+      <button type="button" class="admin-btn admin-btn-primary" id="coachConfirmDepositBtn">Pay $10 deposit</button>
+      <button type="button" class="admin-btn admin-btn-ghost" id="coachCancelDepositBtn">Not now</button>
+      <p class="coach-deposit__note">Testing only — no real charge. Use the sample cards above.</p>
+    </div>
+  </div>
+
+  <div id="coachAdjustOverlay" class="coach-deposit" hidden>
+    <div class="coach-deposit__card coach-adjust-card" role="dialog" aria-labelledby="coachAdjustTitle" aria-modal="true">
+      <p class="coach-deposit__kicker">You’re hosting</p>
+      <h3 id="coachAdjustTitle">View &amp; adjust details</h3>
+      <p class="coach-deposit__copy">Update group size so the session stays open for the right number of players. Example: 3 joined, max 5 — looking for 2 more.</p>
+
+      <div class="coach-adjust-grid">
+        <div class="coach-adjust-field">
+          <label for="coachAdjustJoined">Players joined</label>
+          <input type="number" id="coachAdjustJoined" min="1" max="30" inputmode="numeric">
+        </div>
+        <div class="coach-adjust-field">
+          <label for="coachAdjustMax">Max players</label>
+          <input type="number" id="coachAdjustMax" min="1" max="30" inputmode="numeric" placeholder="e.g. 5">
+        </div>
+        <div class="coach-adjust-field">
+          <label for="coachAdjustMin">Min players <span>(optional)</span></label>
+          <input type="number" id="coachAdjustMin" min="1" max="30" inputmode="numeric" placeholder="e.g. 3">
+        </div>
+        <div class="coach-adjust-field coach-adjust-field--full">
+          <label for="coachAdjustLooking">Looking for</label>
+          <input type="number" id="coachAdjustLooking" min="0" max="30" inputmode="numeric" placeholder="Spots still needed">
+          <p class="coach-adjust-hint" id="coachAdjustLookingHint">Auto-fills from max − joined when you change those fields.</p>
+        </div>
+        <div class="coach-adjust-field coach-adjust-field--full">
+          <label for="coachAdjustNote">Note for joiners <span>(optional)</span></label>
+          <textarea id="coachAdjustNote" rows="2" placeholder="e.g. Need 2 more U10 players for SAQ"></textarea>
+        </div>
+      </div>
+
+      <p class="pay-methods__error" id="coachAdjustError" hidden></p>
+      <button type="button" class="admin-btn admin-btn-primary" id="coachAdjustSaveBtn">Save details</button>
+      <button type="button" class="admin-btn admin-btn-ghost" id="coachAdjustCancelBtn">Cancel</button>
+    </div>
   </div>
 </div>

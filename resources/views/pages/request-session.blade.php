@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="{{ asset('assets/css/find-a-coach.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/inner-pages.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/request-session.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/payment-methods.css') }}">
 @endpush
 
 @section('content')
@@ -28,7 +29,7 @@
         <div class="req-main">
           <div class="req-banner">
             <span class="req-banner__pill">Testing</span>
-            <p>Requests are free while we test. Text notifications, coach accept timers, and subscriptions launch soon.</p>
+            <p>Requests are in testing. A <strong>$10 deposit</strong> confirms a session after a coach accepts — that helps stop fake requests. Text alerts and subscriptions launch soon.</p>
           </div>
 
           <div class="req-progress" aria-hidden="true">
@@ -235,6 +236,41 @@
                   </div>
 
                   <div class="req-field">
+                    <label for="reqKnowBy">Need to know by</label>
+                    <p class="req-help">Tell coaches when you need an answer — they can accept anytime until this cutoff.</p>
+                    <div class="req-chips" id="reqKnowByPresets" role="group" aria-label="Quick cutoff options">
+                      <button type="button" class="req-chip" data-know-by="2h">In 2 hours</button>
+                      <button type="button" class="req-chip" data-know-by="tonight">Tonight 8 PM</button>
+                      <button type="button" class="req-chip" data-know-by="tomorrow">Tomorrow 10 AM</button>
+                    </div>
+                    <div class="req-input-wrap">
+                      <svg class="req-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                      <input type="datetime-local" id="reqKnowBy" name="know_by" required>
+                    </div>
+                  </div>
+
+                  <div class="req-field-row">
+                    <div class="req-field">
+                      <label for="reqMinPlayers">Min players <span class="req-optional">(optional)</span></label>
+                      <input type="number" id="reqMinPlayers" name="min_players" min="1" max="30" inputmode="numeric" placeholder="e.g. 4">
+                    </div>
+                    <div class="req-field">
+                      <label for="reqMaxPlayers">Max players <span class="req-optional">(optional)</span></label>
+                      <input type="number" id="reqMaxPlayers" name="max_players" min="1" max="30" inputmode="numeric" placeholder="e.g. 8">
+                    </div>
+                  </div>
+
+                  <div class="req-field">
+                    <label for="reqPlayerLevel">Player level <span class="req-optional">(optional)</span></label>
+                    <select id="reqPlayerLevel" name="player_level">
+                      <option value="" selected>No preference</option>
+                      <option value="Beginner">Beginner</option>
+                      <option value="Intermediate">Intermediate</option>
+                      <option value="Advanced">Advanced</option>
+                    </select>
+                  </div>
+
+                  <div class="req-field">
                     <label for="reqNotes">Additional details <span class="req-optional">(optional)</span></label>
                     <textarea id="reqNotes" name="notes" rows="3" placeholder="Any specific goals or requests?"></textarea>
                   </div>
@@ -245,7 +281,7 @@
                     <button type="submit" class="req-btn req-btn--primary">Submit request</button>
                     <p class="req-disclaimer">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                      <span>Coaches get a text alert and <strong>15 minutes</strong> to accept. You are notified as soon as one accepts, and the request stays open for others to join until <strong>30 minutes before</strong> start.</span>
+                      <span>Coaches are notified and can accept until your cutoff. When a coach accepts, you confirm with a <strong>$10 deposit</strong> (refundable toward the session). The request stays open for others to join until <strong>30 minutes before</strong> start.</span>
                     </p>
                   </div>
                 </form>
@@ -268,12 +304,27 @@
                   </div>
 
                   <div class="req-countdown" id="reqAcceptCountdown" aria-live="polite">
-                    <p class="req-countdown__label">Coach accept window</p>
-                    <p class="req-countdown__time" id="reqCountdownDisplay">15:00</p>
-                    <p class="req-countdown__hint">First coach to accept hosts this session</p>
+                    <p class="req-countdown__label">Need to know by</p>
+                    <p class="req-countdown__time" id="reqCountdownDisplay">—</p>
+                    <p class="req-countdown__hint" id="reqCountdownHint">First coach to accept hosts this session</p>
                   </div>
 
                   <dl class="req-live-summary" id="reqLiveSummary"></dl>
+
+                  <div class="req-deposit" id="reqDepositPanel" hidden>
+                    <div class="req-deposit__badge">Coach accepted</div>
+                    <h3>Confirm with a $10 deposit</h3>
+                    <p>This holds your request so coaches aren’t responding to fake posts. The $10 goes toward the session.</p>
+                    @include('partials.payment-methods', ['payPrefix' => 'reqPay'])
+                    <button type="button" class="req-btn req-btn--primary" id="reqPayDepositBtn">Pay $10 deposit</button>
+                    <p class="req-deposit__note">Testing only — no real charge. Use the sample cards above.</p>
+                  </div>
+
+                  <div class="req-deposit req-deposit--paid" id="reqDepositPaid" hidden>
+                    <h3>Deposit confirmed</h3>
+                    <p>Your $10 deposit is in and the session is confirmed with your host coach. It stays open so other players can still join until 30 minutes before start.</p>
+                    <p class="req-deposit__note" id="reqPaidWith"></p>
+                  </div>
 
                   <div class="req-live-card__footer">
                     <p>Other players can join until <strong>30 minutes before</strong> the session starts.</p>
@@ -304,7 +355,7 @@
                 <span class="req-steps-list__num">2</span>
                 <div>
                   <strong>Coaches get notified</strong>
-                  <p>Nearby coaches receive a text and have 15 minutes to accept.</p>
+                  <p>Nearby coaches receive a text and can accept until the time you set.</p>
                 </div>
               </li>
               <li>
@@ -330,13 +381,13 @@
               </li>
               <li>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                Get matched fast — first coach to accept confirms it.
+                First coach to accept hosts it — you confirm with a $10 deposit.
               </li>
             </ul>
           </div>
 
           <div class="req-aside-note">
-            <p><strong>Coming soon:</strong> SMS alerts for coaches and players, live accept timers, and subscription plans for unlimited requests.</p>
+            <p><strong>Coming soon:</strong> SMS alerts, live payments, and subscription plans. The $10 deposit is a prototype to stop fake requests.</p>
           </div>
         </aside>
 
@@ -348,5 +399,6 @@
 
 @push('scripts')
   <script src="{{ asset('assets/js/coach-profile.js') }}"></script>
+  <script src="{{ asset('assets/js/payment-methods.js') }}"></script>
   <script src="{{ asset('assets/js/request-session.js') }}"></script>
 @endpush

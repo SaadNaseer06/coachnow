@@ -1,4 +1,7 @@
 (() => {
+  const STORAGE_KEY = 'coachnow_session_requests';
+  const DEPOSIT_AMOUNT = 10;
+
   const state = {
     location: '',
     sport: 'Soccer',
@@ -12,10 +15,13 @@
     ageRange: '',
     priceRange: '',
     sessionType: '',
+    knowByAt: null,
+    minPlayers: '',
+    maxPlayers: '',
+    playerLevel: '',
     notes: '',
+    requestId: '',
   };
-
-  const ACCEPT_WINDOW_SECONDS = 15 * 60;
 
   const morningSlots = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM'];
   const afternoonSlots = ['12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM'];
@@ -41,7 +47,12 @@
     liveSummary: document.getElementById('reqLiveSummary'),
     requestId: document.getElementById('reqRequestId'),
     countdownDisplay: document.getElementById('reqCountdownDisplay'),
+    countdownHint: document.getElementById('reqCountdownHint'),
     startAnother: document.getElementById('reqStartAnother'),
+    knowByInput: document.getElementById('reqKnowBy'),
+    depositPanel: document.getElementById('reqDepositPanel'),
+    depositPaid: document.getElementById('reqDepositPaid'),
+    payDepositBtn: document.getElementById('reqPayDepositBtn'),
   };
 
   let countdownTimer = null;
@@ -60,6 +71,15 @@
     return `${y}-${m}-${d}`;
   }
 
+  function toDateTimeLocal(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const h = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${d}T${h}:${min}`;
+  }
+
   function formatDisplayDate(date) {
     return date.toLocaleDateString(undefined, {
       weekday: 'short',
@@ -69,12 +89,37 @@
     });
   }
 
+  function formatKnowBy(date) {
+    return date.toLocaleString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+
   function formatShortDate(date) {
     return date.toLocaleDateString(undefined, { weekday: 'short' });
   }
 
-  function formatDayNum(date) {
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  function parseTimeLabel(label) {
+    const match = String(label).match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return { hours: 12, minutes: 0 };
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const period = match[3].toUpperCase();
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return { hours, minutes };
+  }
+
+  function sessionDateTime() {
+    if (!state.selectedDate) return null;
+    const { hours, minutes } = parseTimeLabel(state.selectedTime || '12:00 PM');
+    const d = new Date(state.selectedDate);
+    d.setHours(hours, minutes, 0, 0);
+    return d;
   }
 
   function goToStep(step) {
@@ -196,48 +241,146 @@
       .replace(/"/g, '&quot;');
   }
 
-  function startCountdown(seconds) {
+  function formatRemaining(seconds) {
+    const s = Math.max(0, Math.floor(seconds));
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const r = s % 60;
+    if (d > 0) return `${d}d ${h}h`;
+    if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`;
+    return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+  }
+
+  function startCutoffCountdown(expiresAt) {
     if (countdownTimer) clearInterval(countdownTimer);
-    let remaining = seconds;
 
     const tick = () => {
-      const m = Math.floor(remaining / 60);
-      const s = remaining % 60;
-      if (els.countdownDisplay) {
-        els.countdownDisplay.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-      }
+      const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      if (els.countdownDisplay) els.countdownDisplay.textContent = formatRemaining(remaining);
       if (remaining <= 0) {
         clearInterval(countdownTimer);
         if (els.countdownDisplay) els.countdownDisplay.textContent = '00:00';
-        return;
+        if (els.countdownHint) els.countdownHint.textContent = 'Cutoff passed — this request is no longer open for coaches';
       }
-      remaining -= 1;
     };
 
     tick();
     countdownTimer = setInterval(tick, 1000);
   }
 
+  function playersLabel() {
+    if (state.minPlayers && state.maxPlayers) return `${state.minPlayers}–${state.maxPlayers}`;
+    if (state.minPlayers) return `${state.minPlayers}+`;
+    if (state.maxPlayers) return `Up to ${state.maxPlayers}`;
+    return '';
+  }
+
   function renderLiveSummary() {
     if (!els.liveSummary) return;
     const dateStr = state.selectedDate ? formatDisplayDate(state.selectedDate) : state.date;
-    els.liveSummary.innerHTML = `
-      <div><dt>Location</dt><dd>${escapeHtml(state.locationName)}</dd></div>
-      <div><dt>Date</dt><dd>${escapeHtml(dateStr)}</dd></div>
-      <div><dt>Time</dt><dd>${escapeHtml(state.selectedTime)}</dd></div>
-      <div><dt>Session</dt><dd>${escapeHtml(state.sessionType)}</dd></div>
-      <div><dt>Age range</dt><dd>${escapeHtml(state.ageRange)}</dd></div>
-      <div><dt>Price / player</dt><dd>${escapeHtml(state.priceRange)}</dd></div>
-    `;
+    const extra = [];
+    extra.push(`<div><dt>Location</dt><dd>${escapeHtml(state.locationName)}</dd></div>`);
+    extra.push(`<div><dt>Date</dt><dd>${escapeHtml(dateStr)}</dd></div>`);
+    extra.push(`<div><dt>Time</dt><dd>${escapeHtml(state.selectedTime)}</dd></div>`);
+    extra.push(`<div><dt>Session</dt><dd>${escapeHtml(state.sessionType)}</dd></div>`);
+    extra.push(`<div><dt>Age range</dt><dd>${escapeHtml(state.ageRange)}</dd></div>`);
+    extra.push(`<div><dt>Price / player</dt><dd>${escapeHtml(state.priceRange)}</dd></div>`);
+    if (playersLabel()) extra.push(`<div><dt>Players</dt><dd>${escapeHtml(playersLabel())}</dd></div>`);
+    if (state.playerLevel) extra.push(`<div><dt>Level</dt><dd>${escapeHtml(state.playerLevel)}</dd></div>`);
+    extra.push(`<div><dt>Deposit</dt><dd>$${DEPOSIT_AMOUNT} after a coach accepts</dd></div>`);
+    els.liveSummary.innerHTML = extra.join('');
+  }
+
+  function cutoffFromPreset(kind) {
+    const now = new Date();
+    if (kind === '2h') return new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    if (kind === 'tonight') {
+      const d = new Date();
+      d.setHours(20, 0, 0, 0);
+      if (d <= now) d.setDate(d.getDate() + 1);
+      return d;
+    }
+    if (kind === 'tomorrow') {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      d.setHours(10, 0, 0, 0);
+      return d;
+    }
+    return now;
+  }
+
+  function syncKnowByBounds() {
+    if (!els.knowByInput) return;
+    const now = new Date();
+    els.knowByInput.min = toDateTimeLocal(now);
+    const session = sessionDateTime();
+    if (session) {
+      const max = new Date(session.getTime() - 30 * 60 * 1000);
+      if (max > now) els.knowByInput.max = toDateTimeLocal(max);
+      else els.knowByInput.removeAttribute('max');
+    }
+  }
+
+  function applyKnowBy(date, preset) {
+    state.knowByAt = date;
+    if (els.knowByInput) els.knowByInput.value = toDateTimeLocal(date);
+    document.querySelectorAll('#reqKnowByPresets .req-chip').forEach((chip) => {
+      chip.classList.toggle('is-active', chip.dataset.knowBy === preset);
+    });
+  }
+
+  function readStoredRequests() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  function writeStoredRequests(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 20)));
+  }
+
+  function updateStoredRequest(id, patch) {
+    const list = readStoredRequests();
+    const idx = list.findIndex((item) => item.id === id);
+    if (idx === -1) return;
+    list[idx] = { ...list[idx], ...patch };
+    writeStoredRequests(list);
+  }
+
+  function showDepositState(status) {
+    const awaiting = status === 'awaiting_deposit';
+    const confirmed = status === 'confirmed' || status === 'hosted';
+    if (els.depositPanel) els.depositPanel.hidden = !awaiting;
+    if (els.depositPaid) els.depositPaid.hidden = !confirmed;
+    if (awaiting) {
+      window.CoachNowPayment?.mount(document.querySelector('#reqDepositPanel [data-payment-root]'));
+    }
+  }
+
+  function syncLiveRequestStatus() {
+    if (!state.requestId) return;
+    const match = readStoredRequests().find((item) => item.id === state.requestId);
+    if (!match) return;
+    showDepositState(match.status);
   }
 
   function resetFlow() {
     if (countdownTimer) clearInterval(countdownTimer);
     state.selectedTime = '';
     state.selectedDate = null;
+    state.knowByAt = null;
+    state.requestId = '';
+    state.minPlayers = '';
+    state.maxPlayers = '';
+    state.playerLevel = '';
     if (els.form1) els.form1.reset();
     if (els.form4) els.form4.reset();
     if (els.toDetailsBtn) els.toDetailsBtn.disabled = true;
+    showDepositState('');
+    document.querySelectorAll('#reqKnowByPresets .req-chip').forEach((chip) => chip.classList.remove('is-active'));
     setMinDate();
     goToStep(1);
   }
@@ -298,9 +441,21 @@
     els.toDetailsBtn.addEventListener('click', () => {
       if (!state.selectedTime) return;
       updateSummary();
+      syncKnowByBounds();
       goToStep(4);
     });
   }
+
+  document.querySelectorAll('#reqKnowByPresets .req-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      applyKnowBy(cutoffFromPreset(chip.dataset.knowBy), chip.dataset.knowBy);
+    });
+  });
+
+  els.knowByInput?.addEventListener('change', () => {
+    document.querySelectorAll('#reqKnowByPresets .req-chip').forEach((chip) => chip.classList.remove('is-active'));
+    if (els.knowByInput.value) state.knowByAt = new Date(els.knowByInput.value);
+  });
 
   if (els.form4) {
     ['reqAgeRange', 'reqPriceRange', 'reqSessionType'].forEach((id) => {
@@ -313,19 +468,59 @@
         els.form4.reportValidity();
         return;
       }
+
+      const minPlayers = document.getElementById('reqMinPlayers')?.value || '';
+      const maxPlayers = document.getElementById('reqMaxPlayers')?.value || '';
+      if (minPlayers && maxPlayers && Number(minPlayers) > Number(maxPlayers)) {
+        document.getElementById('reqMaxPlayers')?.setCustomValidity('Max players must be greater than or equal to min players.');
+        els.form4.reportValidity();
+        document.getElementById('reqMaxPlayers')?.setCustomValidity('');
+        return;
+      }
+
+      const knowByValue = els.knowByInput?.value;
+      if (!knowByValue) {
+        els.knowByInput?.reportValidity();
+        return;
+      }
+
+      const knowByAt = new Date(knowByValue);
+      const now = Date.now();
+      const session = sessionDateTime();
+      if (knowByAt.getTime() <= now) {
+        els.knowByInput?.setCustomValidity('Choose a cutoff in the future.');
+        els.form4.reportValidity();
+        els.knowByInput?.setCustomValidity('');
+        return;
+      }
+      if (session && knowByAt.getTime() >= session.getTime()) {
+        els.knowByInput?.setCustomValidity('Need-to-know-by must be before the session starts.');
+        els.form4.reportValidity();
+        els.knowByInput?.setCustomValidity('');
+        return;
+      }
+
       state.ageRange = document.getElementById('reqAgeRange')?.value || '';
       state.priceRange = document.getElementById('reqPriceRange')?.value || '';
       state.sessionType = document.getElementById('reqSessionType')?.value || '';
+      state.knowByAt = knowByAt;
+      state.minPlayers = minPlayers;
+      state.maxPlayers = maxPlayers;
+      state.playerLevel = document.getElementById('reqPlayerLevel')?.value || '';
       state.notes = document.getElementById('reqNotes')?.value.trim() || '';
 
       const idNum = Math.floor(1000 + Math.random() * 9000);
       const requestId = `CN-${idNum}`;
+      state.requestId = requestId;
       if (els.requestId) els.requestId.textContent = `#${requestId}`;
 
       saveSessionRequest(requestId);
-
       renderLiveSummary();
-      startCountdown(ACCEPT_WINDOW_SECONDS);
+      if (els.countdownHint) {
+        els.countdownHint.textContent = `Coaches can accept until ${formatKnowBy(knowByAt)}`;
+      }
+      startCutoffCountdown(knowByAt.getTime());
+      showDepositState('open');
       goToStep(5);
     });
   }
@@ -335,6 +530,7 @@
       ? state.selectedDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
       : state.date;
     const when = [dateStr, state.selectedTime].filter(Boolean).join(' · ');
+    const expiresAt = state.knowByAt ? state.knowByAt.getTime() : Date.now();
 
     const payload = {
       id: requestId,
@@ -348,22 +544,43 @@
       price_range: state.priceRange,
       sport: state.sport,
       notes: state.notes,
+      min_players: state.minPlayers ? Number(state.minPlayers) : '',
+      max_players: state.maxPlayers ? Number(state.maxPlayers) : '',
+      player_level: state.playerLevel,
+      know_by: state.knowByAt ? formatKnowBy(state.knowByAt) : '',
+      deposit: DEPOSIT_AMOUNT,
       status: 'open',
-      accept_seconds: ACCEPT_WINDOW_SECONDS,
+      accept_seconds: Math.max(1, Math.floor((expiresAt - Date.now()) / 1000)),
       posted: 'Just now',
       createdAt: Date.now(),
-      acceptExpiresAt: Date.now() + ACCEPT_WINDOW_SECONDS * 1000,
+      acceptExpiresAt: expiresAt,
     };
 
     try {
-      const key = 'coachnow_session_requests';
-      const existing = JSON.parse(localStorage.getItem(key) || '[]');
+      const existing = readStoredRequests();
       existing.unshift(payload);
-      localStorage.setItem(key, JSON.stringify(existing.slice(0, 20)));
+      writeStoredRequests(existing);
     } catch {
       /* ignore storage errors in demo mode */
     }
   }
+
+  els.payDepositBtn?.addEventListener('click', () => {
+    if (!state.requestId) return;
+    const wallet = window.CoachNowPayment?.api(document.querySelector('#reqDepositPanel [data-payment-root]'));
+    const result = wallet?.charge();
+    if (!result?.ok) return;
+    updateStoredRequest(state.requestId, {
+      status: 'hosted',
+      deposit_paid: true,
+      paid_with: `${result.method.brand} ···· ${result.method.last4}`,
+      accepted_by: 'You',
+      players_joined: 1,
+    });
+    const paidWith = document.getElementById('reqPaidWith');
+    if (paidWith) paidWith.textContent = `Paid with ${result.method.brand} ···· ${result.method.last4} · Session stays open for others to join`;
+    showDepositState('hosted');
+  });
 
   document.querySelectorAll('[data-go-step]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -375,12 +592,16 @@
     els.startAnother.addEventListener('click', resetFlow);
   }
 
+  window.addEventListener('storage', (event) => {
+    if (event.key === STORAGE_KEY) syncLiveRequestStatus();
+  });
+  setInterval(syncLiveRequestStatus, 1500);
+
   renderTimeSlots(els.morningSlots, morningSlots);
   renderTimeSlots(els.afternoonSlots, afternoonSlots);
   renderTimeSlots(els.eveningSlots, eveningSlots);
   setMinDate();
 
-  // Initial paint only — no scroll on first load.
   els.steps.forEach((section) => {
     const active = Number(section.dataset.step) === 1;
     section.hidden = !active;

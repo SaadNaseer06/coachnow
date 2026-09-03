@@ -9,10 +9,26 @@
   const modalBadge = document.getElementById('coachSessionRequestsModalBadge');
   const countEl = document.getElementById('coachOpenRequestCount');
   const kpi = document.getElementById('coachOpenRequestsKpi');
+  const depositOverlay = document.getElementById('coachDepositOverlay');
+  const confirmDepositBtn = document.getElementById('coachConfirmDepositBtn');
+  const cancelDepositBtn = document.getElementById('coachCancelDepositBtn');
+  const adjustOverlay = document.getElementById('coachAdjustOverlay');
+  const adjustJoined = document.getElementById('coachAdjustJoined');
+  const adjustMax = document.getElementById('coachAdjustMax');
+  const adjustMin = document.getElementById('coachAdjustMin');
+  const adjustLooking = document.getElementById('coachAdjustLooking');
+  const adjustLookingHint = document.getElementById('coachAdjustLookingHint');
+  const adjustNote = document.getElementById('coachAdjustNote');
+  const adjustError = document.getElementById('coachAdjustError');
+  const adjustSaveBtn = document.getElementById('coachAdjustSaveBtn');
+  const adjustCancelBtn = document.getElementById('coachAdjustCancelBtn');
 
   if (!modal || !list) return;
 
   let lastFocus = null;
+  let pendingDepositCard = null;
+  let adjustingCard = null;
+  let lookingManual = false;
 
   function escapeHtml(str) {
     return String(str ?? '')
@@ -24,8 +40,12 @@
 
   function formatCountdown(seconds) {
     const s = Math.max(0, Math.floor(seconds));
-    const m = Math.floor(s / 60);
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
     const r = s % 60;
+    if (d > 0) return `${d}d ${h}h`;
+    if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`;
     return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
   }
 
@@ -40,24 +60,45 @@
     return Math.max(0, initial - Math.floor((Date.now() - started) / 1000));
   }
 
-  function openCount() {
+  function playersLabel(min, max) {
+    if (min && max) return `${min}–${max}`;
+    if (min) return `${min}+`;
+    if (max) return `Up to ${max}`;
+    return '';
+  }
+
+  function spotsLabel(joined, max, lookingFor) {
+    const looking = lookingFor !== '' && lookingFor != null
+      ? Number(lookingFor)
+      : (max !== '' && max != null ? Math.max(0, Number(max) - Number(joined || 0)) : null);
+    if (looking == null) return 'Open for more players';
+    if (looking <= 0) return 'Full';
+    return `Looking for ${looking} more`;
+  }
+
+  function activeCount() {
+    return list.querySelectorAll('.coach-req-card.is-open, .coach-req-card.is-hosted').length;
+  }
+
+  function needsHostCount() {
     return list.querySelectorAll('.coach-req-card.is-open').length;
   }
 
   function updateBadges() {
-    const count = openCount();
-    const label = `${count} open`;
+    const needsHost = needsHostCount();
+    const active = activeCount();
+    const label = needsHost > 0 ? `${needsHost} need host` : `${active} active`;
 
-    if (countEl) countEl.textContent = String(count);
+    if (countEl) countEl.textContent = String(needsHost || active);
     if (modalBadge) modalBadge.textContent = label;
 
     if (badge) {
-      badge.textContent = String(count);
-      badge.hidden = count === 0;
+      badge.textContent = String(needsHost || active);
+      badge.hidden = active === 0;
     }
 
     if (bell) {
-      bell.classList.toggle('has-open', count > 0);
+      bell.classList.toggle('has-open', needsHost > 0);
     }
   }
 
@@ -76,9 +117,33 @@
           status.textContent = 'Expired';
         }
         card.querySelector('.coach-req-card__actions')?.remove();
+        card.querySelector('.coach-req-card__timer')?.remove();
       }
     });
     updateBadges();
+  }
+
+  function readStoredRequests() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  function writeStoredRequests(items) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, 20)));
+  }
+
+  function patchStoredRequest(id, patch) {
+    const items = readStoredRequests();
+    const idx = items.findIndex((item) => item.id === id);
+    if (idx === -1) {
+      items.unshift({ id, ...patch });
+    } else {
+      items[idx] = { ...items[idx], ...patch };
+    }
+    writeStoredRequests(items);
   }
 
   function openModal() {
@@ -91,8 +156,25 @@
     modal.querySelector('.coach-req-modal__close')?.focus();
   }
 
+  function closeDepositOverlay() {
+    pendingDepositCard = null;
+    if (depositOverlay) depositOverlay.hidden = true;
+  }
+
+  function closeAdjustOverlay() {
+    adjustingCard = null;
+    lookingManual = false;
+    if (adjustError) {
+      adjustError.hidden = true;
+      adjustError.textContent = '';
+    }
+    if (adjustOverlay) adjustOverlay.hidden = true;
+  }
+
   function closeModal() {
     if (!modal.classList.contains('is-open')) return;
+    closeDepositOverlay();
+    closeAdjustOverlay();
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     bell?.setAttribute('aria-expanded', 'false');
@@ -102,39 +184,229 @@
     }
   }
 
+  function renderHostedFooter(card, { joined, max, min, lookingFor, depositPaid, coachNote }) {
+    card.dataset.playersJoined = String(joined);
+    card.dataset.maxPlayers = max === '' || max == null ? '' : String(max);
+    card.dataset.minPlayers = min === '' || min == null ? '' : String(min);
+    card.dataset.lookingFor = lookingFor === '' || lookingFor == null ? '' : String(lookingFor);
+    card.dataset.coachNote = coachNote || '';
+
+    const playersRow = card.querySelector('[data-players-row]');
+    const playersField = card.querySelector('[data-field="players"]');
+    const label = playersLabel(min, max);
+    if (playersRow) playersRow.hidden = !label;
+    if (playersField) playersField.textContent = label || '—';
+
+    let hosted = card.querySelector('.coach-req-card__hosted');
+    if (!hosted) {
+      hosted = document.createElement('div');
+      hosted.className = 'coach-req-card__hosted';
+      card.appendChild(hosted);
+    }
+
+    hosted.innerHTML = `
+      <div class="coach-req-card__hosted-meta">
+        <span data-field="joined">${joined} player${joined === 1 ? '' : 's'} joined</span>
+        <span data-field="spots">${escapeHtml(spotsLabel(joined, max, lookingFor))}</span>
+        <span>${depositPaid ? '$10 deposit confirmed' : 'Awaiting $10 deposit'}</span>
+      </div>
+      ${coachNote ? `<p class="coach-req-card__coach-note">${escapeHtml(coachNote)}</p>` : ''}
+      <div class="coach-req-card__actions">
+        <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-adjust-details>View &amp; adjust details</button>
+      </div>
+      <p class="coach-req-card__hint">You’re the host. This session stays visible so others can join until 30 minutes before start.</p>
+    `;
+
+    hosted.querySelector('[data-adjust-details]')?.addEventListener('click', () => openAdjustOverlay(card));
+  }
+
+  function markCardHosted(card, { depositPaid = false } = {}) {
+    card.classList.remove('is-open');
+    card.classList.add('is-hosted');
+    if (depositPaid) card.classList.add('is-confirmed');
+
+    const status = card.querySelector('.coach-req-status');
+    if (status) {
+      if (!depositPaid) {
+        status.className = 'coach-req-status coach-req-status--accepted';
+        status.textContent = 'Deposit pending';
+      } else {
+        status.className = 'coach-req-status coach-req-status--hosted';
+        status.innerHTML = '<span class="coach-req-pulse coach-req-pulse--green"></span> Open to join';
+      }
+    }
+
+    card.querySelector('.coach-req-card__timer')?.remove();
+    card.querySelectorAll('.coach-req-card__actions').forEach((el) => {
+      if (!el.closest('.coach-req-card__hosted')) el.remove();
+    });
+    const oldHint = [...card.querySelectorAll('.coach-req-card__hint')].find((el) => !el.closest('.coach-req-card__hosted'));
+    oldHint?.remove();
+
+    const joined = Number(card.dataset.playersJoined || 1) || 1;
+    const max = card.dataset.maxPlayers ?? '';
+    const min = card.dataset.minPlayers ?? '';
+    let looking = card.dataset.lookingFor ?? '';
+    if (looking === '' && max !== '') looking = String(Math.max(0, Number(max) - joined));
+
+    renderHostedFooter(card, {
+      joined,
+      max,
+      min,
+      lookingFor: looking,
+      depositPaid,
+      coachNote: card.dataset.coachNote || '',
+    });
+    updateCountdowns();
+  }
+
+  function openAdjustOverlay(card) {
+    adjustingCard = card;
+    lookingManual = false;
+    const joined = Number(card.dataset.playersJoined || 1) || 1;
+    const max = card.dataset.maxPlayers || '';
+    const min = card.dataset.minPlayers || '';
+    let looking = card.dataset.lookingFor;
+    if (looking === '' || looking == null) {
+      looking = max !== '' ? String(Math.max(0, Number(max) - joined)) : '';
+    }
+
+    if (adjustJoined) adjustJoined.value = String(joined);
+    if (adjustMax) adjustMax.value = max;
+    if (adjustMin) adjustMin.value = min;
+    if (adjustLooking) adjustLooking.value = looking;
+    if (adjustNote) adjustNote.value = card.dataset.coachNote || '';
+    if (adjustError) {
+      adjustError.hidden = true;
+      adjustError.textContent = '';
+    }
+    syncLookingHint();
+
+    if (adjustOverlay) {
+      adjustOverlay.hidden = false;
+      adjustJoined?.focus();
+    }
+  }
+
+  function syncLookingHint() {
+    const joined = Number(adjustJoined?.value || 0);
+    const max = adjustMax?.value;
+    if (max !== '' && max != null && !lookingManual) {
+      const auto = Math.max(0, Number(max) - joined);
+      if (adjustLooking) adjustLooking.value = String(auto);
+    }
+    if (adjustLookingHint) {
+      adjustLookingHint.textContent = max
+        ? `Suggested: ${Math.max(0, Number(max) - joined)} more (max − joined).`
+        : 'Set a max to auto-calculate spots needed.';
+    }
+  }
+
   function bindCardActions(card) {
     card.querySelector('[data-accept-request]')?.addEventListener('click', () => {
-      card.classList.remove('is-open');
-      card.classList.add('is-accepted');
-      const status = card.querySelector('.coach-req-status');
-      if (status) {
-        status.className = 'coach-req-status coach-req-status--accepted';
-        status.textContent = 'Accepted';
+      pendingDepositCard = card;
+      if (!card.dataset.playersJoined) card.dataset.playersJoined = '1';
+      const max = card.dataset.maxPlayers || '';
+      if (max !== '' && (card.dataset.lookingFor === '' || card.dataset.lookingFor == null)) {
+        card.dataset.lookingFor = String(Math.max(0, Number(max) - 1));
       }
-      card.querySelector('.coach-req-card__timer')?.remove();
-      card.querySelector('.coach-req-card__actions')?.remove();
-      card.querySelector('.coach-req-card__hint')?.remove();
-
-      const joined = document.createElement('div');
-      joined.className = 'coach-req-card__joined';
-      joined.innerHTML = '<span>1 player joined</span><span>Accepted by You</span>';
-      card.appendChild(joined);
-      updateCountdowns();
+      markCardHosted(card, { depositPaid: false });
+      const id = card.dataset.requestId;
+      if (id) {
+        patchStoredRequest(id, {
+          status: 'awaiting_deposit',
+          accepted_by: 'You',
+          players_joined: Number(card.dataset.playersJoined || 1),
+          max_players: card.dataset.maxPlayers || '',
+          min_players: card.dataset.minPlayers || '',
+          looking_for: card.dataset.lookingFor || '',
+        });
+      }
+      if (depositOverlay) {
+        depositOverlay.hidden = false;
+        window.CoachNowPayment?.mount(depositOverlay.querySelector('[data-payment-root]'));
+        confirmDepositBtn?.focus();
+      }
     });
 
     card.querySelector('[data-decline-request]')?.addEventListener('click', () => {
+      const id = card.dataset.requestId;
+      if (id) {
+        const items = readStoredRequests().filter((item) => item.id !== id);
+        writeStoredRequests(items);
+      }
       card.remove();
       updateCountdowns();
     });
+
+    card.querySelector('[data-adjust-details]')?.addEventListener('click', () => openAdjustOverlay(card));
+  }
+
+  function extraFieldsHtml(req) {
+    const parts = [];
+    const label = playersLabel(req.min_players, req.max_players);
+    if (label) {
+      parts.push(`<div data-players-row><dt>Players</dt><dd data-field="players">${escapeHtml(label)}</dd></div>`);
+    } else {
+      parts.push('<div data-players-row hidden><dt>Players</dt><dd data-field="players">—</dd></div>');
+    }
+    if (req.player_level) parts.push(`<div><dt>Level</dt><dd>${escapeHtml(req.player_level)}</dd></div>`);
+    if (req.know_by) parts.push(`<div><dt>Need to know by</dt><dd>${escapeHtml(req.know_by)}</dd></div>`);
+    return parts.join('');
   }
 
   function buildCard(req) {
     const card = document.createElement('article');
-    card.className = 'coach-req-card is-open';
+    const hosted = ['accepted', 'confirmed', 'awaiting_deposit', 'hosted'].includes(req.status);
+    card.className = `coach-req-card ${hosted ? 'is-hosted' : 'is-open'}${req.deposit_paid || req.status === 'confirmed' ? ' is-confirmed' : ''}`;
     card.dataset.requestId = req.id;
+    card.dataset.minPlayers = req.min_players ?? '';
+    card.dataset.maxPlayers = req.max_players ?? '';
+    card.dataset.playersJoined = String(req.players_joined ?? (hosted ? 1 : 0));
+    card.dataset.lookingFor = req.looking_for ?? '';
+    card.dataset.coachNote = req.coach_note || '';
+    card.dataset.sessionType = req.session_type || '';
     card.dataset.acceptSeconds = String(req.accept_seconds || 900);
     card.dataset.countdownStarted = String(Date.now());
     if (req.acceptExpiresAt) card.dataset.acceptExpires = String(req.acceptExpiresAt);
+
+    if (hosted) {
+      const joined = Number(card.dataset.playersJoined || 1);
+      const depositPaid = !!(req.deposit_paid || req.status === 'confirmed');
+      card.innerHTML = `
+        <div class="coach-req-card__top">
+          <div class="coach-req-card__player">
+            <div class="admin-person-fallback">${escapeHtml(req.initials || 'NR')}</div>
+            <div>
+              <strong>${escapeHtml(req.name || 'New session request')}</strong>
+              <span>${escapeHtml(req.posted || 'Just now')} · ${escapeHtml(req.id || '')}</span>
+            </div>
+          </div>
+          <span class="coach-req-status ${depositPaid ? 'coach-req-status--hosted' : 'coach-req-status--accepted'}">
+            ${depositPaid ? '<span class="coach-req-pulse coach-req-pulse--green"></span> Open to join' : 'Deposit pending'}
+          </span>
+        </div>
+        <div class="coach-req-card__grid">
+          <div><dt>When</dt><dd>${escapeHtml(req.when || '—')}</dd></div>
+          <div><dt>Location</dt><dd>${escapeHtml(req.location || '—')}<span>${escapeHtml(req.city || '')}</span></dd></div>
+          <div><dt>Session type</dt><dd data-field="session_type">${escapeHtml(req.session_type || '—')}</dd></div>
+          <div><dt>Age range</dt><dd>${escapeHtml(req.age_range || '—')}</dd></div>
+          <div><dt>Price / player</dt><dd>${escapeHtml(req.price_range || '—')}</dd></div>
+          <div><dt>Sport</dt><dd>${escapeHtml(req.sport || 'Soccer')}</dd></div>
+          ${extraFieldsHtml(req)}
+        </div>
+        ${req.notes ? `<p class="coach-req-card__notes">${escapeHtml(req.notes)}</p>` : ''}
+      `;
+      renderHostedFooter(card, {
+        joined,
+        max: req.max_players ?? '',
+        min: req.min_players ?? '',
+        lookingFor: req.looking_for ?? '',
+        depositPaid,
+        coachNote: req.coach_note || '',
+      });
+      return card;
+    }
 
     card.innerHTML = `
       <div class="coach-req-card__top">
@@ -145,26 +417,27 @@
             <span>${escapeHtml(req.posted || 'Just now')} · ${escapeHtml(req.id || '')}</span>
           </div>
         </div>
-        <span class="coach-req-status coach-req-status--open"><span class="coach-req-pulse"></span> Open</span>
+        <span class="coach-req-status coach-req-status--open"><span class="coach-req-pulse"></span> Needs host</span>
       </div>
       <div class="coach-req-card__grid">
         <div><dt>When</dt><dd>${escapeHtml(req.when || '—')}</dd></div>
         <div><dt>Location</dt><dd>${escapeHtml(req.location || '—')}<span>${escapeHtml(req.city || '')}</span></dd></div>
-        <div><dt>Session type</dt><dd>${escapeHtml(req.session_type || '—')}</dd></div>
+        <div><dt>Session type</dt><dd data-field="session_type">${escapeHtml(req.session_type || '—')}</dd></div>
         <div><dt>Age range</dt><dd>${escapeHtml(req.age_range || '—')}</dd></div>
         <div><dt>Price / player</dt><dd>${escapeHtml(req.price_range || '—')}</dd></div>
         <div><dt>Sport</dt><dd>${escapeHtml(req.sport || 'Soccer')}</dd></div>
+        ${extraFieldsHtml(req)}
       </div>
       ${req.notes ? `<p class="coach-req-card__notes">${escapeHtml(req.notes)}</p>` : ''}
       <div class="coach-req-card__timer">
-        <span class="coach-req-card__timer-label">Accept within</span>
+        <span class="coach-req-card__timer-label">Accept by</span>
         <span class="coach-req-countdown" data-countdown>—</span>
       </div>
       <div class="coach-req-card__actions">
         <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request>Accept &amp; host</button>
         <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request>Decline</button>
       </div>
-      <p class="coach-req-card__hint">If you accept, the player is notified and the request stays open for others to join until 30 minutes before start.</p>
+      <p class="coach-req-card__hint">If you accept, the parent confirms with a $10 deposit. The request stays open so other players can join until 30 minutes before start.</p>
     `;
 
     bindCardActions(card);
@@ -186,24 +459,17 @@
   }
 
   function loadLiveRequests() {
-    let stored = [];
-    try {
-      stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    } catch {
-      stored = [];
-    }
-
+    const stored = readStoredRequests();
     const staticIds = new Set(
       [...list.querySelectorAll('.coach-req-card')].map((c) => c.dataset.requestId).filter(Boolean)
     );
-
     const seen = getSeenIds();
     const newIds = [];
 
     stored.forEach((req) => {
       if (!req?.id || staticIds.has(req.id)) return;
       list.prepend(buildCard(req));
-      if (!seen.has(req.id)) newIds.push(req.id);
+      if ((!req.status || req.status === 'open') && !seen.has(req.id)) newIds.push(req.id);
     });
 
     if (newIds.length) {
@@ -216,8 +482,100 @@
     updateCountdowns();
   }
 
-  bell?.addEventListener('click', openModal);
+  confirmDepositBtn?.addEventListener('click', () => {
+    const wallet = window.CoachNowPayment?.api(document.querySelector('#coachDepositOverlay [data-payment-root]'));
+    const result = wallet?.charge();
+    if (!result?.ok) return;
 
+    const card = pendingDepositCard;
+    const id = card?.dataset.requestId;
+    if (id) {
+      patchStoredRequest(id, {
+        status: 'hosted',
+        deposit_paid: true,
+        paid_with: `${result.method.brand} ···· ${result.method.last4}`,
+        accepted_by: 'You',
+        players_joined: Number(card.dataset.playersJoined || 1),
+        max_players: card.dataset.maxPlayers || '',
+        min_players: card.dataset.minPlayers || '',
+        looking_for: card.dataset.lookingFor || '',
+      });
+    }
+    if (card) markCardHosted(card, { depositPaid: true });
+    closeDepositOverlay();
+  });
+
+  cancelDepositBtn?.addEventListener('click', closeDepositOverlay);
+
+  adjustJoined?.addEventListener('input', syncLookingHint);
+  adjustMax?.addEventListener('input', () => {
+    lookingManual = false;
+    syncLookingHint();
+  });
+  adjustLooking?.addEventListener('input', () => {
+    lookingManual = true;
+  });
+
+  adjustSaveBtn?.addEventListener('click', () => {
+    if (!adjustingCard) return;
+    const joined = Number(adjustJoined?.value || 0);
+    const max = adjustMax?.value === '' ? '' : Number(adjustMax.value);
+    const min = adjustMin?.value === '' ? '' : Number(adjustMin.value);
+    const looking = adjustLooking?.value === '' ? '' : Number(adjustLooking.value);
+    const note = adjustNote?.value.trim() || '';
+
+    if (!joined || joined < 1) {
+      if (adjustError) {
+        adjustError.hidden = false;
+        adjustError.textContent = 'Players joined must be at least 1.';
+      }
+      return;
+    }
+    if (max !== '' && max < joined) {
+      if (adjustError) {
+        adjustError.hidden = false;
+        adjustError.textContent = 'Max players must be greater than or equal to players joined.';
+      }
+      return;
+    }
+    if (min !== '' && max !== '' && min > max) {
+      if (adjustError) {
+        adjustError.hidden = false;
+        adjustError.textContent = 'Min players cannot be greater than max players.';
+      }
+      return;
+    }
+
+    const id = adjustingCard.dataset.requestId;
+    if (id) {
+      patchStoredRequest(id, {
+        status: adjustingCard.classList.contains('is-confirmed') || adjustingCard.querySelector('.coach-req-status--hosted')
+          ? 'hosted'
+          : 'awaiting_deposit',
+        players_joined: joined,
+        max_players: max === '' ? '' : max,
+        min_players: min === '' ? '' : min,
+        looking_for: looking === '' ? '' : looking,
+        coach_note: note,
+      });
+    }
+
+    renderHostedFooter(adjustingCard, {
+      joined,
+      max: max === '' ? '' : max,
+      min: min === '' ? '' : min,
+      lookingFor: looking === '' ? '' : looking,
+      depositPaid: adjustingCard.classList.contains('is-confirmed')
+        || !!adjustingCard.querySelector('.coach-req-status--hosted'),
+      coachNote: note,
+    });
+    closeAdjustOverlay();
+    updateBadges();
+  });
+
+  adjustCancelBtn?.addEventListener('click', closeAdjustOverlay);
+
+  bell?.addEventListener('click', openModal);
   kpi?.addEventListener('click', openModal);
   kpi?.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -231,13 +589,20 @@
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && modal.classList.contains('is-open')) {
-      closeModal();
+    if (event.key !== 'Escape') return;
+    if (adjustOverlay && !adjustOverlay.hidden) {
+      closeAdjustOverlay();
+      return;
     }
+    if (depositOverlay && !depositOverlay.hidden) {
+      closeDepositOverlay();
+      return;
+    }
+    if (modal.classList.contains('is-open')) closeModal();
   });
 
   list.querySelectorAll('.coach-req-card').forEach((card) => {
-    if (!card.dataset.countdownStarted && card.dataset.acceptSeconds) {
+    if (!card.dataset.countdownStarted && card.dataset.acceptSeconds && card.classList.contains('is-open')) {
       card.dataset.countdownStarted = String(Date.now());
     }
     bindCardActions(card);

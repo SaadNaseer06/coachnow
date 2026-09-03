@@ -28,7 +28,7 @@
   <article class="admin-kpi coach-kpi-requests" id="coachOpenRequestsKpi" role="button" tabindex="0" aria-label="Open session requests">
     <div class="admin-kpi-label">Open Session Requests</div>
     <div class="admin-kpi-value" id="coachOpenRequestCount">{{ collect($sessionRequests ?? [])->where('status', 'open')->count() }}</div>
-    <div class="admin-kpi-trend up">Tap to review · From Request Session</div>
+    <div class="admin-kpi-trend up">Tap to review · Hosted sessions stay open to join</div>
   </article>
 </section>
 

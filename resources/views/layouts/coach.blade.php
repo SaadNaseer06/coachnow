@@ -28,6 +28,7 @@
   </script>
   <link rel="stylesheet" href="{{ asset('assets/css/admin.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/coach-portal.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/payment-methods.css') }}">
   @stack('styles')
 </head>
 <body class="admin-body font-sans antialiased">
@@ -76,6 +77,7 @@
   @include('partials.coach.session-requests-modal', ['sessionRequests' => $sessionRequests ?? []])
 
   <script src="{{ asset('assets/js/coach-dashboard.js') }}"></script>
+  <script src="{{ asset('assets/js/payment-methods.js') }}"></script>
   <script src="{{ asset('assets/js/coach-session-requests.js') }}"></script>
   @stack('scripts')
 </body>

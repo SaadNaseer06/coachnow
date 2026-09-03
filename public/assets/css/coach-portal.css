@@ -1032,9 +1032,203 @@ body.coach-req-modal-open {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
 }
 
+.coach-req-card.is-hosted {
+  border-color: rgba(34, 197, 94, 0.28);
+  background: #f8fffb;
+}
+
 .coach-req-card.is-accepted {
   border-color: rgba(34, 197, 94, 0.28);
   background: #f0fdf4;
+}
+
+.coach-req-status--hosted {
+  background: rgba(34, 197, 94, 0.14);
+  color: #15803d;
+}
+
+.coach-req-pulse--green {
+  background: #16a34a;
+}
+
+.coach-req-card__hosted {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.coach-req-card__hosted-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #15803d;
+}
+
+.coach-req-card__coach-note {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.08);
+  font-size: 12px;
+  line-height: 1.5;
+  color: #166534;
+}
+
+.coach-adjust-card {
+  width: min(460px, 100%);
+}
+
+.coach-adjust-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.coach-adjust-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.coach-adjust-field--full {
+  grid-column: 1 / -1;
+}
+
+.coach-adjust-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3f3f46;
+}
+
+.coach-adjust-field label span {
+  font-weight: 400;
+  color: #a1a1aa;
+}
+
+.coach-adjust-field input,
+.coach-adjust-field textarea {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #e4e4e7;
+  background: #fff;
+  font-size: 14px;
+  color: #18181b;
+  outline: none;
+}
+
+.coach-adjust-field textarea {
+  height: auto;
+  min-height: 72px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.coach-adjust-field input:focus,
+.coach-adjust-field textarea:focus {
+  border-color: #da020c;
+  box-shadow: 0 0 0 3px rgba(218, 2, 12, 0.1);
+}
+
+.coach-adjust-hint {
+  margin: 0;
+  font-size: 11px;
+  color: #a1a1aa;
+}
+
+@media (max-width: 520px) {
+  .coach-adjust-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.coach-deposit {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 24px 20px;
+  background: rgba(24, 22, 21, 0.48);
+}
+
+.coach-deposit[hidden] {
+  display: none;
+}
+
+.coach-deposit__card {
+  width: min(440px, 100%);
+  margin: auto 0;
+  padding: 22px 20px 18px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+}
+
+.coach-deposit__kicker {
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #15803d;
+}
+
+.coach-deposit__card h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #18181b;
+}
+
+.coach-deposit__copy {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #52525b;
+}
+
+.coach-deposit__amount {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fafafa;
+  border: 1px solid #f4f4f5;
+}
+
+.coach-deposit__amount span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #71717a;
+}
+
+.coach-deposit__amount strong {
+  font-size: 22px;
+  font-weight: 700;
+  color: #18181b;
+}
+
+.coach-deposit__card .admin-btn {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.coach-deposit__note {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #a1a1aa;
+  text-align: center;
 }
 
 .coach-req-card__top {
