@@ -1051,6 +1051,75 @@ body.coach-req-modal-open {
   background: #16a34a;
 }
 
+.coach-req-roster {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.coach-req-roster__empty {
+  margin: 0;
+  font-size: 12px;
+  color: #a1a1aa;
+}
+
+.coach-req-roster__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #e4e4e7;
+}
+
+.coach-req-roster__who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.coach-req-roster__who .admin-person-fallback {
+  width: 32px;
+  height: 32px;
+  font-size: 11px;
+}
+
+.coach-req-roster__who strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  color: #18181b;
+}
+
+.coach-req-roster__who span {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  color: #71717a;
+}
+
+.coach-req-pay-badge {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.coach-req-pay-badge--paid {
+  background: rgba(34, 197, 94, 0.14);
+  color: #15803d;
+}
+
+.coach-req-pay-badge--pending {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
 .coach-req-card__hosted {
   margin-top: 14px;
   padding-top: 12px;

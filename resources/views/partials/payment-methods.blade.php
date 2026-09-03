@@ -16,7 +16,7 @@
   </button>
 
   <form class="pay-methods__form" data-payment-form hidden novalidate>
-    <p class="pay-methods__hint">Use a test card — no real charge. Try <button type="button" class="pay-methods__fill" data-fill-card="4242424242424242">4242 4242 4242 4242</button> or <button type="button" class="pay-methods__fill" data-fill-card="4000000000000002">4000 0000 0000 0002</button> (declines).</p>
+    <p class="pay-methods__hint">Demo only — try <button type="button" class="pay-methods__fill" data-fill-card="4242424242424242">4242…4242</button> (success) or <button type="button" class="pay-methods__fill" data-fill-card="4000000000000002">4000…0002</button> (decline).</p>
 
     <div class="pay-methods__field">
       <label for="{{ $payPrefix }}CardName">Name on card</label>

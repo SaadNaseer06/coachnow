@@ -9,9 +9,6 @@
   const modalBadge = document.getElementById('coachSessionRequestsModalBadge');
   const countEl = document.getElementById('coachOpenRequestCount');
   const kpi = document.getElementById('coachOpenRequestsKpi');
-  const depositOverlay = document.getElementById('coachDepositOverlay');
-  const confirmDepositBtn = document.getElementById('coachConfirmDepositBtn');
-  const cancelDepositBtn = document.getElementById('coachCancelDepositBtn');
   const adjustOverlay = document.getElementById('coachAdjustOverlay');
   const adjustJoined = document.getElementById('coachAdjustJoined');
   const adjustMax = document.getElementById('coachAdjustMax');
@@ -26,7 +23,6 @@
   if (!modal || !list) return;
 
   let lastFocus = null;
-  let pendingDepositCard = null;
   let adjustingCard = null;
   let lookingManual = false;
 
@@ -67,6 +63,36 @@
     return '';
   }
 
+  function estimatePayout(priceRange, joined, { maxPlayers = '', minPlayers = '' } = {}) {
+    const n = Number(joined || 0) || Number(maxPlayers || 0) || Number(minPlayers || 0);
+    if (!n || !priceRange) return '';
+    const basedOnJoined = Number(joined || 0) > 0;
+    const text = String(priceRange);
+    let m = text.match(/up to\s*\$?\s*(\d+)/i);
+    if (m) {
+      return `Up to $${(Number(m[1]) * n).toLocaleString()}${basedOnJoined ? ' est.' : ''} (${n} × up to $${m[1]})`;
+    }
+    m = text.match(/\$?\s*(\d+)\s*[–-]\s*\$?\s*(\d+)/);
+    if (m) {
+      return `$${(Number(m[1]) * n).toLocaleString()} – $${(Number(m[2]) * n).toLocaleString()}${basedOnJoined ? ' est.' : ''} (${n} × ${m[1]}–${m[2]})`;
+    }
+    m = text.match(/\$?\s*(\d+)\s*\+/);
+    if (m) {
+      return `$${(Number(m[1]) * n).toLocaleString()}+${basedOnJoined ? ' est.' : ''} (${n} × $${m[1]}+)`;
+    }
+    return '';
+  }
+
+  function payoutFieldHtml(req, joined) {
+    const label = Number(joined || 0) > 0 ? 'Est. payout' : 'Est. if filled';
+    const value = estimatePayout(req.price_range, joined, {
+      maxPlayers: req.max_players ?? '',
+      minPlayers: req.min_players ?? '',
+    });
+    if (!value) return '';
+    return `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`;
+  }
+
   function spotsLabel(joined, max, lookingFor) {
     const looking = lookingFor !== '' && lookingFor != null
       ? Number(lookingFor)
@@ -74,6 +100,21 @@
     if (looking == null) return 'Open for more players';
     if (looking <= 0) return 'Full';
     return `Looking for ${looking} more`;
+  }
+
+  function parsePlayers(card) {
+    try {
+      const raw = card.dataset.players;
+      const list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function setPlayers(card, players) {
+    card.dataset.players = JSON.stringify(players);
+    card.dataset.playersJoined = String(players.length);
   }
 
   function activeCount() {
@@ -156,11 +197,6 @@
     modal.querySelector('.coach-req-modal__close')?.focus();
   }
 
-  function closeDepositOverlay() {
-    pendingDepositCard = null;
-    if (depositOverlay) depositOverlay.hidden = true;
-  }
-
   function closeAdjustOverlay() {
     adjustingCard = null;
     lookingManual = false;
@@ -173,7 +209,6 @@
 
   function closeModal() {
     if (!modal.classList.contains('is-open')) return;
-    closeDepositOverlay();
     closeAdjustOverlay();
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
@@ -184,12 +219,38 @@
     }
   }
 
-  function renderHostedFooter(card, { joined, max, min, lookingFor, depositPaid, coachNote }) {
-    card.dataset.playersJoined = String(joined);
+  function rosterHtml(players) {
+    if (!players.length) {
+      return '<p class="coach-req-roster__empty">No players confirmed yet.</p>';
+    }
+    return players.map((player) => `
+      <div class="coach-req-roster__row">
+        <div class="coach-req-roster__who">
+          <div class="admin-person-fallback">${escapeHtml(player.initials || 'PL')}</div>
+          <div>
+            <strong>${escapeHtml(player.name || 'Player')}</strong>
+            <span>${player.role === 'requester' ? 'Original requester' : 'Joined'}</span>
+          </div>
+        </div>
+        ${player.paid
+          ? `<span class="coach-req-pay-badge coach-req-pay-badge--paid">Paid${player.paid_with ? ` · ${escapeHtml(player.paid_with)}` : ''}</span>`
+          : player.card_on_file
+            ? `<span class="coach-req-pay-badge coach-req-pay-badge--pending">Card on file</span>`
+            : '<span class="coach-req-pay-badge coach-req-pay-badge--pending">Deposit pending</span>'}
+      </div>
+    `).join('');
+  }
+
+  function renderHostedFooter(card, { joined, max, min, lookingFor, coachNote, players }) {
+    const roster = players || parsePlayers(card);
+    setPlayers(card, roster);
     card.dataset.maxPlayers = max === '' || max == null ? '' : String(max);
     card.dataset.minPlayers = min === '' || min == null ? '' : String(min);
     card.dataset.lookingFor = lookingFor === '' || lookingFor == null ? '' : String(lookingFor);
     card.dataset.coachNote = coachNote || '';
+
+    const paidCount = roster.filter((p) => p.paid).length;
+    const pendingCount = Math.max(0, roster.length - paidCount);
 
     const playersRow = card.querySelector('[data-players-row]');
     const playersField = card.querySelector('[data-field="players"]');
@@ -206,34 +267,30 @@
 
     hosted.innerHTML = `
       <div class="coach-req-card__hosted-meta">
-        <span data-field="joined">${joined} player${joined === 1 ? '' : 's'} joined</span>
-        <span data-field="spots">${escapeHtml(spotsLabel(joined, max, lookingFor))}</span>
-        <span>${depositPaid ? '$10 deposit confirmed' : 'Awaiting $10 deposit'}</span>
+        <span data-field="joined">${roster.length || joined} player${(roster.length || joined) === 1 ? '' : 's'} joined</span>
+        <span data-field="paid">${paidCount} paid</span>
+        <span data-field="pending">${pendingCount} pending deposit</span>
+        <span data-field="spots">${escapeHtml(spotsLabel(roster.length || joined, max, lookingFor))}</span>
       </div>
+      <div class="coach-req-roster" data-roster>${rosterHtml(roster)}</div>
       ${coachNote ? `<p class="coach-req-card__coach-note">${escapeHtml(coachNote)}</p>` : ''}
       <div class="coach-req-card__actions">
         <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-adjust-details>View &amp; adjust details</button>
       </div>
-      <p class="coach-req-card__hint">You’re the host. This session stays visible so others can join until 30 minutes before start.</p>
+      <p class="coach-req-card__hint">Deposits are handled by parents/players. You only see who’s confirmed and paid.</p>
     `;
 
     hosted.querySelector('[data-adjust-details]')?.addEventListener('click', () => openAdjustOverlay(card));
   }
 
-  function markCardHosted(card, { depositPaid = false } = {}) {
+  function markCardHosted(card) {
     card.classList.remove('is-open');
     card.classList.add('is-hosted');
-    if (depositPaid) card.classList.add('is-confirmed');
 
     const status = card.querySelector('.coach-req-status');
     if (status) {
-      if (!depositPaid) {
-        status.className = 'coach-req-status coach-req-status--accepted';
-        status.textContent = 'Deposit pending';
-      } else {
-        status.className = 'coach-req-status coach-req-status--hosted';
-        status.innerHTML = '<span class="coach-req-pulse coach-req-pulse--green"></span> Open to join';
-      }
+      status.className = 'coach-req-status coach-req-status--hosted';
+      status.innerHTML = '<span class="coach-req-pulse coach-req-pulse--green"></span> Open to join';
     }
 
     card.querySelector('.coach-req-card__timer')?.remove();
@@ -243,19 +300,32 @@
     const oldHint = [...card.querySelectorAll('.coach-req-card__hint')].find((el) => !el.closest('.coach-req-card__hosted'));
     oldHint?.remove();
 
-    const joined = Number(card.dataset.playersJoined || 1) || 1;
+    let players = parsePlayers(card);
+    if (!players.length) {
+      const name = card.querySelector('.coach-req-card__player strong')?.textContent?.trim() || 'Player';
+      const initials = card.querySelector('.coach-req-card__player .admin-person-fallback')?.textContent?.trim() || 'PL';
+      players = [{
+        id: `p-${card.dataset.requestId || Date.now()}`,
+        name,
+        initials,
+        role: 'requester',
+        paid: false,
+        paid_with: '',
+      }];
+    }
+
     const max = card.dataset.maxPlayers ?? '';
     const min = card.dataset.minPlayers ?? '';
     let looking = card.dataset.lookingFor ?? '';
-    if (looking === '' && max !== '') looking = String(Math.max(0, Number(max) - joined));
+    if (looking === '' && max !== '') looking = String(Math.max(0, Number(max) - players.length));
 
     renderHostedFooter(card, {
-      joined,
+      joined: players.length,
       max,
       min,
       lookingFor: looking,
-      depositPaid,
       coachNote: card.dataset.coachNote || '',
+      players,
     });
     updateCountdowns();
   }
@@ -263,7 +333,8 @@
   function openAdjustOverlay(card) {
     adjustingCard = card;
     lookingManual = false;
-    const joined = Number(card.dataset.playersJoined || 1) || 1;
+    const players = parsePlayers(card);
+    const joined = players.length || Number(card.dataset.playersJoined || 1) || 1;
     const max = card.dataset.maxPlayers || '';
     const min = card.dataset.minPlayers || '';
     let looking = card.dataset.lookingFor;
@@ -304,36 +375,69 @@
 
   function bindCardActions(card) {
     card.querySelector('[data-accept-request]')?.addEventListener('click', () => {
-      pendingDepositCard = card;
-      if (!card.dataset.playersJoined) card.dataset.playersJoined = '1';
+      const id = card.dataset.requestId;
+      const stored = id ? readStoredRequests().find((item) => item.id === id) : null;
+      const fallbackName = card.querySelector('.coach-req-card__player strong')?.textContent?.trim() || 'Player';
+      const fallbackInitials = card.querySelector('.coach-req-card__player .admin-person-fallback')?.textContent?.trim() || 'PL';
+      const storedCard = stored?.card_on_file || '';
+
+      let players = Array.isArray(stored?.players) && stored.players.length
+        ? stored.players.map((player) => {
+            const isRequester = player.role === 'requester';
+            const cardLabel = player.card_on_file || (isRequester ? storedCard : '');
+            if (isRequester && cardLabel) {
+              return { ...player, paid: true, paid_with: cardLabel, card_on_file: cardLabel };
+            }
+            return player;
+          })
+        : [{
+            id: `p-${id || Date.now()}`,
+            name: fallbackName,
+            initials: fallbackInitials,
+            role: 'requester',
+            paid: !!storedCard,
+            paid_with: storedCard,
+            card_on_file: storedCard,
+          }];
+
+      if (!players.some((p) => p.role === 'requester') && storedCard) {
+        players.unshift({
+          id: `p-${id || Date.now()}`,
+          name: fallbackName,
+          initials: fallbackInitials,
+          role: 'requester',
+          paid: true,
+          paid_with: storedCard,
+          card_on_file: storedCard,
+        });
+      }
+
+      setPlayers(card, players);
+      card.dataset.playersJoined = String(players.length);
       const max = card.dataset.maxPlayers || '';
       if (max !== '' && (card.dataset.lookingFor === '' || card.dataset.lookingFor == null)) {
-        card.dataset.lookingFor = String(Math.max(0, Number(max) - 1));
+        card.dataset.lookingFor = String(Math.max(0, Number(max) - players.length));
       }
-      markCardHosted(card, { depositPaid: false });
-      const id = card.dataset.requestId;
+      markCardHosted(card);
       if (id) {
         patchStoredRequest(id, {
-          status: 'awaiting_deposit',
+          status: 'hosted',
           accepted_by: 'You',
-          players_joined: Number(card.dataset.playersJoined || 1),
+          deposit_paid: players.some((p) => p.role === 'requester' && p.paid),
+          paid_with: players.find((p) => p.role === 'requester')?.paid_with || storedCard,
+          players,
+          players_joined: players.length,
           max_players: card.dataset.maxPlayers || '',
           min_players: card.dataset.minPlayers || '',
           looking_for: card.dataset.lookingFor || '',
         });
-      }
-      if (depositOverlay) {
-        depositOverlay.hidden = false;
-        window.CoachNowPayment?.mount(depositOverlay.querySelector('[data-payment-root]'));
-        confirmDepositBtn?.focus();
       }
     });
 
     card.querySelector('[data-decline-request]')?.addEventListener('click', () => {
       const id = card.dataset.requestId;
       if (id) {
-        const items = readStoredRequests().filter((item) => item.id !== id);
-        writeStoredRequests(items);
+        writeStoredRequests(readStoredRequests().filter((item) => item.id !== id));
       }
       card.remove();
       updateCountdowns();
@@ -358,21 +462,21 @@
   function buildCard(req) {
     const card = document.createElement('article');
     const hosted = ['accepted', 'confirmed', 'awaiting_deposit', 'hosted'].includes(req.status);
-    card.className = `coach-req-card ${hosted ? 'is-hosted' : 'is-open'}${req.deposit_paid || req.status === 'confirmed' ? ' is-confirmed' : ''}`;
+    const players = Array.isArray(req.players) ? req.players : [];
+    card.className = `coach-req-card ${hosted ? 'is-hosted' : 'is-open'}`;
     card.dataset.requestId = req.id;
     card.dataset.minPlayers = req.min_players ?? '';
     card.dataset.maxPlayers = req.max_players ?? '';
-    card.dataset.playersJoined = String(req.players_joined ?? (hosted ? 1 : 0));
+    card.dataset.playersJoined = String(players.length || req.players_joined || (hosted ? 1 : 0));
     card.dataset.lookingFor = req.looking_for ?? '';
     card.dataset.coachNote = req.coach_note || '';
     card.dataset.sessionType = req.session_type || '';
     card.dataset.acceptSeconds = String(req.accept_seconds || 900);
     card.dataset.countdownStarted = String(Date.now());
+    setPlayers(card, players);
     if (req.acceptExpiresAt) card.dataset.acceptExpires = String(req.acceptExpiresAt);
 
     if (hosted) {
-      const joined = Number(card.dataset.playersJoined || 1);
-      const depositPaid = !!(req.deposit_paid || req.status === 'confirmed');
       card.innerHTML = `
         <div class="coach-req-card__top">
           <div class="coach-req-card__player">
@@ -382,28 +486,27 @@
               <span>${escapeHtml(req.posted || 'Just now')} · ${escapeHtml(req.id || '')}</span>
             </div>
           </div>
-          <span class="coach-req-status ${depositPaid ? 'coach-req-status--hosted' : 'coach-req-status--accepted'}">
-            ${depositPaid ? '<span class="coach-req-pulse coach-req-pulse--green"></span> Open to join' : 'Deposit pending'}
-          </span>
+          <span class="coach-req-status coach-req-status--hosted"><span class="coach-req-pulse coach-req-pulse--green"></span> Open to join</span>
         </div>
         <div class="coach-req-card__grid">
           <div><dt>When</dt><dd>${escapeHtml(req.when || '—')}</dd></div>
           <div><dt>Location</dt><dd>${escapeHtml(req.location || '—')}<span>${escapeHtml(req.city || '')}</span></dd></div>
           <div><dt>Session type</dt><dd data-field="session_type">${escapeHtml(req.session_type || '—')}</dd></div>
           <div><dt>Age range</dt><dd>${escapeHtml(req.age_range || '—')}</dd></div>
-          <div><dt>Price / player</dt><dd>${escapeHtml(req.price_range || '—')}</dd></div>
+          <div><dt>Budget / player</dt><dd>${escapeHtml(req.price_range || '—')}</dd></div>
+          ${payoutFieldHtml(req, players.length || Number(card.dataset.playersJoined || 0))}
           <div><dt>Sport</dt><dd>${escapeHtml(req.sport || 'Soccer')}</dd></div>
           ${extraFieldsHtml(req)}
         </div>
         ${req.notes ? `<p class="coach-req-card__notes">${escapeHtml(req.notes)}</p>` : ''}
       `;
       renderHostedFooter(card, {
-        joined,
+        joined: players.length || Number(card.dataset.playersJoined || 1),
         max: req.max_players ?? '',
         min: req.min_players ?? '',
         lookingFor: req.looking_for ?? '',
-        depositPaid,
         coachNote: req.coach_note || '',
+        players,
       });
       return card;
     }
@@ -424,7 +527,8 @@
         <div><dt>Location</dt><dd>${escapeHtml(req.location || '—')}<span>${escapeHtml(req.city || '')}</span></dd></div>
         <div><dt>Session type</dt><dd data-field="session_type">${escapeHtml(req.session_type || '—')}</dd></div>
         <div><dt>Age range</dt><dd>${escapeHtml(req.age_range || '—')}</dd></div>
-        <div><dt>Price / player</dt><dd>${escapeHtml(req.price_range || '—')}</dd></div>
+        <div><dt>Budget / player</dt><dd>${escapeHtml(req.price_range || '—')}</dd></div>
+        ${payoutFieldHtml(req, 0)}
         <div><dt>Sport</dt><dd>${escapeHtml(req.sport || 'Soccer')}</dd></div>
         ${extraFieldsHtml(req)}
       </div>
@@ -437,7 +541,7 @@
         <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request>Accept &amp; host</button>
         <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request>Decline</button>
       </div>
-      <p class="coach-req-card__hint">If you accept, the parent confirms with a $10 deposit. The request stays open so other players can join until 30 minutes before start.</p>
+      <p class="coach-req-card__hint">If you accept, the $10 deposit is charged to the parent’s card on file. You just host — and can see who’s paid.</p>
     `;
 
     bindCardActions(card);
@@ -456,6 +560,24 @@
     const seen = getSeenIds();
     ids.forEach((id) => seen.add(id));
     sessionStorage.setItem(SEEN_KEY, JSON.stringify([...seen]));
+  }
+
+  function refreshHostedFromStorage() {
+    const stored = readStoredRequests();
+    list.querySelectorAll('.coach-req-card.is-hosted').forEach((card) => {
+      const match = stored.find((item) => item.id === card.dataset.requestId);
+      if (!match) return;
+      const players = Array.isArray(match.players) ? match.players : parsePlayers(card);
+      renderHostedFooter(card, {
+        joined: players.length || Number(match.players_joined || 1),
+        max: match.max_players ?? card.dataset.maxPlayers ?? '',
+        min: match.min_players ?? card.dataset.minPlayers ?? '',
+        lookingFor: match.looking_for ?? card.dataset.lookingFor ?? '',
+        coachNote: match.coach_note || card.dataset.coachNote || '',
+        players,
+      });
+    });
+    updateBadges();
   }
 
   function loadLiveRequests() {
@@ -479,33 +601,9 @@
       window.setTimeout(() => bell?.classList.remove('coach-req-bell--pulse'), 2400);
     }
 
+    refreshHostedFromStorage();
     updateCountdowns();
   }
-
-  confirmDepositBtn?.addEventListener('click', () => {
-    const wallet = window.CoachNowPayment?.api(document.querySelector('#coachDepositOverlay [data-payment-root]'));
-    const result = wallet?.charge();
-    if (!result?.ok) return;
-
-    const card = pendingDepositCard;
-    const id = card?.dataset.requestId;
-    if (id) {
-      patchStoredRequest(id, {
-        status: 'hosted',
-        deposit_paid: true,
-        paid_with: `${result.method.brand} ···· ${result.method.last4}`,
-        accepted_by: 'You',
-        players_joined: Number(card.dataset.playersJoined || 1),
-        max_players: card.dataset.maxPlayers || '',
-        min_players: card.dataset.minPlayers || '',
-        looking_for: card.dataset.lookingFor || '',
-      });
-    }
-    if (card) markCardHosted(card, { depositPaid: true });
-    closeDepositOverlay();
-  });
-
-  cancelDepositBtn?.addEventListener('click', closeDepositOverlay);
 
   adjustJoined?.addEventListener('input', syncLookingHint);
   adjustMax?.addEventListener('input', () => {
@@ -523,6 +621,7 @@
     const min = adjustMin?.value === '' ? '' : Number(adjustMin.value);
     const looking = adjustLooking?.value === '' ? '' : Number(adjustLooking.value);
     const note = adjustNote?.value.trim() || '';
+    const players = parsePlayers(adjustingCard);
 
     if (!joined || joined < 1) {
       if (adjustError) {
@@ -549,14 +648,13 @@
     const id = adjustingCard.dataset.requestId;
     if (id) {
       patchStoredRequest(id, {
-        status: adjustingCard.classList.contains('is-confirmed') || adjustingCard.querySelector('.coach-req-status--hosted')
-          ? 'hosted'
-          : 'awaiting_deposit',
+        status: 'hosted',
         players_joined: joined,
         max_players: max === '' ? '' : max,
         min_players: min === '' ? '' : min,
         looking_for: looking === '' ? '' : looking,
         coach_note: note,
+        players,
       });
     }
 
@@ -565,9 +663,8 @@
       max: max === '' ? '' : max,
       min: min === '' ? '' : min,
       lookingFor: looking === '' ? '' : looking,
-      depositPaid: adjustingCard.classList.contains('is-confirmed')
-        || !!adjustingCard.querySelector('.coach-req-status--hosted'),
       coachNote: note,
+      players,
     });
     closeAdjustOverlay();
     updateBadges();
@@ -594,10 +691,6 @@
       closeAdjustOverlay();
       return;
     }
-    if (depositOverlay && !depositOverlay.hidden) {
-      closeDepositOverlay();
-      return;
-    }
     if (modal.classList.contains('is-open')) closeModal();
   });
 
@@ -610,7 +703,10 @@
 
   loadLiveRequests();
   updateCountdowns();
-  setInterval(updateCountdowns, 1000);
+  setInterval(() => {
+    updateCountdowns();
+    refreshHostedFromStorage();
+  }, 1500);
 
   window.addEventListener('storage', (event) => {
     if (event.key === STORAGE_KEY) loadLiveRequests();

@@ -6,8 +6,8 @@
 @push('styles')
   <link rel="stylesheet" href="{{ asset('assets/css/find-a-coach.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/inner-pages.css') }}">
-  <link rel="stylesheet" href="{{ asset('assets/css/request-session.css') }}">
-  <link rel="stylesheet" href="{{ asset('assets/css/payment-methods.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/request-session.css') }}?v={{ @filemtime(public_path('assets/css/request-session.css')) ?: time() }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/payment-methods.css') }}?v={{ @filemtime(public_path('assets/css/payment-methods.css')) ?: time() }}">
 @endpush
 
 @section('content')
@@ -29,7 +29,7 @@
         <div class="req-main">
           <div class="req-banner">
             <span class="req-banner__pill">Testing</span>
-            <p>Requests are in testing. A <strong>$10 deposit</strong> confirms a session after a coach accepts — that helps stop fake requests. Text alerts and subscriptions launch soon.</p>
+            <p>Requests are in testing. Put a <strong>card on file</strong> to submit (no charge). When a coach accepts, a <strong>$10 deposit</strong> is charged automatically. Text alerts and subscriptions launch soon.</p>
           </div>
 
           <div class="req-progress" aria-hidden="true">
@@ -211,14 +211,15 @@
                   </div>
 
                   <div class="req-field">
-                    <label for="reqPriceRange">Price range <span class="req-optional">(per player)</span></label>
+                    <label for="reqPriceRange">Budget per player</label>
+                    <p class="req-help">This is what you’re willing to pay <strong>per player</strong> — not a total for the whole group.</p>
                     <select id="reqPriceRange" name="price_range" required>
-                      <option value="" disabled selected>Select price range</option>
-                      <option value="Any">Any</option>
-                      <option value="$25 – $50">$25 – $50</option>
-                      <option value="$50 – $100">$50 – $100</option>
-                      <option value="$100 – $150">$100 – $150</option>
-                      <option value="$150+">$150+</option>
+                      <option value="" disabled selected>Select budget per player</option>
+                      <option value="Up to $25 / player">Up to $25 / player</option>
+                      <option value="$25 – $50 / player">$25 – $50 / player</option>
+                      <option value="$50 – $100 / player">$50 – $100 / player</option>
+                      <option value="$100 – $150 / player">$100 – $150 / player</option>
+                      <option value="$150+ / player">$150+ / player</option>
                     </select>
                   </div>
 
@@ -281,7 +282,7 @@
                     <button type="submit" class="req-btn req-btn--primary">Submit request</button>
                     <p class="req-disclaimer">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                      <span>Coaches are notified and can accept until your cutoff. When a coach accepts, you confirm with a <strong>$10 deposit</strong> (refundable toward the session). The request stays open for others to join until <strong>30 minutes before</strong> start.</span>
+                      <span>Next you’ll put a card on file. Nothing is charged until a coach accepts. Then a <strong>$10 deposit</strong> is taken automatically.</span>
                     </p>
                   </div>
                 </form>
@@ -311,19 +312,28 @@
 
                   <dl class="req-live-summary" id="reqLiveSummary"></dl>
 
-                  <div class="req-deposit" id="reqDepositPanel" hidden>
-                    <div class="req-deposit__badge">Coach accepted</div>
-                    <h3>Confirm with a $10 deposit</h3>
-                    <p>This holds your request so coaches aren’t responding to fake posts. The $10 goes toward the session.</p>
-                    @include('partials.payment-methods', ['payPrefix' => 'reqPay'])
-                    <button type="button" class="req-btn req-btn--primary" id="reqPayDepositBtn">Pay $10 deposit</button>
-                    <p class="req-deposit__note">Testing only — no real charge. Use the sample cards above.</p>
+                  <div class="req-deposit req-deposit--waiting" id="reqWaitingCoach">
+                    <div class="req-deposit__badge req-deposit__badge--wait">Card on file</div>
+                    <h3>No charge yet</h3>
+                    <p>Your card is saved. When a coach accepts, a <strong>$10 deposit</strong> is charged automatically — same idea as Uber. Nothing is charged if nobody accepts.</p>
+                    <p class="req-deposit__note" id="reqCardOnFileNote">Keep this tab open, then Accept &amp; host on the coach dashboard to see the $10 charge.</p>
                   </div>
 
                   <div class="req-deposit req-deposit--paid" id="reqDepositPaid" hidden>
-                    <h3>Deposit confirmed</h3>
-                    <p>Your $10 deposit is in and the session is confirmed with your host coach. It stays open so other players can still join until 30 minutes before start.</p>
+                    <h3>You’re confirmed</h3>
+                    <p>A coach accepted and your <strong>$10 deposit</strong> was charged to the card on file. The session stays open so others can join until 30 minutes before start.</p>
                     <p class="req-deposit__note" id="reqPaidWith"></p>
+                    <button type="button" class="req-btn req-btn--ghost" id="reqJoinAsAnother" style="margin-top:0.75rem;width:100%">Demo: join as another player</button>
+                  </div>
+
+                  <div class="req-deposit" id="reqJoinDepositPanel" hidden>
+                    <div class="req-deposit__badge">Join session</div>
+                    <h3>Join with a $10 deposit</h3>
+                    <p>Players joining this open session confirm with a $10 deposit. The coach can see who’s paid.</p>
+                    @include('partials.payment-methods', ['payPrefix' => 'reqJoinPay'])
+                    <button type="button" class="req-btn req-btn--primary" id="reqJoinPayBtn">Pay $10 &amp; join</button>
+                    <button type="button" class="req-btn req-btn--ghost" id="reqJoinCancelBtn">Cancel</button>
+                    <p class="req-deposit__note">Testing only — no real charge.</p>
                   </div>
 
                   <div class="req-live-card__footer">
@@ -348,21 +358,21 @@
                 <span class="req-steps-list__num">1</span>
                 <div>
                   <strong>You post a request</strong>
-                  <p>Choose location, time, age range, and session type.</p>
+                  <p>Choose location, time, and put a card on file. No charge yet.</p>
                 </div>
               </li>
               <li>
                 <span class="req-steps-list__num">2</span>
                 <div>
-                  <strong>Coaches get notified</strong>
-                  <p>Nearby coaches receive a text and can accept until the time you set.</p>
+                  <strong>A coach accepts</strong>
+                  <p>Your $10 deposit is charged automatically. The coach just hosts.</p>
                 </div>
               </li>
               <li>
                 <span class="req-steps-list__num">3</span>
                 <div>
-                  <strong>Players can join</strong>
-                  <p>Group requests stay open until 30 minutes before start.</p>
+                  <strong>Others can join</strong>
+                  <p>Joiners pay a $10 deposit too. Open until 30 minutes before start.</p>
                 </div>
               </li>
             </ol>
@@ -381,7 +391,7 @@
               </li>
               <li>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                First coach to accept hosts it — you confirm with a $10 deposit.
+                Card on file at request. $10 charges only after a coach accepts.
               </li>
             </ul>
           </div>
@@ -394,11 +404,31 @@
       </div>
     </div>
   </section>
+
+  <div class="req-pay-modal" id="reqCardModal" hidden data-lenis-prevent>
+    <div class="req-pay-modal__backdrop" data-close-card-modal></div>
+    <div class="req-pay-modal__panel" role="dialog" aria-modal="true" aria-labelledby="reqCardModalTitle">
+      <div class="req-pay-modal__header">
+        <button type="button" class="req-pay-modal__close" data-close-card-modal aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+        <h2 id="reqCardModalTitle">Confirm with a card</h2>
+        <p class="req-pay-modal__lead">We’ll save this card to post your request. No charge now — a <strong>$10 deposit</strong> only if a coach accepts.</p>
+      </div>
+      <div class="req-pay-modal__body" id="reqCardOnFileBox" data-lenis-prevent>
+        @include('partials.payment-methods', ['payPrefix' => 'reqFile'])
+      </div>
+      <div class="req-pay-modal__footer">
+        <button type="button" class="req-btn req-btn--primary" id="reqCardConfirmBtn">Post request</button>
+        <button type="button" class="req-btn req-btn--ghost" data-close-card-modal>Cancel</button>
+      </div>
+    </div>
+  </div>
 </main>
 @endsection
 
 @push('scripts')
   <script src="{{ asset('assets/js/coach-profile.js') }}"></script>
-  <script src="{{ asset('assets/js/payment-methods.js') }}"></script>
-  <script src="{{ asset('assets/js/request-session.js') }}"></script>
+  <script src="{{ asset('assets/js/payment-methods.js') }}?v={{ @filemtime(public_path('assets/js/payment-methods.js')) ?: time() }}"></script>
+  <script src="{{ asset('assets/js/request-session.js') }}?v={{ @filemtime(public_path('assets/js/request-session.js')) ?: time() }}"></script>
 @endpush

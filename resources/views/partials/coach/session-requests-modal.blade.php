@@ -20,7 +20,7 @@
           Session requests
           <span class="coach-req-badge" id="coachSessionRequestsModalBadge">{{ $openCount }} need host</span>
         </h2>
-        <p>Accept to host — the request stays open so other players can join. Parent confirms with a $10 deposit.</p>
+        <p>Accept to host — the parent already has a card on file. $10 charges automatically. You only see who’s paid.</p>
       </div>
       <button type="button" class="coach-req-modal__close" data-close-session-requests aria-label="Close session requests">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -42,22 +42,6 @@
       </p>
       <a href="{{ route('request-session') }}" class="admin-btn admin-btn-ghost admin-btn-sm" target="_blank" rel="noopener">View player flow</a>
     </footer>
-  </div>
-
-  <div id="coachDepositOverlay" class="coach-deposit" hidden>
-    <div class="coach-deposit__card" role="dialog" aria-labelledby="coachDepositTitle" aria-modal="true">
-      <p class="coach-deposit__kicker">Session accepted</p>
-      <h3 id="coachDepositTitle">Confirm with a $10 deposit</h3>
-      <p class="coach-deposit__copy">The parent confirms with a <strong>$10 deposit</strong> to lock this request — same idea as Uber, so coaches aren’t responding to fake posts. It goes toward the session. The session stays open for others to join.</p>
-      <div class="coach-deposit__amount">
-        <span>Deposit</span>
-        <strong>$10.00</strong>
-      </div>
-      @include('partials.payment-methods', ['payPrefix' => 'coachPay'])
-      <button type="button" class="admin-btn admin-btn-primary" id="coachConfirmDepositBtn">Pay $10 deposit</button>
-      <button type="button" class="admin-btn admin-btn-ghost" id="coachCancelDepositBtn">Not now</button>
-      <p class="coach-deposit__note">Testing only — no real charge. Use the sample cards above.</p>
-    </div>
   </div>
 
   <div id="coachAdjustOverlay" class="coach-deposit" hidden>

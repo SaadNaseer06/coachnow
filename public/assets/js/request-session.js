@@ -21,6 +21,7 @@
     playerLevel: '',
     notes: '',
     requestId: '',
+    cardOnFile: '',
   };
 
   const morningSlots = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM'];
@@ -50,9 +51,14 @@
     countdownHint: document.getElementById('reqCountdownHint'),
     startAnother: document.getElementById('reqStartAnother'),
     knowByInput: document.getElementById('reqKnowBy'),
-    depositPanel: document.getElementById('reqDepositPanel'),
+    waitingCoach: document.getElementById('reqWaitingCoach'),
     depositPaid: document.getElementById('reqDepositPaid'),
-    payDepositBtn: document.getElementById('reqPayDepositBtn'),
+    joinDepositPanel: document.getElementById('reqJoinDepositPanel'),
+    joinAsAnother: document.getElementById('reqJoinAsAnother'),
+    joinPayBtn: document.getElementById('reqJoinPayBtn'),
+    joinCancelBtn: document.getElementById('reqJoinCancelBtn'),
+    cardModal: document.getElementById('reqCardModal'),
+    cardConfirmBtn: document.getElementById('reqCardConfirmBtn'),
   };
 
   let countdownTimer = null;
@@ -285,10 +291,10 @@
     extra.push(`<div><dt>Time</dt><dd>${escapeHtml(state.selectedTime)}</dd></div>`);
     extra.push(`<div><dt>Session</dt><dd>${escapeHtml(state.sessionType)}</dd></div>`);
     extra.push(`<div><dt>Age range</dt><dd>${escapeHtml(state.ageRange)}</dd></div>`);
-    extra.push(`<div><dt>Price / player</dt><dd>${escapeHtml(state.priceRange)}</dd></div>`);
+    extra.push(`<div><dt>Budget / player</dt><dd>${escapeHtml(state.priceRange)}</dd></div>`);
     if (playersLabel()) extra.push(`<div><dt>Players</dt><dd>${escapeHtml(playersLabel())}</dd></div>`);
     if (state.playerLevel) extra.push(`<div><dt>Level</dt><dd>${escapeHtml(state.playerLevel)}</dd></div>`);
-    extra.push(`<div><dt>Deposit</dt><dd>$${DEPOSIT_AMOUNT} after a coach accepts</dd></div>`);
+    extra.push(`<div><dt>Deposit</dt><dd>Card on file · $${DEPOSIT_AMOUNT} charged when a coach accepts</dd></div>`);
     els.liveSummary.innerHTML = extra.join('');
   }
 
@@ -350,13 +356,35 @@
     writeStoredRequests(list);
   }
 
-  function showDepositState(status) {
-    const awaiting = status === 'awaiting_deposit';
-    const confirmed = status === 'confirmed' || status === 'hosted';
-    if (els.depositPanel) els.depositPanel.hidden = !awaiting;
-    if (els.depositPaid) els.depositPaid.hidden = !confirmed;
-    if (awaiting) {
-      window.CoachNowPayment?.mount(document.querySelector('#reqDepositPanel [data-payment-root]'));
+  function showDepositState(status, match) {
+    const hosted = status === 'hosted' || status === 'accepted' || status === 'awaiting_deposit' || status === 'confirmed';
+    const players = Array.isArray(match?.players) ? match.players : [];
+    const requester = players.find((p) => p.role === 'requester') || players[0];
+    const requesterPaid = !!(requester?.paid || match?.deposit_paid);
+    const joining = els.joinDepositPanel && !els.joinDepositPanel.hidden;
+    const cardLabel = match?.card_on_file || requester?.card_on_file || state.cardOnFile || '';
+
+    if (els.waitingCoach) els.waitingCoach.hidden = hosted || joining;
+    if (els.depositPaid) els.depositPaid.hidden = !(hosted && requesterPaid) || joining;
+
+    const cardNote = document.getElementById('reqCardOnFileNote');
+    if (cardNote && cardLabel && !hosted) {
+      cardNote.textContent = `Saved ${cardLabel}. $10 charges automatically when a coach accepts. Keep this tab open, then Accept & host on the coach dashboard.`;
+    }
+
+    if (!hosted) {
+      const liveStatus = document.querySelector('.req-live-card__status');
+      if (liveStatus) liveStatus.innerHTML = '<span class="req-pulse"></span> Open · Card on file';
+    }
+
+    if (hosted && requesterPaid) {
+      const liveStatus = document.querySelector('.req-live-card__status');
+      if (liveStatus) liveStatus.innerHTML = '<span class="req-pulse"></span> Hosted · Deposit charged';
+      if (els.countdownHint) els.countdownHint.textContent = 'Coach accepted — $10 charged · session open for others to join';
+      const paidLabel = document.getElementById('reqPaidWith');
+      if (paidLabel && (requester?.paid_with || cardLabel)) {
+        paidLabel.textContent = `Charged to ${requester?.paid_with || cardLabel}`;
+      }
     }
   }
 
@@ -364,7 +392,7 @@
     if (!state.requestId) return;
     const match = readStoredRequests().find((item) => item.id === state.requestId);
     if (!match) return;
-    showDepositState(match.status);
+    showDepositState(match.status, match);
   }
 
   function resetFlow() {
@@ -376,10 +404,14 @@
     state.minPlayers = '';
     state.maxPlayers = '';
     state.playerLevel = '';
+    state.cardOnFile = '';
+    closeCardModal();
     if (els.form1) els.form1.reset();
     if (els.form4) els.form4.reset();
     if (els.toDetailsBtn) els.toDetailsBtn.disabled = true;
-    showDepositState('');
+    showDepositState('', null);
+    if (els.waitingCoach) els.waitingCoach.hidden = false;
+    if (els.joinDepositPanel) els.joinDepositPanel.hidden = true;
     document.querySelectorAll('#reqKnowByPresets .req-chip').forEach((chip) => chip.classList.remove('is-active'));
     setMinDate();
     goToStep(1);
@@ -509,32 +541,71 @@
       state.playerLevel = document.getElementById('reqPlayerLevel')?.value || '';
       state.notes = document.getElementById('reqNotes')?.value.trim() || '';
 
-      const idNum = Math.floor(1000 + Math.random() * 9000);
-      const requestId = `CN-${idNum}`;
-      state.requestId = requestId;
-      if (els.requestId) els.requestId.textContent = `#${requestId}`;
-
-      saveSessionRequest(requestId);
-      renderLiveSummary();
-      if (els.countdownHint) {
-        els.countdownHint.textContent = `Coaches can accept until ${formatKnowBy(knowByAt)}`;
-      }
-      startCutoffCountdown(knowByAt.getTime());
-      showDepositState('open');
-      goToStep(5);
+      openCardModal();
     });
   }
 
-  function saveSessionRequest(requestId) {
+  function openCardModal() {
+    if (!els.cardModal) return;
+    if (els.cardModal.parentElement !== document.body) {
+      document.body.appendChild(els.cardModal);
+    }
+    els.cardModal.hidden = false;
+    document.body.classList.add('req-pay-modal-open');
+    window.coachNowLenis?.stop();
+
+    const root = document.querySelector('#reqCardOnFileBox [data-payment-root]');
+    const wallet = window.CoachNowPayment?.api(root);
+    wallet?.collapseForm?.();
+    const body = document.getElementById('reqCardOnFileBox');
+    if (body) body.scrollTop = 0;
+  }
+
+  function closeCardModal() {
+    if (!els.cardModal) return;
+    els.cardModal.hidden = true;
+    document.body.classList.remove('req-pay-modal-open');
+    window.coachNowLenis?.start();
+  }
+
+  function publishRequest(cardLabel) {
+    state.cardOnFile = cardLabel;
+    const idNum = Math.floor(1000 + Math.random() * 9000);
+    const requestId = `CN-${idNum}`;
+    state.requestId = requestId;
+    if (els.requestId) els.requestId.textContent = `#${requestId}`;
+
+    saveSessionRequest(requestId, cardLabel);
+    renderLiveSummary();
+    if (els.countdownHint && state.knowByAt) {
+      els.countdownHint.textContent = `Coaches can accept until ${formatKnowBy(state.knowByAt)}`;
+      startCutoffCountdown(state.knowByAt.getTime());
+    }
+    showDepositState('open', { status: 'open', card_on_file: cardLabel, players: [] });
+    if (els.waitingCoach) els.waitingCoach.hidden = false;
+    closeCardModal();
+    goToStep(5);
+  }
+
+  function saveSessionRequest(requestId, cardLabel) {
     const dateStr = state.selectedDate
       ? state.selectedDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
       : state.date;
     const when = [dateStr, state.selectedTime].filter(Boolean).join(' · ');
     const expiresAt = state.knowByAt ? state.knowByAt.getTime() : Date.now();
+    const players = [{
+      id: `p-${requestId}`,
+      name: 'You (requester)',
+      initials: 'YO',
+      role: 'requester',
+      paid: false,
+      paid_with: '',
+      card_on_file: cardLabel,
+    }];
 
     const payload = {
       id: requestId,
-      initials: 'NR',
+      initials: 'YO',
       name: 'New session request',
       location: state.locationName || state.location,
       city: state.locationCity || '',
@@ -549,7 +620,10 @@
       player_level: state.playerLevel,
       know_by: state.knowByAt ? formatKnowBy(state.knowByAt) : '',
       deposit: DEPOSIT_AMOUNT,
+      card_on_file: cardLabel,
       status: 'open',
+      players,
+      players_joined: 1,
       accept_seconds: Math.max(1, Math.floor((expiresAt - Date.now()) / 1000)),
       posted: 'Just now',
       createdAt: Date.now(),
@@ -565,21 +639,70 @@
     }
   }
 
-  els.payDepositBtn?.addEventListener('click', () => {
+  els.cardConfirmBtn?.addEventListener('click', () => {
+    const wallet = window.CoachNowPayment?.api(document.querySelector('#reqCardOnFileBox [data-payment-root]'));
+    const authorized = wallet?.authorize();
+    if (!authorized?.ok) return;
+    publishRequest(`${authorized.method.brand} ···· ${authorized.method.last4}`);
+  });
+
+  document.querySelectorAll('[data-close-card-modal]').forEach((btn) => {
+    btn.addEventListener('click', closeCardModal);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && els.cardModal && !els.cardModal.hidden) closeCardModal();
+  });
+
+  els.joinAsAnother?.addEventListener('click', () => {
+    if (els.depositPaid) els.depositPaid.hidden = true;
+    if (els.waitingCoach) els.waitingCoach.hidden = true;
+    if (els.joinDepositPanel) {
+      els.joinDepositPanel.hidden = false;
+      window.CoachNowPayment?.mount(document.querySelector('#reqJoinDepositPanel [data-payment-root]'));
+    }
+  });
+
+  els.joinCancelBtn?.addEventListener('click', () => {
+    if (els.joinDepositPanel) els.joinDepositPanel.hidden = true;
+    syncLiveRequestStatus();
+  });
+
+  els.joinPayBtn?.addEventListener('click', () => {
     if (!state.requestId) return;
-    const wallet = window.CoachNowPayment?.api(document.querySelector('#reqDepositPanel [data-payment-root]'));
+    const wallet = window.CoachNowPayment?.api(document.querySelector('#reqJoinDepositPanel [data-payment-root]'));
     const result = wallet?.charge();
     if (!result?.ok) return;
+
+    const match = readStoredRequests().find((item) => item.id === state.requestId) || {};
+    const players = Array.isArray(match.players) ? [...match.players] : [];
+    const paidWith = `${result.method.brand} ···· ${result.method.last4}`;
+    const n = players.length + 1;
+    players.push({
+      id: `p-join-${Date.now()}`,
+      name: `Joiner ${n}`,
+      initials: `J${n}`,
+      role: 'joiner',
+      paid: true,
+      paid_with: paidWith,
+    });
+
+    const max = match.max_players;
+    const looking = max !== '' && max != null ? Math.max(0, Number(max) - players.length) : (match.looking_for ?? '');
+
     updateStoredRequest(state.requestId, {
       status: 'hosted',
-      deposit_paid: true,
-      paid_with: `${result.method.brand} ···· ${result.method.last4}`,
-      accepted_by: 'You',
-      players_joined: 1,
+      players,
+      players_joined: players.length,
+      looking_for: looking,
     });
-    const paidWith = document.getElementById('reqPaidWith');
-    if (paidWith) paidWith.textContent = `Paid with ${result.method.brand} ···· ${result.method.last4} · Session stays open for others to join`;
-    showDepositState('hosted');
+
+    if (els.joinDepositPanel) els.joinDepositPanel.hidden = true;
+    showDepositState('hosted', { status: 'hosted', players, deposit_paid: true });
+    const paidLabel = document.getElementById('reqPaidWith');
+    if (paidLabel) {
+      paidLabel.textContent = `${players.length} players on roster · latest join paid with ${paidWith}`;
+    }
   });
 
   document.querySelectorAll('[data-go-step]').forEach((btn) => {

@@ -217,6 +217,10 @@
 
     root._coachNowPayment = {
       showError,
+      collapseForm() {
+        if (form) form.hidden = true;
+        showError('');
+      },
       selected() {
         const methods = loadMethods();
         return methods.find((m) => m.id === selectedId()) || null;
@@ -256,6 +260,9 @@
           return { ok: false, error: 'declined' };
         }
         return { ok: true, method };
+      },
+      authorize() {
+        return this.charge();
       },
     };
 
