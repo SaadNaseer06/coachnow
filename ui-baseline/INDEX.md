@@ -3,8 +3,9 @@
 Frozen visual reference of all screens **before functional requirements development**.
 
 - **Captured:** 2026-09-08
-- **Git tag:** `ui-prototype`
+- **Git tag:** `ui-screens`
 - **Viewport:** 1440×900 (full page)
+- **Note:** Capture script waits for / force-hides the site preloader so screenshots are fully loaded.
 
 Use these screenshots to compare later UI changes. If something drifts, open the matching image and restore the layout to match.
 

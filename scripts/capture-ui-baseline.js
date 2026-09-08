@@ -1,5 +1,6 @@
 /**
  * Capture a visual baseline of all CoachNow screens.
+ * Waits for / forces past the site preloader so screenshots are clean.
  * Run: node scripts/capture-ui-baseline.js
  */
 import { chromium } from 'playwright';
@@ -42,24 +43,112 @@ const adminScreens = [
   ['21-admin-athletes', '/admin/athletes'],
 ];
 
+async function preparePage(page) {
+  // Force past preloader + reveal motion content so screenshots are not mid-load.
+  await page.evaluate(() => {
+    const root = document.documentElement;
+    const preloader = document.getElementById('coachnowPreloader');
+
+    if (preloader) {
+      preloader.classList.add('is-loaded', 'is-finished');
+      preloader.style.display = 'none';
+      preloader.setAttribute('aria-hidden', 'true');
+    }
+
+    root.classList.remove('preloader-active');
+    root.classList.add('hero-motion-started');
+
+    if (typeof window.startCoachNowPostLoaderMotion === 'function') {
+      window.startCoachNowPostLoaderMotion();
+    }
+
+    document.querySelectorAll('.motion-section').forEach((section) => {
+      section.classList.add('is-visible');
+    });
+
+    document.querySelectorAll('.hero-fade-target, .motion-item').forEach((el) => {
+      el.style.opacity = '1';
+      el.style.transform = 'none';
+      el.style.visibility = 'visible';
+      el.style.animation = 'none';
+      el.style.transition = 'none';
+    });
+
+    // Stop any leftover fixed overlays from covering the page.
+    document.querySelectorAll('#coachnowPreloader, .preloader-bars, .preloader-bar').forEach((el) => {
+      el.style.display = 'none';
+      el.style.visibility = 'hidden';
+      el.style.opacity = '0';
+      el.style.pointerEvents = 'none';
+    });
+  });
+
+  // Let images settle after reveal.
+  await page.waitForTimeout(700);
+
+  try {
+    await page.waitForFunction(
+      () => {
+        const preloader = document.getElementById('coachnowPreloader');
+        if (!preloader) return true;
+        const style = window.getComputedStyle(preloader);
+        return (
+          preloader.classList.contains('is-finished') ||
+          style.display === 'none' ||
+          style.visibility === 'hidden' ||
+          Number(style.opacity) === 0
+        );
+      },
+      { timeout: 8000 }
+    );
+  } catch {
+    // Continue anyway — we already forced hide above.
+  }
+
+  // Scroll to bottom then top so lazy sections / sticky headers settle.
+  await page.evaluate(async () => {
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+    window.scrollTo(0, height);
+    await delay(250);
+    window.scrollTo(0, 0);
+    await delay(250);
+  });
+}
+
 async function shot(page, name, urlPath) {
   const url = BASE + urlPath;
   console.log(`Capturing ${name} → ${url}`);
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-  await page.waitForTimeout(800);
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+  // Prefer network idle, but don't hang forever on long-polling assets.
+  try {
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+  } catch {
+    await page.waitForTimeout(1000);
+  }
+
+  await preparePage(page);
+
   const file = path.join(SHOTS, `${name}.png`);
-  await page.screenshot({ path: file, fullPage: true });
+  await page.screenshot({ path: file, fullPage: true, animations: 'disabled' });
   return { name, url: urlPath, file: `screenshots/${name}.png` };
 }
 
 async function login(page, email, password) {
-  await page.goto(BASE + '/login', { waitUntil: 'networkidle' });
+  await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded' });
+  await preparePage(page);
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', password);
   await Promise.all([
-    page.waitForNavigation({ waitUntil: 'networkidle' }),
+    page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
     page.click('button[type="submit"]'),
   ]);
+  try {
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+  } catch {
+    await page.waitForTimeout(800);
+  }
 }
 
 async function logout(page) {
@@ -81,14 +170,21 @@ async function main() {
     results.push(await shot(page, name, url));
   }
 
-  await page.goto(BASE + '/player-dashboard', { waitUntil: 'networkidle' });
-  await page.waitForTimeout(500);
+  // Player dashboard with notification panel open
+  await page.goto(BASE + '/player-dashboard', { waitUntil: 'domcontentloaded' });
+  try {
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+  } catch {
+    await page.waitForTimeout(800);
+  }
+  await preparePage(page);
+
   const bell = await page.$('#playerNotifyBtn');
   if (bell) {
     await bell.click();
     await page.waitForTimeout(400);
     const file = path.join(SHOTS, '06b-player-dashboard-notifications.png');
-    await page.screenshot({ path: file, fullPage: true });
+    await page.screenshot({ path: file, fullPage: true, animations: 'disabled' });
     results.push({
       name: '06b-player-dashboard-notifications',
       url: '/player-dashboard (notifications open)',
@@ -116,8 +212,9 @@ async function main() {
 Frozen visual reference of all screens **before functional requirements development**.
 
 - **Captured:** ${new Date().toISOString().slice(0, 10)}
-- **Git tag:** \`ui-prototype\`
+- **Git tag:** \`ui-screens\`
 - **Viewport:** 1440×900 (full page)
+- **Note:** Capture script waits for / force-hides the site preloader so screenshots are fully loaded.
 
 Use these screenshots to compare later UI changes. If something drifts, open the matching image and restore the layout to match.
 
@@ -149,7 +246,6 @@ ${results.map((r, i) => `| ${i + 1} | ${r.name} | \`${r.url}\` | [${r.name}.png]
     JSON.stringify({ capturedAt: new Date().toISOString(), baseUrl: BASE, screens: results }, null, 2)
   );
 
-  // Simple HTML gallery for browsing without GitHub markdown image limits
   const gallery = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -166,23 +262,27 @@ ${results.map((r, i) => `| ${i + 1} | ${r.name} | \`${r.url}\` | [${r.name}.png]
     .meta { padding: 14px 16px; border-bottom: 1px solid #f4f4f5; }
     .meta h2 { margin: 0; font-size: 15px; }
     .meta code { font-size: 12px; color: #71717a; }
-    img { display: block; width: 100%; height: auto; }
+    img { display: block; width: 100%; height: auto; background: #ddd; }
   </style>
 </head>
 <body>
   <header>
     <h1>CoachNow UI Baseline</h1>
-    <p>Visual reference before functional development · ${new Date().toISOString().slice(0, 10)}</p>
+    <p>Visual reference before functional development · ${new Date().toISOString().slice(0, 10)} · preloader cleared</p>
   </header>
   <main>
-    ${results.map((r) => `
+    ${results
+      .map(
+        (r) => `
       <article id="${r.name}">
         <div class="meta">
           <h2>${r.name}</h2>
           <code>${r.url}</code>
         </div>
-        <img src="${r.file}" alt="${r.name}">
-      </article>`).join('')}
+        <img src="${r.file}?v=${Date.now()}" alt="${r.name}">
+      </article>`
+      )
+      .join('')}
   </main>
 </body>
 </html>`;
