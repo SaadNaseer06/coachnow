@@ -1,0 +1,116 @@
+{
+  "capturedAt": "2026-09-08T19:03:45.324Z",
+  "baseUrl": "http://127.0.0.1:8000",
+  "screens": [
+    {
+      "name": "01-home",
+      "url": "/",
+      "file": "screenshots/01-home.png"
+    },
+    {
+      "name": "02-find-a-coach",
+      "url": "/find-a-coach",
+      "file": "screenshots/02-find-a-coach.png"
+    },
+    {
+      "name": "03-request-session",
+      "url": "/request-session",
+      "file": "screenshots/03-request-session.png"
+    },
+    {
+      "name": "04-become-a-coach",
+      "url": "/become-a-coach",
+      "file": "screenshots/04-become-a-coach.png"
+    },
+    {
+      "name": "05-coach-profile",
+      "url": "/coach-profile",
+      "file": "screenshots/05-coach-profile.png"
+    },
+    {
+      "name": "06-player-dashboard",
+      "url": "/player-dashboard",
+      "file": "screenshots/06-player-dashboard.png"
+    },
+    {
+      "name": "07-about",
+      "url": "/about",
+      "file": "screenshots/07-about.png"
+    },
+    {
+      "name": "08-faq",
+      "url": "/faq",
+      "file": "screenshots/08-faq.png"
+    },
+    {
+      "name": "09-contact",
+      "url": "/contact",
+      "file": "screenshots/09-contact.png"
+    },
+    {
+      "name": "10-login",
+      "url": "/login",
+      "file": "screenshots/10-login.png"
+    },
+    {
+      "name": "06b-player-dashboard-notifications",
+      "url": "/player-dashboard (notifications open)",
+      "file": "screenshots/06b-player-dashboard-notifications.png"
+    },
+    {
+      "name": "11-coach-dashboard",
+      "url": "/coach/dashboard",
+      "file": "screenshots/11-coach-dashboard.png"
+    },
+    {
+      "name": "12-coach-schedule",
+      "url": "/coach/schedule",
+      "file": "screenshots/12-coach-schedule.png"
+    },
+    {
+      "name": "13-coach-player-overview",
+      "url": "/coach/player-overview",
+      "file": "screenshots/13-coach-player-overview.png"
+    },
+    {
+      "name": "14-coach-player-detail",
+      "url": "/coach/players/jamie-smith",
+      "file": "screenshots/14-coach-player-detail.png"
+    },
+    {
+      "name": "15-coach-add-report",
+      "url": "/coach/add-report",
+      "file": "screenshots/15-coach-add-report.png"
+    },
+    {
+      "name": "16-admin-dashboard",
+      "url": "/admin",
+      "file": "screenshots/16-admin-dashboard.png"
+    },
+    {
+      "name": "17-admin-schedule",
+      "url": "/admin/schedule",
+      "file": "screenshots/17-admin-schedule.png"
+    },
+    {
+      "name": "18-admin-coaches",
+      "url": "/admin/coaches",
+      "file": "screenshots/18-admin-coaches.png"
+    },
+    {
+      "name": "19-admin-bookings",
+      "url": "/admin/bookings",
+      "file": "screenshots/19-admin-bookings.png"
+    },
+    {
+      "name": "20-admin-locations",
+      "url": "/admin/locations",
+      "file": "screenshots/20-admin-locations.png"
+    },
+    {
+      "name": "21-admin-athletes",
+      "url": "/admin/athletes",
+      "file": "screenshots/21-admin-athletes.png"
+    }
+  ]
+}
