@@ -30,17 +30,20 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       View Website
     </a>
-    <a href="{{ route('login') }}" class="admin-nav-link">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      Sign Out
-    </a>
+    <form action="{{ route('logout') }}" method="post">
+      @csrf
+      <button type="submit" class="admin-nav-link w-full text-left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign Out
+      </button>
+    </form>
   </nav>
 
   <div class="admin-sidebar-footer">
     <div class="admin-user">
-      <div class="admin-user-avatar">CL</div>
+      <div class="admin-user-avatar">{{ strtoupper(substr(auth()->user()->name ?? 'CL', 0, 2)) }}</div>
       <div class="admin-user-meta">
-        <div class="admin-user-name">Coach Lee</div>
+        <div class="admin-user-name">{{ auth()->user()->name ?? 'Coach Lee' }}</div>
         <div class="admin-user-role">Development Plus</div>
       </div>
     </div>

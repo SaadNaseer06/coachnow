@@ -34,11 +34,6 @@ class PageController extends Controller
         return view('pages.contact');
     }
 
-    public function login()
-    {
-        return view('pages.login');
-    }
-
     public function coachProfile()
     {
         return view('pages.coach-profile');

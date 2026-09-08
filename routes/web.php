@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Coach\CoachController;
 use App\Http\Controllers\PageController;
 use Illuminate\Support\Facades\Route;
@@ -16,17 +17,28 @@ Route::get('/become-a-coach', [PageController::class, 'becomeACoach'])->name('be
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/faq', [PageController::class, 'faq'])->name('faq');
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
-Route::get('/login', [PageController::class, 'login'])->name('login');
 Route::get('/coach-profile', [PageController::class, 'coachProfile'])->name('coach-profile');
 Route::get('/player-dashboard', [PageController::class, 'playerDashboard'])->name('player-dashboard');
 Route::get('/request-session', [PageController::class, 'requestSession'])->name('request-session');
 
 /*
 |--------------------------------------------------------------------------
-| Coach portal (subscription + auth to be added next)
+| Auth
 |--------------------------------------------------------------------------
 */
-Route::prefix('coach')->name('coach.')->group(function () {
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login'])->name('login.attempt');
+});
+
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+
+/*
+|--------------------------------------------------------------------------
+| Coach portal
+|--------------------------------------------------------------------------
+*/
+Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach,admin'])->group(function () {
     Route::get('/schedule', [CoachController::class, 'schedule'])->name('schedule');
     Route::get('/dashboard', [CoachController::class, 'dashboard'])->name('dashboard');
     Route::get('/player-overview', [CoachController::class, 'playerOverview'])->name('player-overview');
@@ -36,10 +48,10 @@ Route::prefix('coach')->name('coach.')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Admin dashboard (auth to be added next)
+| Admin dashboard
 |--------------------------------------------------------------------------
 */
-Route::prefix('admin')->name('admin.')->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/schedule', [DashboardController::class, 'schedule'])->name('schedule');
     Route::get('/coaches', [DashboardController::class, 'coaches'])->name('coaches');

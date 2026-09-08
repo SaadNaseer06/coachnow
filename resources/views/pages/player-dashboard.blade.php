@@ -22,14 +22,62 @@
       background-position: center bottom;">
 
     <div class="relative z-10 max-w-[1220px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-16 pt-8 lg:pt-10 w-full">
+      <div class="flex justify-end mb-5 lg:mb-6">
+        <div class="player-notify hero-fade-target" style="--hero-delay:40ms" data-player-notify>
+          <button type="button" class="player-notify__btn" id="playerNotifyBtn" aria-label="Notifications" aria-expanded="false" aria-controls="playerNotifyPanel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <span class="player-notify__badge" data-notify-badge>2</span>
+          </button>
+
+          <div class="player-notify__panel" id="playerNotifyPanel" hidden>
+            <div class="player-notify__head">
+              <div>
+                <p class="player-notify__title">Notifications</p>
+                <p class="player-notify__sub">Matched to U12 · within 10 mi</p>
+              </div>
+              <button type="button" class="player-notify__mark" data-notify-mark>Mark all read</button>
+            </div>
+
+            <div class="player-notify__list">
+              <a href="{{ route('request-session') }}" class="player-notify__item is-unread" data-notify-item>
+                <span class="player-notify__dot"></span>
+                <span class="player-notify__body">
+                  <strong>Session nearby to join</strong>
+                  <span>U12 SAQ group · Sommers Bend · Sat 4:00 PM · 1.2 mi</span>
+                  <em>2 min ago</em>
+                </span>
+              </a>
+              <a href="{{ route('request-session') }}" class="player-notify__item is-unread" data-notify-item>
+                <span class="player-notify__dot"></span>
+                <span class="player-notify__body">
+                  <strong>Open request still accepting players</strong>
+                  <span>U12 Skills · Birdsall Park · Sun 10:00 AM · 3.4 mi</span>
+                  <em>18 min ago</em>
+                </span>
+              </a>
+              <div class="player-notify__item" data-notify-item>
+                <span class="player-notify__dot is-muted"></span>
+                <span class="player-notify__body">
+                  <strong>Report shared by Coach Lee</strong>
+                  <span>Focus of the week: scan before receiving</span>
+                  <em>Yesterday</em>
+                </span>
+              </div>
+            </div>
+
+            <p class="player-notify__note">Alerts are filtered by age group and radius. You can still browse all sessions anytime.</p>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-8 lg:gap-12 items-end">
         <div>
-          <span class="hero-fade-target inline-flex items-center px-4 py-2 rounded-full bg-brand-red text-white text-[11px] font-semibold uppercase tracking-[0.08em] mb-5 shadow-[0_4px_14px_rgba(218,2,12,0.35)]" style="--hero-delay:40ms">Player Dashboard</span>
-          <h1 class="hero-fade-target text-4xl sm:text-[2.75rem] lg:text-[3.25rem] font-medium text-white tracking-[-0.02em] leading-[1.05] mb-4 max-w-xl" style="--hero-delay:110ms">Train with purpose.<br>Track your progress.</h1>
-          <p class="hero-fade-target text-[14px] sm:text-[15px] text-zinc-300 leading-[1.7] font-light max-w-lg" style="--hero-delay:180ms">Coach reports, skill tracking, and a guided training assistant — everything you need to keep improving between sessions.</p>
+          <span class="hero-fade-target inline-flex items-center px-4 py-2 rounded-full bg-brand-red text-white text-[11px] font-semibold uppercase tracking-[0.08em] mb-5 shadow-[0_4px_14px_rgba(218,2,12,0.35)]" style="--hero-delay:80ms">Player Dashboard</span>
+          <h1 class="hero-fade-target text-4xl sm:text-[2.75rem] lg:text-[3.25rem] font-medium text-white tracking-[-0.02em] leading-[1.05] mb-4 max-w-xl" style="--hero-delay:140ms">Train with purpose.<br>Track your progress.</h1>
+          <p class="hero-fade-target text-[14px] sm:text-[15px] text-zinc-300 leading-[1.7] font-light max-w-lg" style="--hero-delay:200ms">Coach reports, skill tracking, and smart session alerts — everything you need to keep improving between sessions.</p>
         </div>
 
-        <div class="hero-fade-target player-profile-card flex items-center gap-4 px-5 py-4 lg:min-w-[320px]" style="--hero-delay:250ms">
+        <div class="hero-fade-target player-profile-card flex items-center gap-4 px-5 py-4 lg:min-w-[320px]" style="--hero-delay:260ms">
           <div class="relative shrink-0">
             <div class="w-[72px] h-[72px] rounded-full bg-brand-red text-white grid place-items-center text-xl font-bold ring-4 ring-white/20">JU</div>
             <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#191615]"></span>
@@ -270,4 +318,5 @@
 
 @push('scripts')
   <script src="{{ asset('assets/js/coach-profile.js') }}"></script>
+  <script src="{{ asset('assets/js/player-dashboard.js') }}"></script>
 @endpush
