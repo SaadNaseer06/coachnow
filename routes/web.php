@@ -18,8 +18,11 @@ Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/faq', [PageController::class, 'faq'])->name('faq');
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
 Route::get('/coach-profile', [PageController::class, 'coachProfile'])->name('coach-profile');
-Route::get('/player-dashboard', [PageController::class, 'playerDashboard'])->name('player-dashboard');
 Route::get('/request-session', [PageController::class, 'requestSession'])->name('request-session');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/player-dashboard', [PageController::class, 'playerDashboard'])->name('player-dashboard');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +32,8 @@ Route::get('/request-session', [PageController::class, 'requestSession'])->name(
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.attempt');
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [AuthController::class, 'register'])->name('register.store');
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');

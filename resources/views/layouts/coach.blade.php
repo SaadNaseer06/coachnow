@@ -28,9 +28,11 @@
   </script>
   <link rel="stylesheet" href="{{ asset('assets/css/admin.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/coach-portal.css') }}?v={{ @filemtime(public_path('assets/css/coach-portal.css')) ?: time() }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/scroll-progress.css') }}">
   @stack('styles')
 </head>
 <body class="admin-body font-sans antialiased">
+  @include('partials.scroll-ui')
   <div id="coachSidebarBackdrop" class="admin-sidebar-backdrop" aria-hidden="true"></div>
 
   <div class="admin-shell">
@@ -77,6 +79,7 @@
 
   <script src="{{ asset('assets/js/coach-dashboard.js') }}?v={{ @filemtime(public_path('assets/js/coach-dashboard.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/coach-session-requests.js') }}?v={{ @filemtime(public_path('assets/js/coach-session-requests.js')) ?: time() }}"></script>
+  <script src="{{ asset('assets/js/scroll-progress.js') }}"></script>
   @stack('scripts')
 </body>
 </html>

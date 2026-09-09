@@ -1,0 +1,157 @@
+/* Global scroll progress bar + percent bubble */
+
+#coachnowScrollProgress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  z-index: 100000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+#coachnowScrollProgressBar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #da020c;
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
+  box-shadow: 0 0 10px rgba(218, 2, 12, 0.35);
+}
+
+html.scroll-progress-ready #coachnowScrollProgress {
+  opacity: 1;
+}
+
+#coachnowScrollBubble {
+  position: fixed;
+  right: 0;
+  top: 82px;
+  width: 48px;
+  height: 48px;
+  z-index: 9998;
+  border-radius: 24px 0 24px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-right: 0;
+  background: #da020c;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate3d(16px, 0, 0) scale(0.92);
+  transform-origin: top right;
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.18),
+    0 0 0 5px rgba(218, 2, 12, 0.08);
+  transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
+  will-change: top, border-radius, transform, opacity;
+}
+
+#coachnowScrollBubble:hover {
+  transform: translate3d(0, 0, 0) scale(1.06);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.22),
+    0 0 0 7px rgba(218, 2, 12, 0.1);
+}
+
+#coachnowScrollBubble:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+#coachnowScrollBubble .scroll-bubble-percent {
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#coachnowScrollBubble .scroll-bubble-arrow {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  opacity: 0;
+  transform: translateY(5px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#coachnowScrollBubble:hover .scroll-bubble-percent {
+  opacity: 0;
+  transform: translateY(-5px);
+}
+
+#coachnowScrollBubble:hover .scroll-bubble-arrow {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#coachnowScrollBubble.is-scrolling {
+  pointer-events: auto;
+  animation: coachnowBubbleInflateIn 0.46s cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+}
+
+#coachnowScrollBubble.is-idle {
+  pointer-events: none;
+  animation: coachnowBubblePopOut 0.38s cubic-bezier(0.55, 0.06, 0.68, 0.19) both;
+}
+
+@keyframes coachnowBubbleInflateIn {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.08); filter: blur(2px); }
+  62% { opacity: 1; transform: translate3d(0, 0, 0) scale(1.1); filter: blur(0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+
+@keyframes coachnowBubblePopOut {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+  42% { opacity: 1; transform: translate3d(0, 0, 0) scale(1.13); filter: blur(0); }
+  100% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.06); filter: blur(2px); }
+}
+
+@media (max-width: 767px) {
+  #coachnowScrollProgress {
+    height: 2px;
+  }
+
+  #coachnowScrollBubble {
+    width: 42px;
+    height: 42px;
+  }
+
+  #coachnowScrollBubble .scroll-bubble-percent {
+    font-size: 9px;
+  }
+
+  #coachnowScrollBubble .scroll-bubble-arrow {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #coachnowScrollBubble,
+  #coachnowScrollBubble .scroll-bubble-percent,
+  #coachnowScrollBubble .scroll-bubble-arrow {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  #coachnowScrollBubble.is-scrolling,
+  #coachnowScrollBubble.is-idle {
+    animation: none !important;
+  }
+
+  #coachnowScrollBubble.is-scrolling {
+    opacity: 1 !important;
+  }
+
+  #coachnowScrollBubble.is-idle {
+    opacity: 0 !important;
+  }
+}

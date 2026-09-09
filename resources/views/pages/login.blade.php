@@ -45,19 +45,11 @@
               <input type="checkbox" name="remember" value="1" class="w-4 h-4 accent-[#DA020C]">
               Remember me
             </label>
-            <span class="text-zinc-400">Demo password: password</span>
           </div>
           <button type="submit" class="w-full h-11 rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-[13px] font-semibold transition-colors">Login</button>
         </form>
 
-        <div class="mt-5 rounded-[12px] border border-zinc-200 bg-zinc-50 p-4 text-[12px] text-zinc-600 leading-relaxed">
-          <p class="font-semibold text-[#191615] mb-2">Demo accounts</p>
-          <p>Player: <span class="font-medium text-[#191615]">player@coachnow.test</span></p>
-          <p>Coach: <span class="font-medium text-[#191615]">coach@coachnow.test</span></p>
-          <p>Admin: <span class="font-medium text-[#191615]">admin@coachnow.test</span></p>
-        </div>
-
-        <p class="mt-4 text-center text-[13px] text-zinc-500">New to CoachNow? <a href="{{ route('become-a-coach') }}" class="text-brand-red font-medium hover:text-brand-red-hover">Join as a coach</a> or <a href="{{ route('find-a-coach') }}" class="text-brand-red font-medium hover:text-brand-red-hover">find training</a>.</p>
+        <p class="mt-4 text-center text-[13px] text-zinc-500">New to CoachNow? <a href="{{ route('register') }}" class="text-brand-red font-medium hover:text-brand-red-hover">Create an account</a></p>
       </div>
     </div>
   </section>

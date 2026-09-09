@@ -28,7 +28,7 @@
         <ul class="space-y-3 text-[12px] lg:text-[13px] text-zinc-400">
           <li><a href="{{ route('find-a-coach') }}" class="hover:text-white transition-colors">Find a Coach</a></li>
           <li><a href="{{ route('request-session') }}" class="hover:text-white transition-colors">Request Session</a></li>
-          <li><a href="{{ route('player-dashboard') }}" class="hover:text-white transition-colors">Player Dashboard</a></li>
+          <li><a href="{{ auth()->check() ? auth()->user()->dashboardPath() : route('login') }}" class="hover:text-white transition-colors">{{ auth()->check() ? 'My Dashboard' : 'Dashboard' }}</a></li>
           <li><a href="{{ route('home') }}#how-it-works" class="hover:text-white transition-colors">How It Works</a></li>
           <li><a href="{{ route('home') }}#training" class="hover:text-white transition-colors">Training Options</a></li>
           <li><a href="{{ route('become-a-coach') }}" class="hover:text-white transition-colors">Become a Coach</a></li>

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -67,5 +68,10 @@ class User extends Authenticatable
             self::ROLE_COACH => route('coach.dashboard'),
             default => route('player-dashboard'),
         };
+    }
+
+    public function coach(): HasOne
+    {
+        return $this->hasOne(Coach::class);
     }
 }

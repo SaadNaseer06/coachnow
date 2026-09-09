@@ -50,6 +50,13 @@
     })();
 
 (() => {
+      if (window.__coachNowScrollProgressBound) {
+        window.startCoachNowScrollProgress = window.startCoachNowScrollProgress || (() => {
+          document.documentElement.classList.add('scroll-progress-ready');
+        });
+        return;
+      }
+
       const root = document.documentElement;
       const bar = document.getElementById('coachnowScrollProgressBar');
       const bubble = document.getElementById('coachnowScrollBubble');
@@ -237,6 +244,8 @@
     })();
 
 (() => {
+      if (window.__coachNowScrollProgressBound) return;
+
       const bubble =
         document.getElementById(
           'coachnowScrollBubble'
@@ -919,6 +928,8 @@
     })();
 
 (() => {
+      if (window.__coachNowScrollProgressBound) return;
+
       const bubble =
         document.getElementById(
           'coachnowScrollBubble'

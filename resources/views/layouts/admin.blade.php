@@ -27,9 +27,11 @@
     }
   </script>
   <link rel="stylesheet" href="{{ asset('assets/css/admin.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/scroll-progress.css') }}">
   @stack('styles')
 </head>
 <body class="admin-body font-sans antialiased">
+  @include('partials.scroll-ui')
   <div id="adminSidebarBackdrop" class="admin-sidebar-backdrop" aria-hidden="true"></div>
 
   <div class="admin-shell">
@@ -58,6 +60,7 @@
   </div>
 
   <script src="{{ asset('assets/js/admin.js') }}"></script>
+  <script src="{{ asset('assets/js/scroll-progress.js') }}"></script>
   @stack('scripts')
 </body>
 </html>
