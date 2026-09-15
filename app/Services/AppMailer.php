@@ -89,7 +89,13 @@ class AppMailer
         try {
             $callback();
         } catch (Throwable $e) {
-            Log::warning('Mail send failed: '.$e->getMessage(), [
+            $message = $e->getMessage();
+
+            if (str_contains($message, 'did not match expected CN') || str_contains($message, 'smtp.gmail.com')) {
+                $message .= ' | Host is likely intercepting remote SMTP (cPanel SMTP Restrictions). Ask the host to allow outbound SMTP to smtp.gmail.com, then keep MAIL_HOST=smtp.gmail.com.';
+            }
+
+            Log::warning('Mail send failed: '.$message, [
                 'exception' => $e::class,
             ]);
         }

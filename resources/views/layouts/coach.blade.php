@@ -93,7 +93,13 @@
   @php
     $pusherKey = config('broadcasting.connections.pusher.key');
     $pusherCluster = config('broadcasting.connections.pusher.options.cluster', 'mt1');
-    $pusherEnabled = config('broadcasting.default') === 'pusher' && filled($pusherKey);
+    $broadcastDriver = config('broadcasting.default');
+    $pusherEnabled = $broadcastDriver === 'pusher' && filled($pusherKey);
+    $realtimeDisabledReason = $pusherEnabled
+      ? null
+      : ($broadcastDriver !== 'pusher'
+        ? 'BROADCAST_CONNECTION is "'.$broadcastDriver.'". Set it to "pusher" on this server.'
+        : 'PUSHER_APP_KEY is missing.');
   @endphp
   @if ($pusherEnabled)
     <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
@@ -108,11 +114,13 @@
         window.CoachNowRealtime = {
           enabled: Boolean(EchoClass),
           key: @json($pusherKey),
-          cluster: @json($pusherCluster)
+          cluster: @json($pusherCluster),
+          reason: null
         };
 
         if (!EchoClass) {
           window.CoachNowRealtime.enabled = false;
+          window.CoachNowRealtime.reason = 'Laravel Echo failed to load.';
           return;
         }
 
@@ -127,7 +135,12 @@
       })();
     </script>
   @else
-    <script>window.CoachNowRealtime = { enabled: false };</script>
+    <script>
+      window.CoachNowRealtime = {
+        enabled: false,
+        reason: @json($realtimeDisabledReason)
+      };
+    </script>
   @endif
 
   <script src="{{ asset('assets/js/form-busy.js') }}?v={{ @filemtime(public_path('assets/js/form-busy.js')) ?: time() }}"></script>

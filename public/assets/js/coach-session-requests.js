@@ -737,6 +737,9 @@
     // Slow safety net if a websocket event is missed
     setInterval(loadLiveRequests, 60000);
   } else {
+    if (window.CoachNowRealtime?.reason) {
+      console.warn('[CoachNow realtime disabled]', window.CoachNowRealtime.reason);
+    }
     setInterval(loadLiveRequests, 8000);
   }
 })();

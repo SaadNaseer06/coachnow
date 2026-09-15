@@ -47,6 +47,18 @@ return [
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+            /*
+             * Shared hosts often intercept outbound SMTP. Prefer the host mail
+             * server (matching certificate CN). Only disable peer verify if your
+             * host documents that requirement for their own SMTP endpoint.
+             */
+            'stream' => [
+                'ssl' => [
+                    'verify_peer' => filter_var(env('MAIL_VERIFY_PEER', true), FILTER_VALIDATE_BOOL),
+                    'verify_peer_name' => filter_var(env('MAIL_VERIFY_PEER_NAME', true), FILTER_VALIDATE_BOOL),
+                    'allow_self_signed' => filter_var(env('MAIL_ALLOW_SELF_SIGNED', false), FILTER_VALIDATE_BOOL),
+                ],
+            ],
         ],
 
         'ses' => [
