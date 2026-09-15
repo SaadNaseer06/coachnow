@@ -363,10 +363,20 @@
       const useLocationButton = document.getElementById('useLocationBtn');
       const filterTitles = Array.from(document.querySelectorAll('#filtersPanel .filter-title'));
 
-      let searchFilters = {};
+      if (!cards.length) return;
+
+      let searchFilters = {
+        sport: '',
+        session: '',
+        when: '',
+        location: ''
+      };
+      let priceTimer = null;
 
       filterTitles.forEach((title, index) => {
         const section = title.parentElement;
+        if (!section) return;
+
         const content = Array.from(section.children).filter((item) => item !== title);
         const arrow = title.lastElementChild;
         const controlsId = `filter-section-${index + 1}`;
@@ -392,7 +402,7 @@
         title.classList.add('cursor-pointer', 'select-none', 'rounded-md', 'focus:outline-none', 'focus:ring-2', 'focus:ring-brand-red/30');
 
         if (arrow) {
-          arrow.textContent = '⌃';
+          arrow.innerHTML = '&#9662;';
           arrow.setAttribute('aria-hidden', 'true');
           arrow.classList.add('inline-block');
           arrow.style.transition = 'transform 380ms cubic-bezier(.22,1,.36,1)';
@@ -439,12 +449,7 @@
 
       function selectRating(button) {
         ratingButtons.forEach((item) => {
-          item.classList.remove(
-            'border-brand-red',
-            'bg-brand-red',
-            'text-white'
-          );
-
+          item.classList.remove('border-brand-red', 'bg-brand-red', 'text-white');
           item.classList.add(
             'border-zinc-300',
             'bg-white',
@@ -461,12 +466,7 @@
           'hover:border-brand-red',
           'hover:text-brand-red'
         );
-
-        button.classList.add(
-          'border-brand-red',
-          'bg-brand-red',
-          'text-white'
-        );
+        button.classList.add('border-brand-red', 'bg-brand-red', 'text-white');
       }
 
       function updateDistanceDisplay() {
@@ -475,40 +475,12 @@
         const min = Number(distanceRange.min || 0);
         const max = Number(distanceRange.max || 50);
         const value = Number(distanceRange.value);
-        const percent = ((value - min) / (max - min)) * 100;
+        const percent = max === min ? 0 : ((value - min) / (max - min)) * 100;
         const thumbOffset = 8 - (percent * 0.16);
 
         distanceValue.textContent = `${value} mi`;
         distanceValue.style.left = `calc(${percent}% + ${thumbOffset}px)`;
         distanceRange.setAttribute('aria-valuetext', `${value} miles`);
-      }
-
-      function resetFilters() {
-        checkboxes.forEach((box) => {
-          box.checked = false;
-        });
-
-        if (minPrice) {
-          minPrice.value = '';
-        }
-
-        if (maxPrice) {
-          maxPrice.value = '';
-        }
-
-        if (ratingButtons[0]) {
-          selectRating(ratingButtons[0]);
-        }
-
-        if (distanceRange) distanceRange.value = '50';
-        updateDistanceDisplay();
-        if (locationInput) locationInput.value = '';
-        if (sportSelect) sportSelect.value = 'soccer';
-        if (sessionTypeSelect) sessionTypeSelect.value = 'all';
-        if (whenSelect) whenSelect.value = 'today';
-
-        searchFilters = {};
-        applyFilters();
       }
 
       function selectedValues(category) {
@@ -519,15 +491,27 @@
 
       function cardHasAny(card, category, selected) {
         if (!selected.length) return true;
-        const available = (card.dataset[category] || '').split(/\s+/);
-        return selected.some((value) => available.includes(value));
+        const available = String(card.dataset[category] || '')
+          .toLowerCase()
+          .split(/\s+/)
+          .filter(Boolean);
+        return selected.some((value) => available.includes(String(value).toLowerCase()));
+      }
+
+      function syncSearchFiltersFromHero() {
+        searchFilters = {
+          sport: sportSelect?.value || '',
+          session: sessionTypeSelect?.value === 'all' ? '' : (sessionTypeSelect?.value || ''),
+          when: whenSelect?.value || '',
+          location: (locationInput?.value || '').trim().toLowerCase()
+        };
       }
 
       function applyFilters() {
         const activeRating = document.querySelector('.rating-filter.bg-brand-red');
         const selectedRating = Number(activeRating?.dataset.rating || 0);
-        let min = minPrice?.value === '' ? 0 : Number(minPrice.value);
-        let max = maxPrice?.value === '' ? Infinity : Number(maxPrice.value);
+        let min = minPrice?.value === '' || minPrice?.value == null ? 0 : Number(minPrice.value);
+        let max = maxPrice?.value === '' || maxPrice?.value == null ? Infinity : Number(maxPrice.value);
         const maxDistance = Number(distanceRange?.value || 50);
 
         if (!Number.isFinite(min)) min = 0;
@@ -538,24 +522,31 @@
         const age = selectedValues('age');
         const session = selectedValues('session');
         const availability = selectedValues('availability');
+        const locationQuery = (searchFilters.location || (locationInput?.value || '').trim().toLowerCase());
         let visibleCount = 0;
 
         cards.forEach((card) => {
-          const cardSessions = (card.dataset.session || '').split(/\s+/);
-          const cardWhen = (card.dataset.when || '').split(/\s+/);
-          const cardSports = (card.dataset.sport || '').split(/\s+/);
+          const cardSessions = String(card.dataset.session || '').toLowerCase().split(/\s+/).filter(Boolean);
+          const cardWhen = String(card.dataset.when || '').toLowerCase().split(/\s+/).filter(Boolean);
+          const cardSports = String(card.dataset.sport || '').toLowerCase().split(/\s+/).filter(Boolean);
+          const cardLocation = String(card.dataset.location || '').toLowerCase();
+          const price = Number(card.dataset.price || 0);
+          const rating = Number(card.dataset.rating || 0);
+          const distance = Number(card.dataset.distance || Infinity);
+
           const matches =
-            Number(card.dataset.price || 0) >= min &&
-            Number(card.dataset.price || 0) <= max &&
-            Number(card.dataset.rating || 0) >= selectedRating &&
-            Number(card.dataset.distance || Infinity) <= maxDistance &&
+            price >= min &&
+            price <= max &&
+            rating >= selectedRating &&
+            distance <= maxDistance &&
             cardHasAny(card, 'experience', experience) &&
             cardHasAny(card, 'age', age) &&
             cardHasAny(card, 'session', session) &&
             cardHasAny(card, 'availability', availability) &&
-            (!searchFilters.sport || cardSports.includes(searchFilters.sport)) &&
-            (!searchFilters.session || cardSessions.includes(searchFilters.session)) &&
-            (!searchFilters.when || cardWhen.includes(searchFilters.when));
+            (!searchFilters.sport || cardSports.includes(String(searchFilters.sport).toLowerCase())) &&
+            (!searchFilters.session || cardSessions.includes(String(searchFilters.session).toLowerCase())) &&
+            (!searchFilters.when || cardWhen.includes(String(searchFilters.when).toLowerCase())) &&
+            (!locationQuery || locationQuery === 'current location' || cardLocation.includes(locationQuery));
 
           card.hidden = !matches;
           card.style.display = matches ? '' : 'none';
@@ -565,51 +556,83 @@
         if (noResults) noResults.classList.toggle('hidden', visibleCount !== 0);
       }
 
+      function schedulePriceApply() {
+        window.clearTimeout(priceTimer);
+        priceTimer = window.setTimeout(applyFilters, 150);
+      }
+
+      function resetFilters() {
+        checkboxes.forEach((box) => {
+          box.checked = false;
+        });
+
+        if (minPrice) minPrice.value = '';
+        if (maxPrice) maxPrice.value = '';
+        if (ratingButtons[0]) selectRating(ratingButtons[0]);
+        if (distanceRange) distanceRange.value = '50';
+        updateDistanceDisplay();
+        if (locationInput) locationInput.value = '';
+        if (sportSelect) sportSelect.value = 'soccer';
+        if (sessionTypeSelect) sessionTypeSelect.value = 'all';
+        if (whenSelect) whenSelect.value = 'today';
+
+        searchFilters = { sport: '', session: '', when: '', location: '' };
+        applyFilters();
+      }
+
       ratingButtons.forEach((button) => {
-        button.addEventListener(
-          'click',
-          () => {
-            selectRating(button);
-            applyFilters();
-          }
-        );
+        button.addEventListener('click', () => {
+          selectRating(button);
+          applyFilters();
+        });
       });
 
-      if (clearButton) {
-        clearButton.addEventListener(
-          'click',
-          resetFilters
-        );
-      }
+      checkboxes.forEach((box) => {
+        box.addEventListener('change', applyFilters);
+      });
 
-      if (resetButton) {
-        resetButton.addEventListener(
-          'click',
-          resetFilters
-        );
-      }
-
-      if (applyButton) {
-        applyButton.addEventListener('click', applyFilters);
-      }
-
-      emptyResetButton?.addEventListener('click', resetFilters);
+      minPrice?.addEventListener('input', schedulePriceApply);
+      maxPrice?.addEventListener('input', schedulePriceApply);
+      minPrice?.addEventListener('change', applyFilters);
+      maxPrice?.addEventListener('change', applyFilters);
 
       distanceRange?.addEventListener('input', () => {
         updateDistanceDisplay();
+        applyFilters();
+      });
+
+      clearButton?.addEventListener('click', resetFilters);
+      resetButton?.addEventListener('click', resetFilters);
+      emptyResetButton?.addEventListener('click', resetFilters);
+      applyButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        applyFilters();
       });
 
       updateDistanceDisplay();
 
       searchForm?.addEventListener('submit', (event) => {
         event.preventDefault();
-        searchFilters = {
-          sport: sportSelect?.value || '',
-          session: sessionTypeSelect?.value === 'all' ? '' : sessionTypeSelect?.value || '',
-          when: whenSelect?.value || ''
-        };
+        syncSearchFiltersFromHero();
         applyFilters();
         resultsSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+
+      sportSelect?.addEventListener('change', () => {
+        syncSearchFiltersFromHero();
+        applyFilters();
+      });
+      sessionTypeSelect?.addEventListener('change', () => {
+        syncSearchFiltersFromHero();
+        applyFilters();
+      });
+      whenSelect?.addEventListener('change', () => {
+        syncSearchFiltersFromHero();
+        applyFilters();
+      });
+      locationInput?.addEventListener('input', () => {
+        searchFilters.location = (locationInput.value || '').trim().toLowerCase();
+        schedulePriceApply();
       });
 
       useLocationButton?.addEventListener('click', () => {
@@ -622,7 +645,9 @@
         navigator.geolocation.getCurrentPosition(
           () => {
             if (locationInput) locationInput.value = 'Current location';
+            searchFilters.location = 'current location';
             useLocationButton.disabled = false;
+            applyFilters();
           },
           () => {
             if (locationInput) locationInput.placeholder = 'Allow location access and try again';
@@ -631,6 +656,8 @@
           { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
         );
       });
+
+      applyFilters();
     })();
 
 (() => {

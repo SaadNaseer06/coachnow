@@ -18,7 +18,7 @@ const publicScreens = [
   ['02-find-a-coach', '/find-a-coach'],
   ['03-request-session', '/request-session'],
   ['04-become-a-coach', '/become-a-coach'],
-  ['05-coach-profile', '/coach-profile'],
+  ['05-coach-profile', '/coaches/1'],
   ['06-player-dashboard', '/player-dashboard'],
   ['07-about', '/about'],
   ['08-faq', '/faq'],

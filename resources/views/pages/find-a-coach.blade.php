@@ -70,7 +70,6 @@
 
 
             <form id="coachSearchForm"
-              onsubmit="return false;"
               class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.32fr_1.06fr_1fr_1fr_0.95fr] gap-3 items-start">
 
               <!-- Where -->
@@ -319,7 +318,7 @@
 
               <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-5">
                 <span>Distance</span>
-                <span>⌃</span>
+                <span>&#9662;</span>
               </div>
 
               <div class="relative pt-7 mb-3">
@@ -346,7 +345,7 @@
 
               <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-4">
                 <span>Price (per session)</span>
-                <span>⌃</span>
+                <span>&#9662;</span>
               </div>
 
               <div class="grid grid-cols-2 gap-3">
@@ -369,7 +368,7 @@
 
               <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-4">
                 <span>Rating</span>
-                <span>⌃</span>
+                <span>&#9662;</span>
               </div>
 
               <div class="flex flex-wrap gap-2">
@@ -383,25 +382,25 @@
                 <button type="button"
                   class="rating-filter px-3 py-2 rounded-[7px] border border-zinc-300 bg-white text-zinc-600 text-[11px] lg:text-[12px] hover:border-brand-red hover:text-brand-red transition-colors"
                   data-rating="1">
-                  1+ ★
+                  1+ &#9733;
                 </button>
 
                 <button type="button"
                   class="rating-filter px-3 py-2 rounded-[7px] border border-zinc-300 bg-white text-zinc-600 text-[11px] lg:text-[12px] hover:border-brand-red hover:text-brand-red transition-colors"
                   data-rating="2">
-                  2+ ★
+                  2+ &#9733;
                 </button>
 
                 <button type="button"
                   class="rating-filter px-3 py-2 rounded-[7px] border border-zinc-300 bg-white text-zinc-600 text-[11px] lg:text-[12px] hover:border-brand-red hover:text-brand-red transition-colors"
                   data-rating="3">
-                  3+ ★
+                  3+ &#9733;
                 </button>
 
                 <button type="button"
                   class="rating-filter px-3 py-2 rounded-[7px] border border-zinc-300 bg-white text-zinc-600 text-[11px] lg:text-[12px] hover:border-brand-red hover:text-brand-red transition-colors"
                   data-rating="4">
-                  4+ ★
+                  4+ &#9733;
                 </button>
               </div>
             </div>
@@ -412,29 +411,29 @@
 
               <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-4">
                 <span>Experience</span>
-                <span>⌃</span>
+                <span>&#9662;</span>
               </div>
 
               <div class="grid grid-cols-2 gap-x-3 gap-y-3 filter-option text-zinc-500">
 
                 <label class="flex items-center gap-2">
                   <input type="checkbox" class="filter-checkbox" data-filter="experience" value="1-3">
-                  <span>1–3 Years</span>
+                  <span>1&ndash;3 Years</span>
                 </label>
 
                 <label class="flex items-center gap-2">
                   <input type="checkbox" class="filter-checkbox" data-filter="experience" value="4-5">
-                  <span>4–5 Years</span>
+                  <span>4&ndash;5 Years</span>
                 </label>
 
                 <label class="flex items-center gap-2">
                   <input type="checkbox" class="filter-checkbox" data-filter="experience" value="6-7">
-                  <span>6–7 Years</span>
+                  <span>6&ndash;7 Years</span>
                 </label>
 
                 <label class="flex items-center gap-2">
                   <input type="checkbox" class="filter-checkbox" data-filter="experience" value="8-10">
-                  <span>8–10 Years</span>
+                  <span>8&ndash;10 Years</span>
                 </label>
               </div>
             </div>
@@ -445,24 +444,24 @@
 
               <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-4">
                 <span>Age Group</span>
-                <span>⌃</span>
+                <span>&#9662;</span>
               </div>
 
               <div class="grid grid-cols-2 gap-x-3 gap-y-3 filter-option text-zinc-500">
 
                 <label class="flex items-center gap-2">
                   <input type="checkbox" class="filter-checkbox" data-filter="age" value="youth-5-8">
-                  <span>Youth (5–8)</span>
+                  <span>Youth (5&ndash;8)</span>
                 </label>
 
                 <label class="flex items-center gap-2">
                   <input type="checkbox" class="filter-checkbox" data-filter="age" value="youth-9-12">
-                  <span>Youth (9–12)</span>
+                  <span>Youth (9&ndash;12)</span>
                 </label>
 
                 <label class="flex items-center gap-2">
                   <input type="checkbox" class="filter-checkbox" data-filter="age" value="teen">
-                  <span>Teen (13–18)</span>
+                  <span>Teen (13&ndash;18)</span>
                 </label>
 
                 <label class="flex items-center gap-2">
@@ -478,7 +477,7 @@
 
               <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-4">
                 <span>Session Type</span>
-                <span>⌃</span>
+                <span>&#9662;</span>
               </div>
 
               <div class="grid grid-cols-2 gap-x-3 gap-y-3 filter-option text-zinc-500">
@@ -511,7 +510,7 @@
 
               <div class="filter-title flex items-center justify-between font-medium text-[#191615] mb-4">
                 <span>Availability</span>
-                <span>⌃</span>
+                <span>&#9662;</span>
               </div>
 
               <div class="space-y-3 filter-option text-zinc-500">
@@ -570,339 +569,96 @@
 
           <!-- ==================== COACH RESULTS ==================== -->
           <div id="coachResults" class="space-y-5">
+            @forelse ($coaches ?? [] as $index => $coach)
+              @php
+                $specialty = strtolower($coach->specialty ?? '');
+                $sport = str_contains($specialty, 'futsal') ? 'soccer futsal' : (str_contains($specialty, 'performance') || str_contains($specialty, 'speed') ? 'soccer fitness' : 'soccer');
+                $experience = match (true) {
+                  str_starts_with((string) $coach->experience, '1-3') => '1-3',
+                  str_starts_with((string) $coach->experience, '4-5') => '4-5',
+                  str_starts_with((string) $coach->experience, '6-7') => '6-7',
+                  default => '8-10',
+                };
+                $session = match (true) {
+                  str_contains($specialty, 'group') => 'group',
+                  str_contains($specialty, 'team') || str_contains($specialty, 'clinic') => 'group camp',
+                  str_contains($specialty, '1-on-1') || str_contains($specialty, 'private') => '1on1',
+                  default => '1on1',
+                };
+                $distance = (float) ($coach->location?->distance_miles ?? 5);
+                $photo = $coach->photoUrl();
+                $delay = 80 + ($index * 80);
+                $distanceLabel = number_format($distance, 1).' miles away'.($coach->location ? ' · '.$coach->location->name : '');
+                $ageTags = $coach->ageFilterTags();
+              @endphp
+              <article
+                class="coach-result motion-item motion-from-right grid grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)_135px] gap-5 items-center rounded-[18px] bg-[#F5F5F5] border border-zinc-200/60 p-4 lg:p-5"
+                style="--motion-delay:{{ $delay }}ms;"
+                data-price="{{ (int) $coach->rate }}"
+                data-rating="{{ number_format((float) $coach->rating, 1) }}"
+                data-distance="{{ $distance }}"
+                data-sport="{{ $sport }}"
+                data-experience="{{ $experience }}"
+                data-age="{{ $ageTags }}"
+                data-session="{{ $session }}"
+                data-location="{{ strtolower(trim(($coach->location?->name ?? '').' '.($coach->location?->area ?? '').' '.($coach->display_name ?? ''))) }}"
+                data-availability="weekday-morning weekday-evening weekend-morning"
+                data-when="today tomorrow this-weekend next-week">
 
+                <img src="{{ $photo }}"
+                  alt="{{ $coach->display_name }}"
+                  class="w-full md:w-[250px] h-[200px] rounded-[14px] object-cover object-center">
 
-            <!-- Coach Alex -->
-            <article
-              class="coach-result motion-item motion-from-right grid grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)_135px] gap-5 items-center rounded-[18px] bg-[#F5F5F5] border border-zinc-200/60 p-4 lg:p-5"
-              style="--motion-delay:80ms;"
-              data-price="45"
-              data-rating="4.9"
-              data-distance="2.1"
-              data-sport="soccer"
-              data-experience="6-7"
-              data-age="youth-5-8 youth-9-12 teen"
-              data-session="1on1"
-              data-availability="weekday-morning weekday-evening weekend-morning"
-              data-when="today tomorrow this-weekend next-week">
-
-              <img src="{{ asset("assets/Rectangle 8-1.png") }}"
-                alt="Coach Alex"
-                class="w-full md:w-[250px] h-[200px] rounded-[14px] object-cover object-center">
-
-              <div class="min-w-0">
-
-                <h2 class="coach-name font-semibold text-[#191615]">
-                  Coach Alex
-                </h2>
-
-                <p class="coach-role text-zinc-500 mt-1 mb-4">
-                  Professional Soccer Coach
-                </p>
-
-                <div class="coach-meta text-[#191615] mb-2">
-                  <span class="text-amber-500">★</span>
-                  <span class="font-semibold">4.9</span>
-                  <span class="text-zinc-500">(128 Reviews)</span>
+                <div class="min-w-0">
+                  <h2 class="coach-name font-semibold text-[#191615]">{{ $coach->display_name }}</h2>
+                  <p class="coach-role text-zinc-500 mt-1 mb-4">{{ $coach->roleLabel() }}</p>
+                  <div class="coach-meta text-[#191615] mb-2">
+                    <span class="text-amber-500">&#9733;</span>
+                    <span class="font-semibold">{{ number_format((float) $coach->rating, 1) }}</span>
+                    <span class="text-zinc-500">({{ (int) $coach->reviews_count }} Reviews)</span>
+                  </div>
+                  <div class="coach-meta text-zinc-500 mb-2">
+                    {{ $coach->specialty }}
+                    <span class="mx-1">•</span>
+                    {{ $coach->ages ?? 'All ages' }}
+                  </div>
+                  <div class="coach-meta flex items-center gap-2 text-zinc-500 mb-3">
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                      <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    <span>{{ $distanceLabel }}</span>
+                  </div>
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="coach-price text-brand-red font-bold">${{ (int) $coach->rate }}</span>
+                    <span class="text-[11px] xl:text-[12px] text-zinc-400">/ Session</span>
+                  </div>
                 </div>
 
-                <div class="coach-meta text-zinc-500 mb-2">
-                  Private Training
-                  <span class="mx-1">•</span>
-                  Ages 8–14
+                <div class="coach-actions grid grid-cols-2 md:grid-cols-1 gap-3 w-full md:w-auto">
+                  <a href="{{ route('coach-profile', $coach) }}"
+                    class="coach-button coach-button-primary h-11 px-4 rounded-[10px] bg-brand-red border border-brand-red text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-brand-red-hover shadow-sm transition-all">
+                    View Profile
+                    <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                  </a>
+                  <a href="{{ route('coach-profile', $coach) }}#booking"
+                     class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
+                    <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    View Times
+                  </a>
                 </div>
-
-                <div class="coach-meta flex items-center gap-2 text-zinc-500 mb-3">
-                  <svg class="w-4 h-4 shrink-0"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                    <circle cx="12" cy="10" r="3"></circle>
-                  </svg>
-                  <span>2.1 miles away</span>
-                </div>
-
-                <div class="flex items-baseline gap-1.5">
-                  <span class="coach-price text-brand-red font-bold">$45</span>
-                  <span class="text-[11px] xl:text-[12px] text-zinc-400">
-                    / Session
-                  </span>
-                </div>
+              </article>
+            @empty
+              <div class="rounded-[18px] border border-zinc-200 bg-[#F5F5F5] p-10 text-center">
+                <h2 class="text-lg font-semibold text-[#191615]">No coaches yet</h2>
+                <p class="mt-2 text-sm text-zinc-500">Check back soon or apply to join as a coach.</p>
               </div>
-
-              <div class="coach-actions grid grid-cols-2 md:grid-cols-1 gap-3 w-full md:w-auto">
-
-                <a href="{{ route('coach-profile') }}"
-                  class="coach-button coach-button-primary h-11 px-4 rounded-[10px] bg-brand-red border border-brand-red text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-brand-red-hover shadow-sm transition-all">
-                  View Profile
-                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
-                </a>
-
-                <a href="coach-profile.html#booking"
-                   class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
-                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                  </svg>
-                  View Times
-                </a>
-              </div>
-
-            </article>
-
-
-            <!-- Coach Maria -->
-            <article
-              class="coach-result motion-item motion-from-right grid grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)_135px] gap-5 items-center rounded-[18px] bg-[#F5F5F5] border border-zinc-200/60 p-4 lg:p-5"
-              style="--motion-delay:180ms;"
-              data-price="45"
-              data-rating="4.9"
-              data-distance="5.8"
-              data-sport="soccer futsal"
-              data-experience="8-10"
-              data-age="youth-5-8 youth-9-12 teen"
-              data-session="group camp"
-              data-availability="weekday-afternoon weekend-morning weekend-afternoon"
-              data-when="tomorrow this-weekend next-week">
-
-              <img src="{{ asset("assets/Rectangle 8-2.png") }}"
-                alt="Coach Maria"
-                class="w-full md:w-[250px] h-[200px] rounded-[14px] object-cover object-center">
-
-              <div class="min-w-0">
-
-                <h2 class="coach-name font-semibold text-[#191615]">
-                  Coach Maria
-                </h2>
-
-                <p class="coach-role text-zinc-500 mt-1 mb-4">
-                  Professional Soccer Coach
-                </p>
-
-                <div class="coach-meta text-[#191615] mb-2">
-                  <span class="text-amber-500">★</span>
-                  <span class="font-semibold">4.9</span>
-                  <span class="text-zinc-500">(128 Reviews)</span>
-                </div>
-
-                <div class="coach-meta text-zinc-500 mb-2">
-                  Small Group Soccer
-                  <span class="mx-1">•</span>
-                  Ages 8–16
-                </div>
-
-                <div class="coach-meta flex items-center gap-2 text-zinc-500 mb-3">
-                  <svg class="w-4 h-4 shrink-0"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                    <circle cx="12" cy="10" r="3"></circle>
-                  </svg>
-                  <span>2.1 miles away</span>
-                </div>
-
-                <div class="flex items-baseline gap-1.5">
-                  <span class="coach-price text-brand-red font-bold">$45</span>
-                  <span class="text-[11px] xl:text-[12px] text-zinc-400">
-                    / Session
-                  </span>
-                </div>
-              </div>
-
-              <div class="coach-actions grid grid-cols-2 md:grid-cols-1 gap-3 w-full md:w-auto">
-
-                <a href="{{ route('coach-profile') }}"
-                  class="coach-button coach-button-primary h-11 px-4 rounded-[10px] bg-brand-red border border-brand-red text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-brand-red-hover shadow-sm transition-all">
-                  View Profile
-                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
-                </a>
-
-                <a href="coach-profile.html#booking"
-                   class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
-                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                  </svg>
-                  View Times
-                </a>
-              </div>
-
-            </article>
-
-
-            <!-- Coach Mike -->
-            <article
-              class="coach-result motion-item motion-from-right grid grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)_135px] gap-5 items-center rounded-[18px] bg-[#F5F5F5] border border-zinc-200/60 p-4 lg:p-5"
-              style="--motion-delay:280ms;"
-              data-price="45"
-              data-rating="4.9"
-              data-distance="12.4"
-              data-sport="soccer fitness"
-              data-experience="4-5"
-              data-age="teen adult"
-              data-session="group semi-private"
-              data-availability="weekday-evening weekend-afternoon weekend-evening"
-              data-when="today this-weekend next-week">
-
-              <img src="{{ asset("assets/Rectangle 8.png") }}"
-                alt="Coach Mike"
-                class="w-full md:w-[250px] h-[200px] rounded-[14px] object-cover object-center">
-
-              <div class="min-w-0">
-
-                <h2 class="coach-name font-semibold text-[#191615]">
-                  Coach Mike
-                </h2>
-
-                <p class="coach-role text-zinc-500 mt-1 mb-4">
-                  Professional Soccer Coach
-                </p>
-
-                <div class="coach-meta text-[#191615] mb-2">
-                  <span class="text-amber-500">★</span>
-                  <span class="font-semibold">4.9</span>
-                  <span class="text-zinc-500">(128 Reviews)</span>
-                </div>
-
-                <div class="coach-meta text-zinc-500 mb-2">
-                  Team Training
-                  <span class="mx-1">•</span>
-                  Advanced Players
-                </div>
-
-                <div class="coach-meta flex items-center gap-2 text-zinc-500 mb-3">
-                  <svg class="w-4 h-4 shrink-0"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                    <circle cx="12" cy="10" r="3"></circle>
-                  </svg>
-                  <span>2.1 miles away</span>
-                </div>
-
-                <div class="flex items-baseline gap-1.5">
-                  <span class="coach-price text-brand-red font-bold">$45</span>
-                  <span class="text-[11px] xl:text-[12px] text-zinc-400">
-                    / Session
-                  </span>
-                </div>
-              </div>
-
-              <div class="coach-actions grid grid-cols-2 md:grid-cols-1 gap-3 w-full md:w-auto">
-
-                <a href="{{ route('coach-profile') }}"
-                  class="coach-button coach-button-primary h-11 px-4 rounded-[10px] bg-brand-red border border-brand-red text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-brand-red-hover shadow-sm transition-all">
-                  View Profile
-                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
-                </a>
-
-                <a href="coach-profile.html#booking"
-                   class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
-                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                  </svg>
-                  View Times
-                </a>
-              </div>
-
-            </article>
-
-
-            <!-- Coach Alex Duplicate -->
-            <article
-              class="coach-result motion-item motion-from-right grid grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)_135px] gap-5 items-center rounded-[18px] bg-[#F5F5F5] border border-zinc-200/60 p-4 lg:p-5"
-              style="--motion-delay:380ms;"
-              data-price="45"
-              data-rating="4.9"
-              data-distance="22"
-              data-sport="soccer"
-              data-experience="1-3"
-              data-age="youth-5-8 youth-9-12"
-              data-session="1on1 camp"
-              data-availability="weekday-morning weekday-afternoon weekend-evening"
-              data-when="tomorrow next-week">
-
-              <img src="{{ asset("assets/Rectangle 8-1.png") }}"
-                alt="Coach Alex"
-                class="w-full md:w-[250px] h-[200px] rounded-[14px] object-cover object-center">
-
-              <div class="min-w-0">
-
-                <h2 class="coach-name font-semibold text-[#191615]">
-                  Coach Alex
-                </h2>
-
-                <p class="coach-role text-zinc-500 mt-1 mb-4">
-                  Professional Soccer Coach
-                </p>
-
-                <div class="coach-meta text-[#191615] mb-2">
-                  <span class="text-amber-500">★</span>
-                  <span class="font-semibold">4.9</span>
-                  <span class="text-zinc-500">(128 Reviews)</span>
-                </div>
-
-                <div class="coach-meta text-zinc-500 mb-2">
-                  Private Training
-                  <span class="mx-1">•</span>
-                  Ages 8–14
-                </div>
-
-                <div class="coach-meta flex items-center gap-2 text-zinc-500 mb-3">
-                  <svg class="w-4 h-4 shrink-0"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                    <circle cx="12" cy="10" r="3"></circle>
-                  </svg>
-                  <span>2.1 miles away</span>
-                </div>
-
-                <div class="flex items-baseline gap-1.5">
-                  <span class="coach-price text-brand-red font-bold">$45</span>
-                  <span class="text-[11px] xl:text-[12px] text-zinc-400">
-                    / Session
-                  </span>
-                </div>
-              </div>
-
-              <div class="coach-actions grid grid-cols-2 md:grid-cols-1 gap-3 w-full md:w-auto">
-
-                <a href="{{ route('coach-profile') }}"
-                  class="coach-button coach-button-primary h-11 px-4 rounded-[10px] bg-brand-red border border-brand-red text-white font-semibold inline-flex items-center justify-center gap-2 hover:bg-brand-red-hover shadow-sm transition-all">
-                  View Profile
-                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
-                </a>
-
-                <a href="coach-profile.html#booking"
-                   class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
-                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                  </svg>
-                  View Times
-                </a>
-              </div>
-
-            </article>
-
+            @endforelse
             <div id="noCoachResults" class="hidden rounded-[18px] border border-zinc-200 bg-[#F5F5F5] p-10 text-center" role="status">
               <h2 class="text-lg font-semibold text-[#191615]">No coaches match these filters</h2>
               <p class="mt-2 text-sm text-zinc-500">Try increasing the distance or clearing one or more filters.</p>
@@ -924,5 +680,5 @@
 @endsection
 
 @push('scripts')
-  <script src="{{ asset('assets/js/find-a-coach.js') }}"></script>
+  <script src="{{ asset('assets/js/find-a-coach.js') }}?v={{ @filemtime(public_path('assets/js/find-a-coach.js')) ?: time() }}"></script>
 @endpush

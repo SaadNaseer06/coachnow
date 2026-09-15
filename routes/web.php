@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Coach\CoachController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\SessionRequestController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -17,11 +18,24 @@ Route::get('/become-a-coach', [PageController::class, 'becomeACoach'])->name('be
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/faq', [PageController::class, 'faq'])->name('faq');
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
-Route::get('/coach-profile', [PageController::class, 'coachProfile'])->name('coach-profile');
-Route::get('/request-session', [PageController::class, 'requestSession'])->name('request-session');
+Route::post('/contact', [PageController::class, 'submitContact'])->name('contact.submit');
+Route::get('/coach-profile', fn () => redirect()->route('find-a-coach'));
+Route::get('/coaches/{coach}', [PageController::class, 'coachProfile'])->name('coach-profile');
 
 Route::middleware('auth')->group(function () {
     Route::get('/player-dashboard', [PageController::class, 'playerDashboard'])->name('player-dashboard');
+    Route::get('/request-session', [PageController::class, 'requestSession'])->name('request-session');
+
+    Route::get('/api/session-requests', [SessionRequestController::class, 'index'])->name('session-requests.index');
+    Route::post('/api/session-requests', [SessionRequestController::class, 'store'])->name('session-requests.store');
+    Route::get('/api/session-requests/{reference}', [SessionRequestController::class, 'show'])->name('session-requests.show');
+    Route::post('/api/session-requests/{reference}/join', [SessionRequestController::class, 'join'])->name('session-requests.join');
+    Route::post('/api/session-requests/{reference}/cancel', [SessionRequestController::class, 'cancel'])->name('session-requests.cancel');
+
+    Route::middleware('role:coach,admin')->group(function () {
+        Route::post('/api/session-requests/{reference}/accept', [SessionRequestController::class, 'accept'])->name('session-requests.accept');
+        Route::patch('/api/session-requests/{reference}', [SessionRequestController::class, 'update'])->name('session-requests.update');
+    });
 });
 
 /*
@@ -46,8 +60,12 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach,admin'])->group(function () {
     Route::get('/schedule', [CoachController::class, 'schedule'])->name('schedule');
     Route::get('/dashboard', [CoachController::class, 'dashboard'])->name('dashboard');
+    Route::get('/profile', [CoachController::class, 'profile'])->name('profile');
+    Route::put('/profile', [CoachController::class, 'updateProfile'])->name('profile.update');
     Route::get('/player-overview', [CoachController::class, 'playerOverview'])->name('player-overview');
     Route::get('/players/{player}', [CoachController::class, 'playerShow'])->name('players.show');
+    Route::post('/players/{player}/videos', [CoachController::class, 'storeVideo'])->name('players.videos.store');
+    Route::delete('/players/{player}/videos/{video}', [CoachController::class, 'destroyVideo'])->name('players.videos.destroy');
     Route::get('/add-report', [CoachController::class, 'addReport'])->name('add-report');
 });
 
@@ -60,7 +78,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/schedule', [DashboardController::class, 'schedule'])->name('schedule');
     Route::get('/coaches', [DashboardController::class, 'coaches'])->name('coaches');
+    Route::post('/coaches', [DashboardController::class, 'storeCoach'])->name('coaches.store');
+    Route::patch('/coaches/{coach}', [DashboardController::class, 'updateCoach'])->name('coaches.update');
+    Route::patch('/coaches/{coach}/status', [DashboardController::class, 'updateCoachStatus'])->name('coaches.status');
     Route::get('/bookings', [DashboardController::class, 'bookings'])->name('bookings');
     Route::get('/locations', [DashboardController::class, 'locations'])->name('locations');
+    Route::post('/locations', [DashboardController::class, 'storeLocation'])->name('locations.store');
+    Route::delete('/locations/{location}', [DashboardController::class, 'destroyLocation'])->name('locations.destroy');
     Route::get('/athletes', [DashboardController::class, 'athletes'])->name('athletes');
 });

@@ -9,37 +9,34 @@
 @endsection
 
 @section('content')
-@php
-  $reportsDue = collect($players)->where('reportDue', true)->count();
-@endphp
-
 <section class="admin-kpi-grid admin-kpi-grid--3">
   <article class="admin-kpi">
     <div class="admin-kpi-label">Active Players</div>
-    <div class="admin-kpi-value">{{ count($players) }}</div>
+    <div class="admin-kpi-value">{{ $totalPlayers }}</div>
     <div class="admin-kpi-trend flat">On Development Plus</div>
   </article>
   <article class="admin-kpi">
     <div class="admin-kpi-label">Reports Due</div>
-    <div class="admin-kpi-value">{{ $reportsDue }}</div>
-    <div class="admin-kpi-trend {{ $reportsDue ? 'up' : 'flat' }}">{{ $reportsDue ? 'Need your attention' : 'All caught up' }}</div>
+    <div class="admin-kpi-value">{{ $reportsDueTotal }}</div>
+    <div class="admin-kpi-trend {{ $reportsDueTotal ? 'up' : 'flat' }}">{{ $reportsDueTotal ? 'Need your attention' : 'All caught up' }}</div>
   </article>
   <article class="admin-kpi">
-    <div class="admin-kpi-label">Upcoming Sessions</div>
-    <div class="admin-kpi-value">{{ count($players) }}</div>
-    <div class="admin-kpi-trend flat">Scheduled this week</div>
+    <div class="admin-kpi-label">Showing</div>
+    <div class="admin-kpi-value">{{ $players->count() }}</div>
+    <div class="admin-kpi-trend flat">Players on this page</div>
   </article>
 </section>
 
 <div class="admin-toolbar">
-  <div class="admin-filters">
-    <input class="admin-input" type="search" placeholder="Search players…" aria-label="Search players">
-    <select class="admin-select" aria-label="Filter by status">
-      <option>All players</option>
-      <option>Report due</option>
-      <option>On track</option>
+  <form method="GET" action="{{ route('coach.player-overview') }}" class="admin-filters" data-auto-filter>
+    <input class="admin-input" type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search players…" aria-label="Search players" autocomplete="off">
+    <select class="admin-select" name="status" aria-label="Filter by status">
+      <option value="">All players</option>
+      <option value="report-due" @selected(($filters['status'] ?? '') === 'report-due')>Report due</option>
+      <option value="on-track" @selected(($filters['status'] ?? '') === 'on-track')>On track</option>
     </select>
-  </div>
+  </form>
+  <span class="text-[12px] text-zinc-500">{{ $players->total() }} players</span>
 </div>
 
 <section class="admin-card">
@@ -62,7 +59,7 @@
         </tr>
       </thead>
       <tbody>
-        @foreach ($players as $player)
+        @forelse ($players as $player)
           <tr>
             <td>
               <a href="{{ route('coach.players.show', $player['slug']) }}" class="admin-person coach-player-link">
@@ -87,11 +84,20 @@
               <a href="{{ route('coach.players.show', $player['slug']) }}" class="admin-btn admin-btn-ghost admin-btn-sm">View profile</a>
             </td>
           </tr>
-        @endforeach
+        @empty
+          <tr>
+            <td colspan="6" class="text-center text-zinc-500 py-8">No players match these filters.</td>
+          </tr>
+        @endforelse
       </tbody>
     </table>
   </div>
+  @include('partials.admin.pagination', ['paginator' => $players])
 </section>
 
 @include('partials.coach.subscription-note')
 @endsection
+
+@push('scripts')
+  <script src="{{ asset('assets/js/admin.js') }}?v={{ @filemtime(public_path('assets/js/admin.js')) ?: time() }}"></script>
+@endpush

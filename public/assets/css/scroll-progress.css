@@ -27,6 +27,13 @@ html.scroll-progress-ready #coachnowScrollProgress {
   opacity: 1;
 }
 
+html.scroll-progress-ready:not(.scroll-progress-active) #coachnowScrollProgress,
+html.scroll-progress-ready:not(.scroll-progress-active) #coachnowScrollBubble {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 #coachnowScrollBubble {
   position: fixed;
   right: 0;

@@ -38,7 +38,7 @@
     <footer class="coach-req-modal__footer">
       <p class="coach-req-footnote">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
-        SMS alerts and payments are in testing. Requests submitted on this device also appear here automatically.
+        SMS alerts and payments are in testing. New requests appear here for coaches to accept and host.
       </p>
       <a href="{{ route('request-session') }}" class="admin-btn admin-btn-ghost admin-btn-sm" target="_blank" rel="noopener">View player flow</a>
     </footer>

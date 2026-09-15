@@ -28,6 +28,7 @@
   </script>
   <link rel="stylesheet" href="{{ asset('assets/css/admin.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/scroll-progress.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/form-busy.css') }}?v={{ @filemtime(public_path('assets/css/form-busy.css')) ?: time() }}">
   @stack('styles')
 </head>
 <body class="admin-body font-sans antialiased">
@@ -54,12 +55,24 @@
       </header>
 
       <main class="admin-content">
+        @if (session('success'))
+          <div class="admin-alert admin-alert--success" role="status">
+            <span class="admin-alert__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            <div class="admin-alert__body">
+              <p class="admin-alert__label">Success</p>
+              <p class="admin-alert__text">{{ session('success') }}</p>
+            </div>
+          </div>
+        @endif
         @yield('content')
       </main>
     </div>
   </div>
 
-  <script src="{{ asset('assets/js/admin.js') }}"></script>
+  <script src="{{ asset('assets/js/form-busy.js') }}?v={{ @filemtime(public_path('assets/js/form-busy.js')) ?: time() }}"></script>
+  <script src="{{ asset('assets/js/admin.js') }}?v={{ @filemtime(public_path('assets/js/admin.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/scroll-progress.js') }}"></script>
   @stack('scripts')
 </body>

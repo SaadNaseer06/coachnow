@@ -42,5 +42,13 @@ class DatabaseSeeder extends Seeder
                 'phone' => '555-0102',
             ]
         );
+
+        $this->call([
+            LocationSeeder::class,
+            CoachSeeder::class,
+            BookingSeeder::class,
+            SessionRequestSeeder::class,
+            SharedVideoSeeder::class,
+        ]);
     }
 }

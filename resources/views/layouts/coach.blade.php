@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="icon" href="{{ asset('assets/favicon.ico') }}" sizes="any">
   <link rel="icon" type="image/svg+xml" href="{{ asset('assets/favicon.svg') }}">
   <title>@yield('title', 'Coach Dashboard') · CoachNow</title>
@@ -29,6 +30,7 @@
   <link rel="stylesheet" href="{{ asset('assets/css/admin.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/coach-portal.css') }}?v={{ @filemtime(public_path('assets/css/coach-portal.css')) ?: time() }}">
   <link rel="stylesheet" href="{{ asset('assets/css/scroll-progress.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/form-busy.css') }}?v={{ @filemtime(public_path('assets/css/form-busy.css')) ?: time() }}">
   @stack('styles')
 </head>
 <body class="admin-body font-sans antialiased">
@@ -70,6 +72,17 @@
       </header>
 
       <main class="admin-content">
+        @if (session('success'))
+          <div class="admin-alert admin-alert--success" role="status">
+            <span class="admin-alert__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            <div class="admin-alert__body">
+              <p class="admin-alert__label">Success</p>
+              <p class="admin-alert__text">{{ session('success') }}</p>
+            </div>
+          </div>
+        @endif
         @yield('content')
       </main>
     </div>
@@ -77,6 +90,47 @@
 
   @include('partials.coach.session-requests-modal', ['sessionRequests' => $sessionRequests ?? []])
 
+  @php
+    $pusherKey = config('broadcasting.connections.pusher.key');
+    $pusherCluster = config('broadcasting.connections.pusher.options.cluster', 'mt1');
+    $pusherEnabled = config('broadcasting.default') === 'pusher' && filled($pusherKey);
+  @endphp
+  @if ($pusherEnabled)
+    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js"></script>
+    <script>
+      (function () {
+        const EchoGlobal = window.Echo;
+        const EchoClass = (typeof EchoGlobal === 'function')
+          ? EchoGlobal
+          : (EchoGlobal && EchoGlobal.default ? EchoGlobal.default : null);
+
+        window.CoachNowRealtime = {
+          enabled: Boolean(EchoClass),
+          key: @json($pusherKey),
+          cluster: @json($pusherCluster)
+        };
+
+        if (!EchoClass) {
+          window.CoachNowRealtime.enabled = false;
+          return;
+        }
+
+        window.Pusher = window.Pusher || Pusher;
+        window.Echo = new EchoClass({
+          broadcaster: 'pusher',
+          key: window.CoachNowRealtime.key,
+          cluster: window.CoachNowRealtime.cluster,
+          forceTLS: true,
+          enabledTransports: ['ws', 'wss']
+        });
+      })();
+    </script>
+  @else
+    <script>window.CoachNowRealtime = { enabled: false };</script>
+  @endif
+
+  <script src="{{ asset('assets/js/form-busy.js') }}?v={{ @filemtime(public_path('assets/js/form-busy.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/coach-dashboard.js') }}?v={{ @filemtime(public_path('assets/js/coach-dashboard.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/coach-session-requests.js') }}?v={{ @filemtime(public_path('assets/js/coach-session-requests.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/scroll-progress.js') }}"></script>

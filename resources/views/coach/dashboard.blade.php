@@ -1,7 +1,7 @@
 @extends('layouts.coach')
 
 @section('title', 'Dashboard')
-@section('page_title', 'Good morning, Coach Lee')
+@section('page_title', 'Good morning, ' . ($coach->display_name ?? 'Coach'))
 @section('page_subtitle', 'Your players, sessions, and reports at a glance')
 
 @section('topbar_actions')
@@ -9,6 +9,27 @@
 @endsection
 
 @section('content')
+@if (($coach->status ?? '') !== 'active' || ! $coach->isProfileComplete())
+  <div class="admin-alert {{ ($coach->status ?? '') === 'active' ? 'admin-alert--success' : 'admin-alert--error' }}" role="status" style="margin-bottom:14px;">
+    <span class="admin-alert__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    </span>
+    <div class="admin-alert__body">
+      <p class="admin-alert__label">{{ ($coach->status ?? '') === 'active' ? 'Polish your listing' : 'Finish your Find a Coach profile' }}</p>
+      <p class="admin-alert__text">
+        @if (($coach->status ?? '') === 'pending')
+          Complete your profile, then wait for admin approval to go live.
+        @elseif (($coach->status ?? '') === 'paused')
+          Your listing is paused. Update your profile, then ask an admin to activate you.
+        @else
+          Add a photo and keep your rate/park current so athletes can find you.
+        @endif
+        <a href="{{ route('coach.profile') }}" class="font-semibold underline" style="color:inherit;">Open My Profile</a>
+      </p>
+    </div>
+  </div>
+@endif
+
 <section class="admin-kpi-grid">
   <article class="admin-kpi">
     <div class="admin-kpi-label">Active Players</div>
@@ -17,8 +38,8 @@
   </article>
   <article class="admin-kpi">
     <div class="admin-kpi-label">Sessions This Week</div>
-    <div class="admin-kpi-value">11</div>
-    <div class="admin-kpi-trend up">12.5 hours on the field</div>
+    <div class="admin-kpi-value">{{ $weekSessionCount ?? 0 }}</div>
+    <div class="admin-kpi-trend up">{{ $weekHours ?? 0 }} hours on the field</div>
   </article>
   <article class="admin-kpi">
     <div class="admin-kpi-label">Reports Due</div>
@@ -83,13 +104,13 @@
     <div class="admin-card-header">
       <div>
         <h2>Today's Sessions</h2>
-        <p>Wednesday · {{ count($today) }} sessions scheduled</p>
+        <p>{{ $todayLabel ?? 'Today' }} · {{ count($today) }} sessions scheduled</p>
       </div>
       <a href="{{ route('coach.schedule') }}" class="admin-btn admin-btn-ghost admin-btn-sm">Open schedule</a>
     </div>
     <div class="admin-card-body">
       <div class="admin-list">
-        @foreach ($today as $session)
+        @forelse ($today as $session)
           <div class="admin-list-item">
             <div>
               <strong>{{ $session['name'] }}</strong>
@@ -97,7 +118,14 @@
             </div>
             <span class="admin-badge admin-badge-zinc">{{ ucfirst($session['tone']) }}</span>
           </div>
-        @endforeach
+        @empty
+          <div class="admin-list-item">
+            <div>
+              <strong>No sessions today</strong>
+              <span>Accepted requests will show here</span>
+            </div>
+          </div>
+        @endforelse
       </div>
     </div>
   </div>

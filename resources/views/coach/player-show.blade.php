@@ -11,10 +11,42 @@
 @section('topbar_actions')
   <a href="{{ route('coach.player-overview') }}" class="admin-btn admin-btn-ghost">← Back</a>
   <a href="{{ route('coach.add-report', ['player' => $player['slug']]) }}" class="admin-btn admin-btn-primary">+ Add Report</a>
-  <button type="button" class="admin-btn admin-btn-ghost">Share Video</button>
+  <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-open="shareVideoModal">Share Video</button>
 @endsection
 
+@push('styles')
+  <link rel="stylesheet" href="{{ asset('assets/css/video-player-modal.css') }}?v={{ @filemtime(public_path('assets/css/video-player-modal.css')) ?: time() }}">
+@endpush
+
 @section('content')
+@if (session('status'))
+  <div class="admin-alert admin-alert--success mb-4" role="status">
+    <span class="admin-alert__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+    </span>
+    <div class="admin-alert__body">
+      <p class="admin-alert__label">Saved</p>
+      <p class="admin-alert__text">{{ session('status') }}</p>
+    </div>
+  </div>
+@endif
+
+@if ($errors->any())
+  <div class="admin-alert admin-alert--error mb-4" role="alert">
+    <span class="admin-alert__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    </span>
+    <div class="admin-alert__body">
+      <p class="admin-alert__label">Couldn’t share video</p>
+      <ul class="admin-alert__list">
+        @foreach ($errors->all() as $error)
+          <li>{{ $error }}</li>
+        @endforeach
+      </ul>
+    </div>
+  </div>
+@endif
+
 <section class="coach-strip">
   <div class="coach-strip__item">
     <span class="coach-strip__icon">
@@ -48,14 +80,14 @@
 <div class="coach-layout-split">
   <div>
     <div class="coach-tabs" role="tablist" data-coach-tabs="player">
-      <button type="button" role="tab" class="coach-tab is-active" data-coach-tab="overview" aria-selected="true">Overview</button>
+      <button type="button" role="tab" class="coach-tab {{ empty($openVideosTab) ? 'is-active' : '' }}" data-coach-tab="overview" aria-selected="{{ empty($openVideosTab) ? 'true' : 'false' }}" @if(!empty($openVideosTab)) tabindex="-1" @endif>Overview</button>
       <button type="button" role="tab" class="coach-tab" data-coach-tab="history" aria-selected="false" tabindex="-1">Session History</button>
       <button type="button" role="tab" class="coach-tab" data-coach-tab="goals" aria-selected="false" tabindex="-1">Goals &amp; Feedback</button>
-      <button type="button" role="tab" class="coach-tab" data-coach-tab="videos" aria-selected="false" tabindex="-1">Videos</button>
+      <button type="button" role="tab" class="coach-tab {{ !empty($openVideosTab) ? 'is-active' : '' }}" data-coach-tab="videos" aria-selected="{{ !empty($openVideosTab) ? 'true' : 'false' }}" @if(empty($openVideosTab)) tabindex="-1" @endif>Videos</button>
       <button type="button" role="tab" class="coach-tab" data-coach-tab="notes" aria-selected="false" tabindex="-1">Notes</button>
     </div>
 
-    <div role="tabpanel" data-coach-panel="overview" data-coach-group="player">
+    <div role="tabpanel" data-coach-panel="overview" data-coach-group="player" @if(!empty($openVideosTab)) hidden @endif>
       <div class="admin-card coach-panel-gap">
         <div class="admin-card-header">
           <div>
@@ -167,25 +199,66 @@
       </div>
     </div>
 
-    <div role="tabpanel" data-coach-panel="videos" data-coach-group="player" hidden>
+    <div role="tabpanel" data-coach-panel="videos" data-coach-group="player" @if(empty($openVideosTab)) hidden @endif>
       <div class="admin-card">
         <div class="admin-card-header">
           <div>
             <h2>Shared Videos</h2>
-            <p>Training videos sent to this player</p>
+            <p>Training videos sent to {{ $player['name'] }}</p>
           </div>
-          <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm">Share video</button>
+          <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-admin-modal-open="shareVideoModal">Share video</button>
         </div>
         <div class="admin-card-body">
-          @foreach ($videos as $video)
+          @forelse ($videos as $video)
             <div class="coach-media">
-              <span class="coach-media__thumb"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
-              <div>
-                <p class="coach-media__title">{{ $video['title'] }}</p>
-                <p class="coach-media__meta">{{ $video['meta'] }}</p>
+              <button
+                type="button"
+                class="coach-media__thumb coach-media__thumb--btn"
+                data-play-video
+                data-video-title="{{ $video['title'] }}"
+                data-video-url="{{ $video['url'] }}"
+                data-video-meta="{{ $video['meta'] }}"
+                data-video-source="{{ !empty($video['is_upload']) ? 'upload' : 'url' }}"
+                aria-label="Play {{ $video['title'] }}"
+                @if (!empty($video['thumbnail'])) style="background-image:url('{{ $video['thumbnail'] }}')" @endif
+              >
+                <span class="coach-media__play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+              </button>
+              <div class="coach-media__body">
+                <button
+                  type="button"
+                  class="coach-media__title coach-media__title--btn"
+                  data-play-video
+                  data-video-title="{{ $video['title'] }}"
+                  data-video-url="{{ $video['url'] }}"
+                  data-video-meta="{{ $video['meta'] }}"
+                  data-video-source="{{ !empty($video['is_upload']) ? 'upload' : 'url' }}"
+                >{{ $video['title'] }}</button>
+                <p class="coach-media__meta">
+                  {{ $video['meta'] }}
+                  @if (!empty($video['is_upload']))
+                    · Uploaded
+                  @endif
+                  @if (!empty($video['is_compressed']))
+                    · Compressed
+                  @endif
+                  @if (!empty($video['shared_at']))
+                    · {{ $video['shared_at'] }}
+                  @endif
+                </p>
               </div>
+              <form method="POST" action="{{ route('coach.players.videos.destroy', ['player' => $player['slug'], 'video' => $video['id']]) }}" onsubmit="return confirm('Remove this shared video?');">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm" data-loading-text="Removing…">Remove</button>
+              </form>
             </div>
-          @endforeach
+          @empty
+            <div class="coach-media-empty">
+              <p>No videos shared yet.</p>
+              <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-admin-modal-open="shareVideoModal">Share first video</button>
+            </div>
+          @endforelse
         </div>
       </div>
     </div>
@@ -221,7 +294,7 @@
       </div>
       <div class="admin-card-body coach-action-stack">
         <a href="{{ route('coach.add-report', ['player' => $player['slug']]) }}" class="admin-btn admin-btn-primary">Add Report</a>
-        <button type="button" class="admin-btn admin-btn-ghost">Share Video</button>
+        <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-open="shareVideoModal">Share Video</button>
         <button type="button" class="admin-btn admin-btn-ghost">Add Note</button>
       </div>
     </div>
@@ -243,8 +316,103 @@
 </div>
 
 @include('partials.coach.subscription-note')
+
+@include('partials.video-player-modal')
+
+<div class="admin-modal{{ $errors->any() ? ' is-open' : '' }}" id="shareVideoModal" aria-hidden="{{ $errors->any() ? 'false' : 'true' }}">
+  <div class="admin-modal__backdrop" data-admin-modal-close></div>
+  <div class="admin-modal__panel" role="dialog" aria-modal="true" aria-labelledby="shareVideoTitle">
+    <div class="admin-modal__header">
+      <div>
+        <h2 id="shareVideoTitle">Share video</h2>
+        <p>Upload a file (compressed on the server) or paste a YouTube/Vimeo link for {{ $player['name'] }}</p>
+      </div>
+      <button type="button" class="admin-modal__close" data-admin-modal-close aria-label="Close">&times;</button>
+    </div>
+    <form
+      method="POST"
+      action="{{ route('coach.players.videos.store', $player['slug']) }}"
+      class="admin-modal__body"
+      enctype="multipart/form-data"
+      data-share-video-form
+    >
+      @csrf
+      <label class="admin-field">
+        <span>Title</span>
+        <input class="admin-input" type="text" name="title" value="{{ old('title') }}" required maxlength="120" placeholder="Scan before receiving">
+      </label>
+
+      <div class="admin-field admin-field--full">
+        <span>Source</span>
+        <div class="coach-video-source-toggle">
+          <label class="coach-video-source-option">
+            <input type="radio" name="source_type" value="upload" {{ old('source_type', 'upload') === 'upload' ? 'checked' : '' }} data-video-source>
+            <span>Upload file</span>
+          </label>
+          <label class="coach-video-source-option">
+            <input type="radio" name="source_type" value="url" {{ old('source_type') === 'url' ? 'checked' : '' }} data-video-source>
+            <span>External link</span>
+          </label>
+        </div>
+      </div>
+
+      <label class="admin-field admin-field--full" data-video-panel="upload">
+        <span>Video file (MP4, MOV, WebM — up to {{ number_format(config('coachnow.max_video_upload_kb', 102400) / 1024, 0) }} MB)</span>
+        <input class="admin-input" type="file" name="video" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska,.mp4,.mov,.webm,.avi,.mkv">
+        <span class="coach-video-hint">Files are compressed to H.264 MP4 on the server before saving.</span>
+      </label>
+
+      <label class="admin-field admin-field--full" data-video-panel="url" hidden>
+        <span>Video URL</span>
+        <input class="admin-input" type="url" name="url" value="{{ old('url') }}" maxlength="500" placeholder="https://www.youtube.com/watch?v=…">
+      </label>
+
+      <label class="admin-field">
+        <span>Short label (optional)</span>
+        <input class="admin-input" type="text" name="duration_label" value="{{ old('duration_label') }}" maxlength="40" placeholder="3-min technique guide">
+      </label>
+      <label class="admin-field">
+        <span>Skill tag (optional)</span>
+        <input class="admin-input" type="text" name="skill_tag" value="{{ old('skill_tag') }}" maxlength="80" placeholder="First touch">
+      </label>
+      <label class="admin-field admin-field--full">
+        <span>Notes (optional)</span>
+        <textarea class="admin-input admin-textarea" name="description" rows="3" maxlength="255" placeholder="Why this video helps">{{ old('description') }}</textarea>
+      </label>
+      <div class="admin-modal__footer">
+        <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-close>Cancel</button>
+        <button type="submit" class="admin-btn admin-btn-primary" data-loading-text="Sharing…">Share with player</button>
+      </div>
+    </form>
+  </div>
+</div>
 @endsection
 
 @push('scripts')
+  <script src="{{ asset('assets/js/admin.js') }}"></script>
   <script src="{{ asset('assets/js/coach-portal.js') }}"></script>
+  <script src="{{ asset('assets/js/video-player-modal.js') }}?v={{ @filemtime(public_path('assets/js/video-player-modal.js')) ?: time() }}"></script>
+  <script>
+    (function () {
+      const form = document.querySelector('[data-share-video-form]');
+      if (!form) return;
+
+      const sync = () => {
+        const selected = form.querySelector('[data-video-source]:checked')?.value || 'upload';
+        form.querySelectorAll('[data-video-panel]').forEach((panel) => {
+          const active = panel.getAttribute('data-video-panel') === selected;
+          panel.hidden = !active;
+          panel.querySelectorAll('input').forEach((input) => {
+            input.required = active && (input.name === 'video' || input.name === 'url');
+            if (!active && input.type === 'file') input.value = '';
+          });
+        });
+      };
+
+      form.querySelectorAll('[data-video-source]').forEach((input) => {
+        input.addEventListener('change', sync);
+      });
+      sync();
+    })();
+  </script>
 @endpush

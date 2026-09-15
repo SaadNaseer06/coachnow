@@ -16,8 +16,23 @@
         <h1 class="hero-fade-target max-w-[900px] text-4xl sm:text-5xl md:text-[3.2rem] lg:text-[3.5rem] font-medium tracking-[0.01em] text-white leading-none mb-4" style="--hero-delay:110ms">Let's Connect and Get You Moving</h1>
         <p class="hero-fade-target text-[13px] sm:text-[14px] lg:text-[15px] text-zinc-200/90 max-w-[680px] leading-[1.55] font-light" style="--hero-delay:180ms">Have a question about finding a coach, joining CoachNow, or becoming a founding coach? Send us a message.</p>
       </div>
-    </section>    <section class="py-20 lg:py-24 bg-white motion-section">
+    </section>
+    <section class="py-20 lg:py-24 bg-white motion-section">
       <div class="max-w-[1220px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-16">
+        @if (session('success'))
+          <div class="mb-6 rounded-[12px] border border-green-200 bg-green-50 px-4 py-3 text-[13px] text-green-800" role="status">
+            {{ session('success') }}
+          </div>
+        @endif
+        @if ($errors->any())
+          <div class="mb-6 rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700" role="alert">
+            <ul class="list-disc pl-4 space-y-1">
+              @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+              @endforeach
+            </ul>
+          </div>
+        @endif
         <div class="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-5 items-stretch">
           <div class="rounded-[14px] bg-brand-red text-white p-6 flex flex-col justify-between motion-item motion-from-left">
             <div>
@@ -25,23 +40,43 @@
               <p class="text-[12px] text-white/85 leading-[1.55] mb-6">We're here to help you find the right next step with CoachNow.</p>
               <div class="space-y-4 text-[13px]">
                 <div><div class="text-white/70 text-[11px] uppercase tracking-wide mb-1">Phone</div>(782) 444-6566</div>
-                <div><div class="text-white/70 text-[11px] uppercase tracking-wide mb-1">Email</div>support@coachnow.com</div>
+                <div><div class="text-white/70 text-[11px] uppercase tracking-wide mb-1">Email</div>{{ config('coachnow.admin_email') }}</div>
                 <div><div class="text-white/70 text-[11px] uppercase tracking-wide mb-1">Location</div>Murrieta &amp; Temecula, CA</div>
               </div>
             </div>
             <a href="{{ route('find-a-coach') }}" class="mt-8 inline-flex self-start items-center gap-2 px-4 py-2 rounded-full bg-white text-brand-red text-[12px] font-medium">Find a Coach →</a>
           </div>
           <div class="form-card p-5 lg:p-7 motion-item motion-from-right" style="--motion-delay:100ms">
-            <form onsubmit="return false;">
+            <form method="POST" action="{{ route('contact.submit') }}" data-loading-text="Sending…">
+              @csrf
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label class="block"><span class="block text-[12px] font-medium text-[#191615] mb-2">Your Name</span><input type="text" placeholder="Enter your name" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10"></label>
-                <label class="block"><span class="block text-[12px] font-medium text-[#191615] mb-2">Email Address</span><input type="email" placeholder="Enter your email" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10"></label>
+                <label class="block">
+                  <span class="block text-[12px] font-medium text-[#191615] mb-2">Your Name</span>
+                  <input type="text" name="name" value="{{ old('name') }}" required placeholder="Enter your name" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                </label>
+                <label class="block">
+                  <span class="block text-[12px] font-medium text-[#191615] mb-2">Email Address</span>
+                  <input type="email" name="email" value="{{ old('email') }}" required placeholder="Enter your email" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                </label>
               </div>
-              <label class="block mt-4"><span class="block text-[12px] font-medium text-[#191615] mb-2">How can we help?</span><select class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none"><option>Finding a Coach</option><option>Becoming a Coach</option><option>General Question</option></select></label>
-              <label class="block mt-4"><span class="block text-[12px] font-medium text-[#191615] mb-2">Message</span><textarea rows="5" placeholder="Tell us a little more" class="w-full rounded-[10px] border border-zinc-300 px-4 py-3 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10 resize-y"></textarea></label>
+              <label class="block mt-4">
+                <span class="block text-[12px] font-medium text-[#191615] mb-2">How can we help?</span>
+                <select name="topic" required class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none">
+                  <option value="Finding a Coach" @selected(old('topic') === 'Finding a Coach')>Finding a Coach</option>
+                  <option value="Becoming a Coach" @selected(old('topic') === 'Becoming a Coach')>Becoming a Coach</option>
+                  <option value="General Question" @selected(old('topic', 'General Question') === 'General Question')>General Question</option>
+                </select>
+              </label>
+              <label class="block mt-4">
+                <span class="block text-[12px] font-medium text-[#191615] mb-2">Message</span>
+                <textarea name="message" rows="5" required placeholder="Tell us a little more" class="w-full rounded-[10px] border border-zinc-300 px-4 py-3 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10 resize-y">{{ old('message') }}</textarea>
+              </label>
               <div class="mt-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-                <label class="flex items-start gap-2 text-[11px] text-zinc-500 leading-[1.45]"><input type="checkbox" class="mt-0.5 w-4 h-4 rounded border-zinc-300 accent-[#DA020C]"><span>By submitting this form, you agree to our Privacy Policy and Terms &amp; Conditions.</span></label>
-                <button type="submit" class="inline-flex items-center justify-center px-7 h-11 rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-[13px] font-semibold transition-colors shrink-0">Contact Us Now</button>
+                <label class="flex items-start gap-2 text-[11px] text-zinc-500 leading-[1.45]">
+                  <input type="checkbox" name="agree" value="1" @checked(old('agree')) required class="mt-0.5 w-4 h-4 rounded border-zinc-300 accent-[#DA020C]">
+                  <span>By submitting this form, you agree to our Privacy Policy and Terms &amp; Conditions.</span>
+                </label>
+                <button type="submit" data-loading-text="Sending…" class="inline-flex items-center justify-center px-7 h-11 rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-[13px] font-semibold transition-colors shrink-0">Contact Us Now</button>
               </div>
             </form>
           </div>

@@ -1,0 +1,69 @@
+/* Interactive busy state for POST / mutating actions */
+button,
+input[type="submit"],
+.admin-btn,
+.req-btn,
+.auth-submit {
+  cursor: pointer;
+}
+
+button:active:not(:disabled):not(.is-busy),
+input[type="submit"]:active:not(:disabled):not(.is-busy),
+.admin-btn:active:not(:disabled):not(.is-busy),
+.req-btn:active:not(:disabled):not(.is-busy) {
+  transform: translateY(1px);
+}
+
+button:disabled:not(.is-busy),
+input[type="submit"]:disabled:not(.is-busy),
+.admin-btn:disabled:not(.is-busy),
+.req-btn:disabled:not(.is-busy) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.is-busy,
+button.is-busy,
+.admin-btn.is-busy,
+.req-btn.is-busy,
+.auth-submit.is-busy {
+  position: relative;
+  pointer-events: none;
+  cursor: wait;
+  opacity: 1;
+  gap: 8px;
+}
+
+form.is-submitting {
+  pointer-events: none;
+}
+
+.cn-btn-busy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.cn-btn-spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  display: inline-block;
+  flex-shrink: 0;
+  opacity: 0.85;
+  animation: cn-btn-spin 0.65s linear infinite;
+}
+
+.cn-btn-busy-label {
+  line-height: 1;
+}
+
+@keyframes cn-btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -68,41 +68,15 @@
                   </div>
                   <div id="locationDropdown" class="hero-dropdown hidden" role="listbox" aria-label="Locations near you">
                     <div class="hero-dropdown-label">Locations near you</div>
-                    <button type="button" class="hero-dropdown-item" data-location="Sommers Bend" role="option">
-                      <span class="hero-dropdown-item-main">
-                        <span class="hero-dropdown-item-title">Sommers Bend</span>
-                        <span class="hero-dropdown-item-meta">Murrieta · 3 coaches</span>
-                      </span>
-                      <span class="hero-dropdown-item-dist">1.2 mi</span>
-                    </button>
-                    <button type="button" class="hero-dropdown-item" data-location="Birdsall" role="option">
-                      <span class="hero-dropdown-item-main">
-                        <span class="hero-dropdown-item-title">Birdsall</span>
-                        <span class="hero-dropdown-item-meta">Temecula · 2 coaches</span>
-                      </span>
-                      <span class="hero-dropdown-item-dist">2.4 mi</span>
-                    </button>
-                    <button type="button" class="hero-dropdown-item" data-location="Los Alamos" role="option">
-                      <span class="hero-dropdown-item-main">
-                        <span class="hero-dropdown-item-title">Los Alamos</span>
-                        <span class="hero-dropdown-item-meta">Murrieta · 2 coaches</span>
-                      </span>
-                      <span class="hero-dropdown-item-dist">3.1 mi</span>
-                    </button>
-                    <button type="button" class="hero-dropdown-item" data-location="Alta Murrieta" role="option">
-                      <span class="hero-dropdown-item-main">
-                        <span class="hero-dropdown-item-title">Alta Murrieta</span>
-                        <span class="hero-dropdown-item-meta">Murrieta · 2 coaches</span>
-                      </span>
-                      <span class="hero-dropdown-item-dist">4.0 mi</span>
-                    </button>
-                    <button type="button" class="hero-dropdown-item" data-location="Temecula Sports Park" role="option">
-                      <span class="hero-dropdown-item-main">
-                        <span class="hero-dropdown-item-title">Temecula Sports Park</span>
-                        <span class="hero-dropdown-item-meta">Temecula · 3 coaches</span>
-                      </span>
-                      <span class="hero-dropdown-item-dist">5.2 mi</span>
-                    </button>
+                    @foreach (($homeLocations ?? []) as $loc)
+                      <button type="button" class="hero-dropdown-item" data-location="{{ $loc['name'] }}" role="option">
+                        <span class="hero-dropdown-item-main">
+                          <span class="hero-dropdown-item-title">{{ $loc['name'] }}</span>
+                          <span class="hero-dropdown-item-meta">{{ \Illuminate\Support\Str::before($loc['area'] ?? '', ',') }} · {{ count($loc['coaches'] ?? []) }} coach{{ count($loc['coaches'] ?? []) === 1 ? '' : 'es' }}</span>
+                        </span>
+                        <span class="hero-dropdown-item-dist">{{ number_format((float) ($loc['distance'] ?? 0), 1) }} mi</span>
+                      </button>
+                    @endforeach
                   </div>
                 </div>
                 <button type="button" id="useLocationBtn"
@@ -634,5 +608,8 @@
 @endsection
 
 @push('scripts')
+  <script>
+    window.COACHNOW_LOCATIONS = @json($homeLocations ?? []);
+  </script>
   <script src="{{ asset('assets/js/index.js') }}"></script>
 @endpush

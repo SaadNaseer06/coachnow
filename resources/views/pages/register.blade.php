@@ -62,11 +62,11 @@
           <div data-coach-fields class="space-y-4 {{ old('role') === 'coach' ? '' : 'hidden' }}">
             <div class="auth-grid-2">
               <label class="block">
-                <span class="block text-[12px] font-medium text-[#191615] mb-2">Primary Sport</span>
+                <span class="block text-[12px] font-medium text-[#191615] mb-2">Specialty</span>
                 <select name="specialty" class="auth-input appearance-none bg-white">
-                  <option value="Soccer" @selected(old('specialty', 'Soccer') === 'Soccer')>Soccer</option>
-                  <option value="Futsal" @selected(old('specialty') === 'Futsal')>Futsal</option>
-                  <option value="Performance & Speed" @selected(old('specialty') === 'Performance & Speed')>Performance &amp; Speed</option>
+                  @foreach (\App\Models\Coach::SPECIALTIES as $specialty)
+                    <option value="{{ $specialty }}" @selected(old('specialty', 'Private Soccer Training') === $specialty)>{{ $specialty }}</option>
+                  @endforeach
                 </select>
               </label>
 

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="icon" href="{{ asset('assets/favicon.ico') }}" sizes="any">
   <link rel="icon" type="image/svg+xml" href="{{ asset('assets/favicon.svg') }}">
   <link rel="icon" type="image/png" href="{{ asset('assets/favicon-32.png') }}" sizes="32x32">
@@ -46,6 +47,7 @@
   <link rel="stylesheet" href="https://unpkg.com/lenis@1.3.26/dist/lenis.css">
   <link rel="stylesheet" href="{{ asset('assets/css/site.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/scroll-progress.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/form-busy.css') }}?v={{ @filemtime(public_path('assets/css/form-busy.css')) ?: time() }}">
   @stack('styles')
 </head>
 <body class="font-sans bg-white text-zinc-900 antialiased selection:bg-brand-red selection:text-white">
@@ -58,6 +60,7 @@
   @include('partials.footer')
 
   <script src="https://unpkg.com/lenis@1.3.26/dist/lenis.min.js"></script>
+  <script src="{{ asset('assets/js/form-busy.js') }}?v={{ @filemtime(public_path('assets/js/form-busy.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/site.js') }}"></script>
   <script src="{{ asset('assets/js/scroll-progress.js') }}"></script>
   @stack('scripts')

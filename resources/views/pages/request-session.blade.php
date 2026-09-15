@@ -118,28 +118,26 @@
                 </header>
 
                 <div class="req-locations" id="reqLocations">
-                  @foreach([
-                    ['id' => 'sommers-bend', 'name' => 'Sommers Bend', 'city' => 'Murrieta, CA', 'distance' => '1.2 mi', 'coaches' => 3, 'image' => 'assets/Background.png'],
-                    ['id' => 'winchester-park', 'name' => 'Winchester Sports Park', 'city' => 'Winchester, CA', 'distance' => '2.4 mi', 'coaches' => 2, 'image' => 'assets/Background (1).png'],
-                    ['id' => 'bear-creek', 'name' => 'Bear Creek Park', 'city' => 'Murrieta, CA', 'distance' => '3.1 mi', 'coaches' => 1, 'image' => 'assets/hero-bg.png'],
-                  ] as $loc)
-                  <article class="req-loc-card" data-location-id="{{ $loc['id'] }}" data-location-name="{{ $loc['name'] }}" data-location-city="{{ $loc['city'] }}" tabindex="0" role="button" aria-label="Select {{ $loc['name'] }}">
-                    <div class="req-loc-card__media" style="background-image:url('{{ asset($loc['image']) }}')">
-                      <span class="req-loc-card__distance">{{ $loc['distance'] }}</span>
+                  @forelse ($locations ?? [] as $loc)
+                  <article class="req-loc-card" data-location-id="{{ $loc->slug }}" data-location-name="{{ $loc->name }}" data-location-city="{{ $loc->area }}" tabindex="0" role="button" aria-label="Select {{ $loc->name }}">
+                    <div class="req-loc-card__media" style="background-image:url('{{ asset($loc->image_path ?: 'assets/Background.png') }}')">
+                      <span class="req-loc-card__distance">{{ number_format((float) $loc->distance_miles, 1) }} mi</span>
                     </div>
                     <div class="req-loc-card__body">
                       <div class="req-loc-card__text">
-                        <h3>{{ $loc['name'] }}</h3>
-                        <p>{{ $loc['city'] }}</p>
+                        <h3>{{ $loc->name }}</h3>
+                        <p>{{ $loc->area }}</p>
                         <p class="req-loc-card__meta">
                           <span class="req-dot"></span>
-                          {{ $loc['coaches'] }} coach{{ $loc['coaches'] > 1 ? 'es' : '' }} nearby
+                          {{ $loc->coaches_count }} coach{{ $loc->coaches_count === 1 ? '' : 'es' }} nearby
                         </p>
                       </div>
                       <button type="button" class="req-loc-card__cta">View times <span aria-hidden="true">→</span></button>
                     </div>
                   </article>
-                  @endforeach
+                  @empty
+                  <p class="text-[13px] text-zinc-500">No park locations are available yet.</p>
+                  @endforelse
                 </div>
               </div>
             </section>

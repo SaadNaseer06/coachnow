@@ -1,6 +1,28 @@
 (() => {
-  const STORAGE_KEY = 'coachnow_session_requests';
   const DEPOSIT_AMOUNT = 10;
+
+  const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+  async function apiFetch(url, options = {}) {
+    const headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+      'X-Requested-With': 'XMLHttpRequest',
+      ...(options.headers || {}),
+    };
+    const response = await fetch(url, { ...options, headers, credentials: 'same-origin' });
+    const payload = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      window.location.href = '/login';
+      throw new Error('Unauthorized');
+    }
+    if (!response.ok) {
+      const message = payload.message || payload.errors && Object.values(payload.errors).flat()[0] || 'Request failed';
+      throw new Error(message);
+    }
+    return payload;
+  }
 
   const state = {
     location: '',
@@ -337,24 +359,12 @@
   }
 
   function readStoredRequests() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    } catch {
-      return [];
-    }
+    return [];
   }
 
-  function writeStoredRequests(list) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 20)));
-  }
+  function writeStoredRequests() {}
 
-  function updateStoredRequest(id, patch) {
-    const list = readStoredRequests();
-    const idx = list.findIndex((item) => item.id === id);
-    if (idx === -1) return;
-    list[idx] = { ...list[idx], ...patch };
-    writeStoredRequests(list);
-  }
+  function updateStoredRequest() {}
 
   function showDepositState(status, match) {
     const hosted = status === 'hosted' || status === 'accepted' || status === 'awaiting_deposit' || status === 'confirmed';
@@ -388,11 +398,25 @@
     }
   }
 
+  function sessionDateIso() {
+    if (state.selectedDate instanceof Date && !Number.isNaN(state.selectedDate.getTime())) {
+      const y = state.selectedDate.getFullYear();
+      const m = String(state.selectedDate.getMonth() + 1).padStart(2, '0');
+      const d = String(state.selectedDate.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return state.date || '';
+  }
+
   function syncLiveRequestStatus() {
     if (!state.requestId) return;
-    const match = readStoredRequests().find((item) => item.id === state.requestId);
-    if (!match) return;
-    showDepositState(match.status, match);
+    apiFetch(`/api/session-requests/${encodeURIComponent(state.requestId)}`)
+      .then((payload) => {
+        const match = payload.data;
+        if (!match) return;
+        showDepositState(match.status, match);
+      })
+      .catch(() => {});
   }
 
   function resetFlow() {
@@ -568,76 +592,53 @@
     window.coachNowLenis?.start();
   }
 
-  function publishRequest(cardLabel) {
+  async function publishRequest(cardLabel) {
     state.cardOnFile = cardLabel;
-    const idNum = Math.floor(1000 + Math.random() * 9000);
-    const requestId = `CN-${idNum}`;
-    state.requestId = requestId;
-    if (els.requestId) els.requestId.textContent = `#${requestId}`;
-
-    saveSessionRequest(requestId, cardLabel);
-    renderLiveSummary();
-    if (els.countdownHint && state.knowByAt) {
-      els.countdownHint.textContent = `Coaches can accept until ${formatKnowBy(state.knowByAt)}`;
-      startCutoffCountdown(state.knowByAt.getTime());
-    }
-    showDepositState('open', { status: 'open', card_on_file: cardLabel, players: [] });
-    if (els.waitingCoach) els.waitingCoach.hidden = false;
-    closeCardModal();
-    goToStep(5);
-  }
-
-  function saveSessionRequest(requestId, cardLabel) {
-    const dateStr = state.selectedDate
-      ? state.selectedDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-      : state.date;
-    const when = [dateStr, state.selectedTime].filter(Boolean).join(' · ');
-    const expiresAt = state.knowByAt ? state.knowByAt.getTime() : Date.now();
-    const players = [{
-      id: `p-${requestId}`,
-      name: 'You (requester)',
-      initials: 'YO',
-      role: 'requester',
-      paid: false,
-      paid_with: '',
-      card_on_file: cardLabel,
-    }];
-
-    const payload = {
-      id: requestId,
-      initials: 'YO',
-      name: 'New session request',
-      location: state.locationName || state.location,
-      city: state.locationCity || '',
-      when,
-      session_type: state.sessionType,
-      age_range: state.ageRange,
-      price_range: state.priceRange,
-      sport: state.sport,
-      notes: state.notes,
-      min_players: state.minPlayers ? Number(state.minPlayers) : '',
-      max_players: state.maxPlayers ? Number(state.maxPlayers) : '',
-      player_level: state.playerLevel,
-      know_by: state.knowByAt ? formatKnowBy(state.knowByAt) : '',
-      deposit: DEPOSIT_AMOUNT,
-      card_on_file: cardLabel,
-      status: 'open',
-      players,
-      players_joined: 1,
-      accept_seconds: Math.max(1, Math.floor((expiresAt - Date.now()) / 1000)),
-      posted: 'Just now',
-      createdAt: Date.now(),
-      acceptExpiresAt: expiresAt,
-    };
-
+    window.CoachNowBusy?.setBusy(els.cardConfirmBtn, { label: 'Publishing…' });
     try {
-      const existing = readStoredRequests();
-      existing.unshift(payload);
-      writeStoredRequests(existing);
-    } catch {
-      /* ignore storage errors in demo mode */
+      const payload = await apiFetch('/api/session-requests', {
+        method: 'POST',
+        body: JSON.stringify({
+          location_id: state.locationId || null,
+          location_name: state.locationName || state.location,
+          location_city: state.locationCity || '',
+          session_date: sessionDateIso(),
+          session_time: state.selectedTime || null,
+          session_type: state.sessionType,
+          sport: state.sport || 'Soccer',
+          age_range: state.ageRange || null,
+          price_range: state.priceRange || null,
+          player_level: state.playerLevel || null,
+          notes: state.notes || null,
+          min_players: state.minPlayers ? Number(state.minPlayers) : null,
+          max_players: state.maxPlayers ? Number(state.maxPlayers) : null,
+          know_by_at: state.knowByAt ? state.knowByAt.toISOString() : null,
+          card_on_file: cardLabel,
+          deposit: DEPOSIT_AMOUNT,
+        }),
+      });
+
+      const request = payload.data;
+      state.requestId = request.id;
+      if (els.requestId) els.requestId.textContent = `#${request.id}`;
+
+      renderLiveSummary();
+      if (els.countdownHint && state.knowByAt) {
+        els.countdownHint.textContent = `Coaches can accept until ${formatKnowBy(state.knowByAt)}`;
+        startCutoffCountdown(state.knowByAt.getTime());
+      }
+      showDepositState('open', request);
+      if (els.waitingCoach) els.waitingCoach.hidden = false;
+      closeCardModal();
+      goToStep(5);
+    } catch (error) {
+      window.alert(error.message || 'Could not publish session request.');
+    } finally {
+      window.CoachNowBusy?.clearBusy(els.cardConfirmBtn);
     }
   }
+
+  function saveSessionRequest() {}
 
   els.cardConfirmBtn?.addEventListener('click', () => {
     const wallet = window.CoachNowPayment?.api(document.querySelector('#reqCardOnFileBox [data-payment-root]'));
@@ -668,40 +669,35 @@
     syncLiveRequestStatus();
   });
 
-  els.joinPayBtn?.addEventListener('click', () => {
+  els.joinPayBtn?.addEventListener('click', async () => {
     if (!state.requestId) return;
     const wallet = window.CoachNowPayment?.api(document.querySelector('#reqJoinDepositPanel [data-payment-root]'));
     const result = wallet?.charge();
     if (!result?.ok) return;
 
-    const match = readStoredRequests().find((item) => item.id === state.requestId) || {};
-    const players = Array.isArray(match.players) ? [...match.players] : [];
     const paidWith = `${result.method.brand} ···· ${result.method.last4}`;
-    const n = players.length + 1;
-    players.push({
-      id: `p-join-${Date.now()}`,
-      name: `Joiner ${n}`,
-      initials: `J${n}`,
-      role: 'joiner',
-      paid: true,
-      paid_with: paidWith,
-    });
-
-    const max = match.max_players;
-    const looking = max !== '' && max != null ? Math.max(0, Number(max) - players.length) : (match.looking_for ?? '');
-
-    updateStoredRequest(state.requestId, {
-      status: 'hosted',
-      players,
-      players_joined: players.length,
-      looking_for: looking,
-    });
-
-    if (els.joinDepositPanel) els.joinDepositPanel.hidden = true;
-    showDepositState('hosted', { status: 'hosted', players, deposit_paid: true });
-    const paidLabel = document.getElementById('reqPaidWith');
-    if (paidLabel) {
-      paidLabel.textContent = `${players.length} players on roster · latest join paid with ${paidWith}`;
+    window.CoachNowBusy?.setBusy(els.joinPayBtn, { label: 'Joining…' });
+    try {
+      const payload = await apiFetch(`/api/session-requests/${encodeURIComponent(state.requestId)}/join`, {
+        method: 'POST',
+        body: JSON.stringify({
+          paid: true,
+          paid_with: paidWith,
+          card_on_file: paidWith,
+        }),
+      });
+      const match = payload.data || {};
+      const players = Array.isArray(match.players) ? match.players : [];
+      if (els.joinDepositPanel) els.joinDepositPanel.hidden = true;
+      showDepositState(match.status || 'hosted', { ...match, deposit_paid: true });
+      const paidLabel = document.getElementById('reqPaidWith');
+      if (paidLabel) {
+        paidLabel.textContent = `${players.length || 1} players on roster · latest join paid with ${paidWith}`;
+      }
+    } catch (error) {
+      window.alert(error.message || 'Could not join this session.');
+    } finally {
+      window.CoachNowBusy?.clearBusy(els.joinPayBtn);
     }
   });
 
@@ -715,10 +711,7 @@
     els.startAnother.addEventListener('click', resetFlow);
   }
 
-  window.addEventListener('storage', (event) => {
-    if (event.key === STORAGE_KEY) syncLiveRequestStatus();
-  });
-  setInterval(syncLiveRequestStatus, 1500);
+  setInterval(syncLiveRequestStatus, 2500);
 
   renderTimeSlots(els.morningSlots, morningSlots);
   renderTimeSlots(els.afternoonSlots, afternoonSlots);

@@ -26,6 +26,10 @@
     </a>
 
     <div class="admin-nav-label">Account</div>
+    <a href="{{ route('coach.profile') }}" class="admin-nav-link {{ request()->routeIs('coach.profile') ? 'is-active' : '' }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      My Profile
+    </a>
     <a href="{{ route('home') }}" class="admin-nav-link">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       View Website
@@ -43,8 +47,8 @@
     <div class="admin-user">
       <div class="admin-user-avatar">{{ strtoupper(substr(auth()->user()->name ?? 'CL', 0, 2)) }}</div>
       <div class="admin-user-meta">
-        <div class="admin-user-name">{{ auth()->user()->name ?? 'Coach Lee' }}</div>
-        <div class="admin-user-role">Development Plus</div>
+        <div class="admin-user-name">{{ auth()->user()->coach?->display_name ?? auth()->user()->name ?? 'Coach' }}</div>
+        <div class="admin-user-role">{{ auth()->user()->coach?->status === 'active' ? 'Live on Find a Coach' : 'Complete your profile' }}</div>
       </div>
     </div>
   </div>

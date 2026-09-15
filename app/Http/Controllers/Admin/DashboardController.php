@@ -3,40 +3,435 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
+use App\Models\Coach;
+use App\Models\Location;
+use App\Models\User;
+use App\Services\AppMailer;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
+use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(): View
     {
-        return view('admin.dashboard');
-    }
+        $activeCoaches = Coach::query()->where('status', 'active')->count();
+        $bookingsToday = Booking::query()->whereDate('session_date', Carbon::today())->count();
+        $parkCount = Location::query()->count();
+        $revenueMtd = (float) Booking::query()
+            ->where('status', '!=', 'cancelled')
+            ->whereMonth('session_date', Carbon::now()->month)
+            ->whereYear('session_date', Carbon::now()->year)
+            ->sum('amount');
 
-    public function coaches()
-    {
-        return view('admin.coaches');
-    }
+        $recentBookings = Booking::query()
+            ->with(['coach', 'location'])
+            ->orderByDesc('session_date')
+            ->orderByDesc('session_time')
+            ->limit(6)
+            ->get();
 
-    public function bookings()
-    {
-        return view('admin.bookings');
-    }
+        $topLocations = Location::query()
+            ->withCount('coaches')
+            ->orderByDesc('coaches_count')
+            ->orderBy('distance_miles')
+            ->limit(4)
+            ->get();
 
-    public function locations()
-    {
-        return view('admin.locations');
-    }
+        $pendingCoaches = Coach::query()
+            ->with(['user', 'location'])
+            ->where('status', 'pending')
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get();
 
-    public function athletes()
-    {
-        return view('admin.athletes');
-    }
-
-    public function schedule()
-    {
-        return view('admin.schedule', [
-            'weekLabel' => 'Aug 24 – Aug 30, 2026',
-            'sessions' => $this->demoScheduleSessions(),
+        return view('admin.dashboard', [
+            'activeCoaches' => $activeCoaches,
+            'bookingsToday' => $bookingsToday,
+            'parkCount' => $parkCount,
+            'revenueMtd' => $revenueMtd,
+            'recentBookings' => $recentBookings,
+            'topLocations' => $topLocations,
+            'pendingCoaches' => $pendingCoaches,
         ]);
+    }
+
+    public function coaches(Request $request): View
+    {
+        $search = trim((string) $request->query('q', ''));
+        $status = (string) $request->query('status', '');
+        $locationId = $request->query('location_id');
+
+        $coaches = Coach::query()
+            ->with(['user', 'location'])
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('display_name', 'like', "%{$search}%")
+                        ->orWhere('specialty', 'like', "%{$search}%")
+                        ->orWhereHas('user', fn ($user) => $user->where('email', 'like', "%{$search}%"));
+                });
+            })
+            ->when(in_array($status, ['pending', 'active', 'paused'], true), fn ($query) => $query->where('status', $status))
+            ->when($locationId === 'none', fn ($query) => $query->whereNull('location_id'))
+            ->when(is_numeric($locationId), fn ($query) => $query->where('location_id', (int) $locationId))
+            ->orderByRaw("CASE status WHEN 'pending' THEN 0 WHEN 'active' THEN 1 ELSE 2 END")
+            ->orderByDesc('created_at')
+            ->paginate(15)
+            ->withQueryString();
+
+        $locations = Location::query()->orderBy('name')->get(['id', 'name']);
+
+        return view('admin.coaches', [
+            'coaches' => $coaches,
+            'locations' => $locations,
+            'filters' => [
+                'q' => $search,
+                'status' => $status,
+                'location_id' => $locationId,
+            ],
+        ]);
+    }
+
+    public function storeCoach(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', Password::min(8)],
+            'location_id' => ['required', 'integer', 'exists:locations,id'],
+            'specialty' => ['required', 'string', Rule::in(Coach::SPECIALTIES)],
+            'ages' => ['nullable', 'string', 'max:80'],
+            'rate' => ['required', 'numeric', 'min:0', 'max:9999'],
+            'status' => ['required', Rule::in(['pending', 'active', 'paused'])],
+            'experience' => ['nullable', 'string', Rule::in(Coach::EXPERIENCE_OPTIONS)],
+            'bio' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        DB::transaction(function () use ($data) {
+            $user = User::query()->create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => $data['password'],
+                'role' => User::ROLE_COACH,
+            ]);
+
+            $displayName = str_starts_with(strtolower($data['name']), 'coach ')
+                ? $data['name']
+                : 'Coach '.Str::of($data['name'])->before(' ')->toString();
+
+            Coach::query()->create([
+                'user_id' => $user->id,
+                'location_id' => $data['location_id'],
+                'display_name' => $displayName,
+                'specialty' => $data['specialty'],
+                'ages' => $data['ages'] ?? null,
+                'experience' => $data['experience'] ?? null,
+                'bio' => $data['bio'] ?? null,
+                'rate' => $data['rate'],
+                'status' => $data['status'],
+                'rating' => 5.0,
+                'reviews_count' => 0,
+                'photo_path' => 'assets/Rectangle 8.png',
+            ]);
+        });
+
+        return redirect()
+            ->route('admin.coaches')
+            ->with('success', 'Coach added successfully.');
+    }
+
+    public function updateCoach(Request $request, Coach $coach): RedirectResponse
+    {
+        $data = $request->validate([
+            'display_name' => ['required', 'string', 'max:120'],
+            'location_id' => ['required', 'integer', 'exists:locations,id'],
+            'specialty' => ['required', 'string', Rule::in(Coach::SPECIALTIES)],
+            'ages' => ['nullable', 'string', 'max:80'],
+            'rate' => ['required', 'numeric', 'min:0', 'max:9999'],
+            'status' => ['required', Rule::in(['pending', 'active', 'paused'])],
+            'experience' => ['nullable', 'string', Rule::in(Coach::EXPERIENCE_OPTIONS)],
+            'bio' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $coach->update($data);
+
+        return redirect()
+            ->route('admin.coaches')
+            ->with('success', $coach->display_name.' was updated.');
+    }
+
+    public function updateCoachStatus(Request $request, Coach $coach): RedirectResponse
+    {
+        $data = $request->validate([
+            'status' => ['required', Rule::in(['pending', 'active', 'paused'])],
+        ]);
+
+        if ($data['status'] === 'active' && ! $coach->isReadyForListing()) {
+            return redirect()
+                ->route('admin.coaches')
+                ->withErrors([
+                    'status' => $coach->display_name.' is missing: '.implode(', ', $coach->missingListingFields()).'. Ask them to finish their profile first.',
+                ]);
+        }
+
+        $coach->update(['status' => $data['status']]);
+
+        app(AppMailer::class)->notifyCoachStatusChanged($coach->fresh(['user']), $data['status']);
+
+        $message = match ($data['status']) {
+            'active' => $coach->display_name.' is now live on Find a Coach.',
+            'paused' => $coach->display_name.' was paused and hidden from Find a Coach.',
+            default => $coach->display_name.' was set back to pending.',
+        };
+
+        return redirect()
+            ->route('admin.coaches')
+            ->with('success', $message);
+    }
+
+    public function bookings(Request $request): View
+    {
+        $search = trim((string) $request->query('q', ''));
+        $status = (string) $request->query('status', '');
+        $range = (string) $request->query('range', '');
+
+        $bookings = Booking::query()
+            ->with(['coach', 'location', 'athlete'])
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('reference', 'like', "%{$search}%")
+                        ->orWhere('athlete_name', 'like', "%{$search}%")
+                        ->orWhere('session_type', 'like', "%{$search}%")
+                        ->orWhereHas('coach', fn ($coach) => $coach->where('display_name', 'like', "%{$search}%"))
+                        ->orWhereHas('location', fn ($location) => $location->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('athlete', fn ($athlete) => $athlete->where('name', 'like', "%{$search}%"));
+                });
+            })
+            ->when(in_array($status, ['confirmed', 'pending', 'cancelled'], true), fn ($query) => $query->where('status', $status))
+            ->when($range === 'today', fn ($query) => $query->whereDate('session_date', Carbon::today()))
+            ->when($range === 'week', function ($query) {
+                $start = Carbon::today()->startOfWeek(Carbon::MONDAY);
+                $query->whereBetween('session_date', [$start->toDateString(), $start->copy()->endOfWeek(Carbon::SUNDAY)->toDateString()]);
+            })
+            ->when($range === 'month', function ($query) {
+                $query->whereMonth('session_date', Carbon::now()->month)
+                    ->whereYear('session_date', Carbon::now()->year);
+            })
+            ->orderByDesc('session_date')
+            ->orderByDesc('session_time')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('admin.bookings', [
+            'bookings' => $bookings,
+            'filters' => [
+                'q' => $search,
+                'status' => $status,
+                'range' => $range,
+            ],
+        ]);
+    }
+
+    public function locations(): View
+    {
+        $locations = Location::query()
+            ->with(['coaches' => fn ($q) => $q->orderBy('display_name')])
+            ->withCount('coaches')
+            ->orderBy('distance_miles')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('admin.locations', [
+            'locations' => $locations,
+            'totalParks' => Location::query()->count(),
+            'assignedCoaches' => Coach::query()->whereNotNull('location_id')->count(),
+            'avgDistance' => round((float) (Location::query()->avg('distance_miles') ?? 0), 1),
+        ]);
+    }
+
+    public function storeLocation(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'area' => ['required', 'string', 'max:120'],
+            'distance_miles' => ['required', 'numeric', 'min:0', 'max:999'],
+            'status' => ['required', Rule::in(['live', 'draft'])],
+        ]);
+
+        $baseSlug = Str::slug($data['name']);
+        $slug = $baseSlug;
+        $i = 2;
+        while (Location::query()->where('slug', $slug)->exists()) {
+            $slug = $baseSlug.'-'.$i;
+            $i++;
+        }
+
+        Location::query()->create([
+            'name' => $data['name'],
+            'slug' => $slug,
+            'area' => $data['area'],
+            'distance_miles' => $data['distance_miles'],
+            'status' => $data['status'],
+            'image_path' => 'assets/Background.png',
+        ]);
+
+        return redirect()
+            ->route('admin.locations')
+            ->with('success', 'Location added successfully.');
+    }
+
+    public function destroyLocation(Location $location): RedirectResponse
+    {
+        $name = $location->name;
+        $location->delete();
+
+        return redirect()
+            ->route('admin.locations')
+            ->with('success', "“{$name}” was deleted. Assigned coaches were unlinked from this park.");
+    }
+
+    public function athletes(Request $request): View
+    {
+        $search = trim((string) $request->query('q', ''));
+        $activity = (string) $request->query('activity', '');
+
+        $athletes = User::query()
+            ->where('role', User::ROLE_ATHLETE)
+            ->withCount('athleteBookings')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($activity === 'new', fn ($query) => $query->having('athlete_bookings_count', '<=', 3))
+            ->when($activity === 'month', function ($query) {
+                $query->whereHas('athleteBookings', function ($bookings) {
+                    $bookings->whereMonth('session_date', Carbon::now()->month)
+                        ->whereYear('session_date', Carbon::now()->year);
+                });
+            })
+            ->orderBy('name')
+            ->paginate(15)
+            ->withQueryString();
+
+        $athletes->getCollection()->transform(function (User $athlete) {
+            $last = Booking::query()
+                ->with('location')
+                ->where('athlete_id', $athlete->id)
+                ->orderByDesc('session_date')
+                ->first();
+
+            $athlete->setAttribute('sessions_count', $athlete->athlete_bookings_count);
+            $athlete->setAttribute('last_booking', $last);
+            $athlete->setAttribute('preferred_park', $last?->location?->name);
+
+            return $athlete;
+        });
+
+        return view('admin.athletes', [
+            'athletes' => $athletes,
+            'filters' => [
+                'q' => $search,
+                'activity' => $activity,
+            ],
+        ]);
+    }
+
+    public function schedule(\Illuminate\Http\Request $request): View
+    {
+        $weekStart = $this->resolveWeekStart($request->query('week'));
+        $today = Carbon::today()->toDateString();
+        $isCurrentWeek = $weekStart->toDateString() === Carbon::today()->startOfWeek(Carbon::MONDAY)->toDateString();
+
+        $bookings = Booking::query()
+            ->confirmed()
+            ->inWeek($weekStart)
+            ->with(['athlete', 'coach.user', 'location'])
+            ->orderBy('session_date')
+            ->orderBy('session_time')
+            ->get();
+
+        $days = collect(range(0, 6))->map(function (int $offset) use ($weekStart, $today) {
+            $day = $weekStart->copy()->addDays($offset);
+
+            return [
+                'label' => strtoupper($day->format('D')),
+                'date' => $day->format('j'),
+                'full' => $day->format('D, M j'),
+                'iso' => $day->toDateString(),
+                'today' => $day->toDateString() === $today,
+            ];
+        })->all();
+
+        $sessions = $bookings->map(function (Booking $booking) use ($weekStart) {
+            $dayIndex = max(0, min(6, (int) $weekStart->diffInDays($booking->session_date->copy()->startOfDay(), false)));
+            $startCarbon = $booking->session_time
+                ? Carbon::parse($booking->session_date->toDateString().' '.$booking->session_time)
+                : $booking->session_date->copy()->setTime(9, 0);
+            $duration = (int) ($booking->duration_minutes ?? 60);
+            $endCarbon = $startCarbon->copy()->addMinutes($duration);
+            $timeKey = $startCarbon->format('G:i');
+            $grid = $this->timeToGrid($timeKey, $duration);
+            $tone = $booking->tone();
+            if ($tone === 'green') {
+                $tone = 'blue';
+            }
+
+            return [
+                'id' => $booking->id,
+                'day' => $dayIndex,
+                'start' => $timeKey,
+                'start_minutes' => ($startCarbon->hour * 60) + $startCarbon->minute,
+                'end_minutes' => ($endCarbon->hour * 60) + $endCarbon->minute,
+                'duration' => $duration,
+                'title' => $booking->displayName(),
+                'type' => $booking->session_type ?? 'Session',
+                'players' => 1,
+                'tone' => $tone,
+                'gridStart' => $grid['start'],
+                'gridEnd' => $grid['end'],
+                'time_label' => $startCarbon->format('g:i A').' – '.$endCarbon->format('g:i A'),
+                'time_short' => $startCarbon->format('g:ia'),
+                'coach' => $booking->coach?->display_name ?? 'Unassigned coach',
+                'location' => $booking->location?->name ?? '—',
+                'area' => $booking->location?->area ?? '',
+                'status' => ucfirst($booking->status),
+                'reference' => $booking->reference,
+                'amount' => $booking->amount !== null ? '$'.number_format((float) $booking->amount, 0) : null,
+                'date_label' => $booking->session_date?->format('l, M j') ?? '',
+            ];
+        })->values()->all();
+
+        return view('admin.schedule', [
+            'weekLabel' => $weekStart->format('M j').' – '.$weekStart->copy()->addDays(6)->format('M j, Y'),
+            'weekStart' => $weekStart->toDateString(),
+            'prevWeek' => $weekStart->copy()->subWeek()->toDateString(),
+            'nextWeek' => $weekStart->copy()->addWeek()->toDateString(),
+            'isCurrentWeek' => $isCurrentWeek,
+            'sessionCount' => count($sessions),
+            'days' => $days,
+            'sessions' => $sessions,
+        ]);
+    }
+
+    private function resolveWeekStart(?string $week): Carbon
+    {
+        if ($week) {
+            try {
+                return Carbon::parse($week)->startOfWeek(Carbon::MONDAY);
+            } catch (\Throwable) {
+                // fall through
+            }
+        }
+
+        return Carbon::today()->startOfWeek(Carbon::MONDAY);
     }
 
     private function timeToGrid(string $time, int $duration): array
@@ -47,39 +442,5 @@ class DashboardController extends Controller
         $gridSpan = max(1, (int) ceil($duration / 30));
 
         return ['start' => $gridStart, 'end' => $gridStart + $gridSpan];
-    }
-
-    private function demoScheduleSessions(): array
-    {
-        $sessions = [
-            ['day' => 0, 'start' => '8:30', 'duration' => 60, 'title' => 'Ella R.', 'type' => 'Private Session', 'players' => 1, 'tone' => 'green'],
-            ['day' => 1, 'start' => '10:00', 'duration' => 60, 'title' => 'Nicole T.', 'type' => 'Small Group (2-3)', 'players' => 3, 'tone' => 'yellow'],
-            ['day' => 1, 'start' => '16:00', 'duration' => 60, 'title' => 'Alex P.', 'type' => 'Private Session', 'players' => 1, 'tone' => 'green'],
-            ['day' => 2, 'start' => '9:00', 'duration' => 60, 'title' => 'Mia L.', 'type' => 'Small Group (2-3)', 'players' => 2, 'tone' => 'yellow'],
-            ['day' => 2, 'start' => '11:00', 'duration' => 90, 'title' => 'Team Training', 'type' => 'Group Session', 'players' => 8, 'tone' => 'purple'],
-            ['day' => 2, 'start' => '14:00', 'duration' => 60, 'title' => 'Jake M.', 'type' => 'Private Session', 'players' => 1, 'tone' => 'blue'],
-            ['day' => 2, 'start' => '16:30', 'duration' => 60, 'title' => 'Ryan K.', 'type' => 'Private Session', 'players' => 1, 'tone' => 'blue'],
-            ['day' => 2, 'start' => '18:00', 'duration' => 45, 'title' => 'Sam D.', 'type' => 'Assessment', 'players' => 1, 'tone' => 'orange'],
-            ['day' => 3, 'start' => '15:00', 'duration' => 60, 'title' => 'Speed & Agility', 'type' => 'Group Session', 'players' => 6, 'tone' => 'purple'],
-            ['day' => 4, 'start' => '9:30', 'duration' => 60, 'title' => 'Ella R.', 'type' => 'Private Session', 'players' => 1, 'tone' => 'green'],
-            ['day' => 4, 'start' => '17:00', 'duration' => 60, 'title' => 'Nicole T.', 'type' => 'Small Group (2-3)', 'players' => 2, 'tone' => 'yellow'],
-            ['day' => 5, 'start' => '0:00', 'duration' => 1440, 'title' => 'Tournament', 'type' => 'All Day · Blocked', 'players' => 0, 'tone' => 'blocked', 'allDay' => true],
-            ['day' => 6, 'start' => '0:00', 'duration' => 1440, 'title' => 'Unavailable', 'type' => 'Blocked', 'players' => 0, 'tone' => 'blocked', 'allDay' => true],
-        ];
-
-        return array_map(function (array $session) {
-            if (! empty($session['allDay'])) {
-                $session['gridStart'] = 1;
-                $session['gridEnd'] = 35;
-
-                return $session;
-            }
-
-            $grid = $this->timeToGrid($session['start'], $session['duration']);
-            $session['gridStart'] = $grid['start'];
-            $session['gridEnd'] = $grid['end'];
-
-            return $session;
-        }, $sessions);
     }
 }

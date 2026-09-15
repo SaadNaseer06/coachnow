@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
       const HERO_HEADING_SELECTOR = '#hero h1';
 
       const getScale = () => {
@@ -931,76 +931,9 @@
 })();
 
 (() => {
-  const LOCATIONS = [
-    {
-      id: 'sommers-bend',
-      name: 'Sommers Bend',
-      area: 'Murrieta, CA',
-      distance: 1.2,
-      image: 'assets/Background (1).png',
-      coaches: [
-        { name: 'Coach Lee', specialty: 'Private Soccer Training', ages: 'Ages 8–14', price: 50, rating: '4.9', reviews: 86, image: 'assets/Rectangle 8.png' },
-        { name: 'Coach Heidi', specialty: 'Small Group Soccer', ages: 'Ages 6–12', price: 40, rating: '5.0', reviews: 64, image: 'assets/Rectangle 8-2.png' },
-        { name: 'Coach Gabe', specialty: 'Team Training', ages: 'All ages', price: 45, rating: '4.8', reviews: 112, image: 'assets/Rectangle 8-1.png' }
-      ]
-    },
-    {
-      id: 'birdsall',
-      name: 'Birdsall',
-      area: 'Temecula, CA',
-      distance: 2.4,
-      image: 'assets/Background.png',
-      coaches: [
-        { name: 'Coach Alex', specialty: 'Private Soccer Training', ages: 'Ages 8–14', price: 45, rating: '4.9', reviews: 128, image: 'assets/Rectangle 8-1.png' },
-        { name: 'Coach Maria', specialty: 'Small Group Soccer', ages: 'Ages 8–14', price: 45, rating: '4.9', reviews: 98, image: 'assets/Rectangle 8-2.png' }
-      ]
-    },
-    {
-      id: 'los-alamos',
-      name: 'Los Alamos',
-      area: 'Murrieta, CA',
-      distance: 3.1,
-      image: 'assets/hero-bg.png',
-      coaches: [
-        { name: 'Coach Davos', specialty: 'Private Soccer Training', ages: 'Ages 10–16', price: 55, rating: '4.9', reviews: 74, image: 'assets/Rectangle 8.png' },
-        { name: 'Coach Ceja', specialty: 'Performance & Speed', ages: 'Ages 12–18', price: 50, rating: '4.8', reviews: 51, image: 'assets/Rectangle 8-1.png' }
-      ]
-    },
-    {
-      id: 'alta-murrieta',
-      name: 'Alta Murrieta',
-      area: 'Murrieta, CA',
-      distance: 4.0,
-      image: 'assets/Background (1).png',
-      coaches: [
-        { name: 'Coach Mike', specialty: 'Team Training', ages: 'Advanced Players', price: 45, rating: '4.9', reviews: 128, image: 'assets/Rectangle 8.png' },
-        { name: 'Coach Jordan', specialty: '1-on-1 Skills', ages: 'Ages 7–13', price: 42, rating: '4.7', reviews: 39, image: 'assets/Rectangle 8-2.png' }
-      ]
-    },
-    {
-      id: 'temecula-sports',
-      name: 'Temecula Sports Park',
-      area: 'Temecula, CA',
-      distance: 5.2,
-      image: 'assets/Background.png',
-      coaches: [
-        { name: 'Coach Sam', specialty: 'Small Group Soccer', ages: 'Ages 5–10', price: 38, rating: '4.8', reviews: 67, image: 'assets/Rectangle 8-1.png' },
-        { name: 'Coach Riley', specialty: 'Private Soccer Training', ages: 'Ages 9–15', price: 48, rating: '5.0', reviews: 91, image: 'assets/Rectangle 8.png' },
-        { name: 'Coach Pat', specialty: 'Clinics & Camps', ages: 'All ages', price: 35, rating: '4.6', reviews: 44, image: 'assets/Rectangle 8-2.png' }
-      ]
-    },
-    {
-      id: 'california-oaks',
-      name: 'California Oaks',
-      area: 'Murrieta, CA',
-      distance: 6.8,
-      image: 'assets/hero-bg.png',
-      coaches: [
-        { name: 'Coach Nina', specialty: 'Youth Development', ages: 'Ages 6–11', price: 40, rating: '4.9', reviews: 58, image: 'assets/Rectangle 8-2.png' },
-        { name: 'Coach Omar', specialty: 'Private Soccer Training', ages: 'Ages 11–17', price: 52, rating: '4.8', reviews: 73, image: 'assets/Rectangle 8-1.png' }
-      ]
-    }
-  ];
+  const LOCATIONS = Array.isArray(window.COACHNOW_LOCATIONS)
+    ? window.COACHNOW_LOCATIONS
+    : [];
 
   const grid = document.getElementById('locationsGrid');
   const locationsView = document.getElementById('locationsView');
@@ -1047,7 +980,7 @@
           <span class="text-brand-red font-bold text-[20px]">$${coach.price}</span>
           <span class="text-[11px] text-zinc-400">/ Session</span>
         </div>
-        <a href="/coach-profile" class="w-full h-11 rounded-[10px] border border-zinc-400 bg-white text-[#191615] hover:bg-brand-red hover:border-brand-red hover:text-white inline-flex items-center justify-center gap-2.5 text-[12px] font-medium transition-all duration-200">
+        <a href="${coach.profileUrl || `/coaches/${coach.id}`}" class="w-full h-11 rounded-[10px] border border-zinc-400 bg-white text-[#191615] hover:bg-brand-red hover:border-brand-red hover:text-white inline-flex items-center justify-center gap-2.5 text-[12px] font-medium transition-all duration-200">
           View Profile
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
         </a>

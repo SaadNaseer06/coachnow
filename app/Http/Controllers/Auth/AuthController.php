@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Coach;
 use App\Models\User;
+use App\Services\AppMailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
@@ -57,8 +60,8 @@ class AuthController extends Controller
             'phone' => ['nullable', 'string', 'max:40'],
             'password' => ['required', 'confirmed', Password::min(8)],
             'role' => ['required', 'in:athlete,coach'],
-            'specialty' => ['required_if:role,coach', 'nullable', 'string', 'in:Soccer,Futsal,Performance & Speed'],
-            'experience' => ['required_if:role,coach', 'nullable', 'string', 'in:1-3 years,4-5 years,6-7 years,8+ years'],
+            'specialty' => ['required_if:role,coach', 'nullable', 'string', Rule::in(Coach::SPECIALTIES)],
+            'experience' => ['required_if:role,coach', 'nullable', 'string', Rule::in(Coach::EXPERIENCE_OPTIONS)],
             'bio' => ['required_if:role,coach', 'nullable', 'string', 'max:2000'],
         ]);
 
@@ -72,14 +75,20 @@ class AuthController extends Controller
             ]);
 
             if ($user->isCoach()) {
-                Coach::query()->create([
+                $displayName = str_starts_with(strtolower($data['name']), 'coach ')
+                    ? $data['name']
+                    : 'Coach '.Str::of($data['name'])->before(' ')->toString();
+
+                $coach = Coach::query()->create([
                     'user_id' => $user->id,
-                    'display_name' => $user->name,
+                    'display_name' => $displayName,
                     'status' => 'pending',
                     'specialty' => $data['specialty'],
                     'experience' => $data['experience'],
                     'bio' => $data['bio'],
                 ]);
+
+                $user->setRelation('coach', $coach);
             }
 
             return $user;
@@ -87,6 +96,20 @@ class AuthController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+
+        $mailer = app(AppMailer::class);
+        $mailer->sendWelcome($user);
+
+        if ($user->isCoach()) {
+            $coach = $user->coach ?? Coach::query()->where('user_id', $user->id)->first();
+            if ($coach) {
+                $mailer->notifyAdminsOfPendingCoach($coach);
+            }
+
+            return redirect()
+                ->route('coach.profile')
+                ->with('success', 'Welcome! Finish your profile so an admin can approve your Find a Coach listing.');
+        }
 
         return redirect()->to($user->dashboardPath());
     }

@@ -1,6 +1,24 @@
 (() => {
-  const STORAGE_KEY = 'coachnow_session_requests';
   const SEEN_KEY = 'coachnow_session_requests_seen';
+
+  const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+  async function apiFetch(url, options = {}) {
+    const headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+      'X-Requested-With': 'XMLHttpRequest',
+      ...(options.headers || {}),
+    };
+    const response = await fetch(url, { ...options, headers, credentials: 'same-origin' });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = payload.message || 'Request failed';
+      throw new Error(message);
+    }
+    return payload;
+  }
 
   const modal = document.getElementById('coachSessionRequestsModal');
   const list = document.getElementById('coachSessionRequestsList');
@@ -25,6 +43,7 @@
   let lastFocus = null;
   let adjustingCard = null;
   let lookingManual = false;
+  let cachedRequests = [];
 
   function escapeHtml(str) {
     return String(str ?? '')
@@ -165,15 +184,11 @@
   }
 
   function readStoredRequests() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    } catch {
-      return [];
-    }
+    return cachedRequests;
   }
 
   function writeStoredRequests(items) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, 20)));
+    cachedRequests = items.slice(0, 40);
   }
 
   function patchStoredRequest(id, patch) {
@@ -374,73 +389,45 @@
   }
 
   function bindCardActions(card) {
-    card.querySelector('[data-accept-request]')?.addEventListener('click', () => {
+    card.querySelector('[data-accept-request]')?.addEventListener('click', async () => {
       const id = card.dataset.requestId;
-      const stored = id ? readStoredRequests().find((item) => item.id === id) : null;
-      const fallbackName = card.querySelector('.coach-req-card__player strong')?.textContent?.trim() || 'Player';
-      const fallbackInitials = card.querySelector('.coach-req-card__player .admin-person-fallback')?.textContent?.trim() || 'PL';
-      const storedCard = stored?.card_on_file || '';
+      if (!id) return;
+      const btn = card.querySelector('[data-accept-request]');
+      const declineBtn = card.querySelector('[data-decline-request]');
+      window.CoachNowBusy?.setBusy(btn, { label: 'Accepting…' });
+      if (declineBtn) declineBtn.disabled = true;
 
-      let players = Array.isArray(stored?.players) && stored.players.length
-        ? stored.players.map((player) => {
-            const isRequester = player.role === 'requester';
-            const cardLabel = player.card_on_file || (isRequester ? storedCard : '');
-            if (isRequester && cardLabel) {
-              return { ...player, paid: true, paid_with: cardLabel, card_on_file: cardLabel };
-            }
-            return player;
-          })
-        : [{
-            id: `p-${id || Date.now()}`,
-            name: fallbackName,
-            initials: fallbackInitials,
-            role: 'requester',
-            paid: !!storedCard,
-            paid_with: storedCard,
-            card_on_file: storedCard,
-          }];
-
-      if (!players.some((p) => p.role === 'requester') && storedCard) {
-        players.unshift({
-          id: `p-${id || Date.now()}`,
-          name: fallbackName,
-          initials: fallbackInitials,
-          role: 'requester',
-          paid: true,
-          paid_with: storedCard,
-          card_on_file: storedCard,
+      try {
+        const payload = await apiFetch(`/api/session-requests/${encodeURIComponent(id)}/accept`, {
+          method: 'POST',
+          body: JSON.stringify({}),
         });
-      }
-
-      setPlayers(card, players);
-      card.dataset.playersJoined = String(players.length);
-      const max = card.dataset.maxPlayers || '';
-      if (max !== '' && (card.dataset.lookingFor === '' || card.dataset.lookingFor == null)) {
-        card.dataset.lookingFor = String(Math.max(0, Number(max) - players.length));
-      }
-      markCardHosted(card);
-      if (id) {
-        patchStoredRequest(id, {
-          status: 'hosted',
-          accepted_by: 'You',
-          deposit_paid: players.some((p) => p.role === 'requester' && p.paid),
-          paid_with: players.find((p) => p.role === 'requester')?.paid_with || storedCard,
-          players,
-          players_joined: players.length,
-          max_players: card.dataset.maxPlayers || '',
-          min_players: card.dataset.minPlayers || '',
-          looking_for: card.dataset.lookingFor || '',
-        });
+        const req = payload.data;
+        patchStoredRequest(id, req);
+        const existing = list.querySelector(`[data-request-id="${CSS.escape(id)}"]`);
+        if (existing) existing.remove();
+        list.prepend(buildCard(req));
+        updateBadges();
+        updateCountdowns();
+      } catch (error) {
+        window.CoachNowBusy?.clearBusy(btn);
+        if (declineBtn) declineBtn.disabled = false;
+        window.alert(error.message || 'Could not accept request.');
       }
     });
 
     card.querySelector('[data-decline-request]')?.addEventListener('click', () => {
+      const btn = card.querySelector('[data-decline-request]');
+      window.CoachNowBusy?.setBusy(btn, { label: 'Declining…' });
       const id = card.dataset.requestId;
       if (id) {
         writeStoredRequests(readStoredRequests().filter((item) => item.id !== id));
       }
-      card.remove();
-      updateCountdowns();
+      window.setTimeout(() => {
+        card.remove();
+        updateCountdowns();
+        updateBadges();
+      }, 180);
     });
 
     card.querySelector('[data-adjust-details]')?.addEventListener('click', () => openAdjustOverlay(card));
@@ -538,8 +525,8 @@
         <span class="coach-req-countdown" data-countdown>—</span>
       </div>
       <div class="coach-req-card__actions">
-        <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request>Accept &amp; host</button>
-        <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request>Decline</button>
+        <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request data-loading-text="Accepting…">Accept &amp; host</button>
+        <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request data-loading-text="Declining…">Decline</button>
       </div>
       <p class="coach-req-card__hint">If you accept, the $10 deposit is charged to the parent’s card on file. You just host — and can see who’s paid.</p>
     `;
@@ -580,29 +567,40 @@
     updateBadges();
   }
 
-  function loadLiveRequests() {
-    const stored = readStoredRequests();
-    const staticIds = new Set(
-      [...list.querySelectorAll('.coach-req-card')].map((c) => c.dataset.requestId).filter(Boolean)
-    );
-    const seen = getSeenIds();
-    const newIds = [];
+  async function loadLiveRequests() {
+    try {
+      const payload = await apiFetch('/api/session-requests');
+      const requests = Array.isArray(payload.data) ? payload.data : [];
+      writeStoredRequests(requests);
 
-    stored.forEach((req) => {
-      if (!req?.id || staticIds.has(req.id)) return;
-      list.prepend(buildCard(req));
-      if ((!req.status || req.status === 'open') && !seen.has(req.id)) newIds.push(req.id);
-    });
+      const seen = getSeenIds();
+      const newIds = [];
+      const existingIds = new Set(
+        [...list.querySelectorAll('.coach-req-card')].map((c) => c.dataset.requestId).filter(Boolean)
+      );
 
-    if (newIds.length) {
-      markSeen(newIds);
-      openModal();
-      bell?.classList.add('coach-req-bell--pulse');
-      window.setTimeout(() => bell?.classList.remove('coach-req-bell--pulse'), 2400);
+      list.innerHTML = '';
+      requests.forEach((req) => {
+        if (!req?.id) return;
+        list.appendChild(buildCard(req));
+        if ((!req.status || req.status === 'open') && !seen.has(req.id) && !existingIds.has(req.id)) {
+          newIds.push(req.id);
+        }
+      });
+
+      if (newIds.length) {
+        markSeen(newIds);
+        openModal();
+        bell?.classList.add('coach-req-bell--pulse');
+        window.setTimeout(() => bell?.classList.remove('coach-req-bell--pulse'), 2400);
+      }
+
+      refreshHostedFromStorage();
+      updateCountdowns();
+      updateBadges();
+    } catch {
+      /* keep server-rendered cards if API fails */
     }
-
-    refreshHostedFromStorage();
-    updateCountdowns();
   }
 
   adjustJoined?.addEventListener('input', syncLookingHint);
@@ -614,7 +612,7 @@
     lookingManual = true;
   });
 
-  adjustSaveBtn?.addEventListener('click', () => {
+  adjustSaveBtn?.addEventListener('click', async () => {
     if (!adjustingCard) return;
     const joined = Number(adjustJoined?.value || 0);
     const max = adjustMax?.value === '' ? '' : Number(adjustMax.value);
@@ -646,28 +644,41 @@
     }
 
     const id = adjustingCard.dataset.requestId;
-    if (id) {
-      patchStoredRequest(id, {
-        status: 'hosted',
-        players_joined: joined,
-        max_players: max === '' ? '' : max,
-        min_players: min === '' ? '' : min,
-        looking_for: looking === '' ? '' : looking,
-        coach_note: note,
-        players,
-      });
-    }
+    if (!id) return;
 
-    renderHostedFooter(adjustingCard, {
-      joined,
-      max: max === '' ? '' : max,
-      min: min === '' ? '' : min,
-      lookingFor: looking === '' ? '' : looking,
-      coachNote: note,
-      players,
-    });
-    closeAdjustOverlay();
-    updateBadges();
+    window.CoachNowBusy?.setBusy(adjustSaveBtn, { label: 'Saving…' });
+
+    try {
+      const payload = await apiFetch(`/api/session-requests/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          max_players: max === '' ? null : max,
+          min_players: min === '' ? null : min,
+          looking_for: looking === '' ? null : looking,
+          coach_note: note || null,
+          status: 'hosted',
+        }),
+      });
+      const req = payload.data;
+      patchStoredRequest(id, req);
+      renderHostedFooter(adjustingCard, {
+        joined: Array.isArray(req.players) ? req.players.length : joined,
+        max: req.max_players ?? '',
+        min: req.min_players ?? '',
+        lookingFor: req.looking_for ?? '',
+        coachNote: req.coach_note || '',
+        players: req.players || players,
+      });
+      window.CoachNowBusy?.clearBusy(adjustSaveBtn);
+      closeAdjustOverlay();
+      updateBadges();
+    } catch (error) {
+      window.CoachNowBusy?.clearBusy(adjustSaveBtn);
+      if (adjustError) {
+        adjustError.hidden = false;
+        adjustError.textContent = error.message || 'Could not save details.';
+      }
+    }
   });
 
   adjustCancelBtn?.addEventListener('click', closeAdjustOverlay);
@@ -705,10 +716,27 @@
   updateCountdowns();
   setInterval(() => {
     updateCountdowns();
-    refreshHostedFromStorage();
   }, 1500);
 
-  window.addEventListener('storage', (event) => {
-    if (event.key === STORAGE_KEY) loadLiveRequests();
-  });
+  const realtimeEnabled = Boolean(window.CoachNowRealtime?.enabled && window.Echo);
+  if (realtimeEnabled) {
+    window.Echo.channel('coaches.session-requests')
+      .listen('.session-request.changed', (payload) => {
+        const action = payload?.action || 'updated';
+        loadLiveRequests().then(() => {
+          if (action === 'created') {
+            openModal();
+            bell?.classList.add('coach-req-bell--pulse');
+            window.setTimeout(() => bell?.classList.remove('coach-req-bell--pulse'), 2400);
+          }
+        });
+      })
+      .error((err) => {
+        console.warn('Pusher channel error', err);
+      });
+    // Slow safety net if a websocket event is missed
+    setInterval(loadLiveRequests, 60000);
+  } else {
+    setInterval(loadLiveRequests, 8000);
+  }
 })();

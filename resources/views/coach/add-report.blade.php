@@ -5,8 +5,12 @@
 @section('page_subtitle', 'Report for ' . $player['name'] . ' · ' . $player['age'] . ' · ' . $player['sport'])
 
 @section('topbar_actions')
-  <a href="{{ route('coach.players.show', $player['slug']) }}" class="admin-btn admin-btn-ghost">← Back to player</a>
-  <button type="button" class="admin-btn admin-btn-primary">Save Report</button>
+  @if (! empty($player['slug']))
+    <a href="{{ route('coach.players.show', $player['slug']) }}" class="admin-btn admin-btn-ghost">&larr; Back to player</a>
+  @else
+    <a href="{{ route('coach.player-overview') }}" class="admin-btn admin-btn-ghost">&larr; Back to players</a>
+  @endif
+  <button type="button" class="admin-btn admin-btn-primary" data-loading-text="Saving…">Save Report</button>
 @endsection
 
 @section('content')
