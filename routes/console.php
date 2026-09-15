@@ -9,9 +9,16 @@ Artisan::command('inspire', function () {
 
 Artisan::command('mail:test {email?}', function (?string $email = null) {
     $to = $email ?: (string) config('coachnow.admin_email');
+    $mailer = (string) config('mail.default');
 
     if ($to === '') {
         $this->error('No recipient. Pass an email or set MAIL_ADMIN_ADDRESS.');
+
+        return 1;
+    }
+
+    if ($mailer === 'resend' && blank(config('services.resend.key'))) {
+        $this->error('RESEND_API_KEY is empty. Create a key at https://resend.com/api-keys');
 
         return 1;
     }
@@ -25,28 +32,45 @@ Artisan::command('mail:test {email?}', function (?string $email = null) {
 
         Illuminate\Support\Facades\Mail::to($to)->send(new App\Mail\WelcomeUserMail($user));
     } catch (Throwable $e) {
-        $this->error('SMTP send failed: '.$e->getMessage());
+        $this->error('Mail send failed: '.$e->getMessage());
 
         if (str_contains($e->getMessage(), 'did not match expected CN')) {
-            $this->warn('Your host is intercepting Gmail SMTP. Ask them to disable cPanel “SMTP Restrictions” / allow remote SMTP to smtp.gmail.com.');
+            $this->warn('Host is blocking remote SMTP. Use MAIL_MAILER=resend + RESEND_API_KEY instead.');
         }
 
         return 1;
     }
 
-    $this->info("Branded test email sent to {$to} via ".config('mail.default').' ('.config('mail.mailers.smtp.host').').');
+    $via = $mailer === 'smtp'
+        ? 'smtp ('.config('mail.mailers.smtp.host').')'
+        : $mailer;
+
+    $this->info("Branded test email sent to {$to} via {$via}.");
 
     return 0;
-})->purpose('Send a branded CoachNow test email through SMTP');
+})->purpose('Send a branded CoachNow test email (SMTP or Resend)');
 
 Artisan::command('mail:diagnose', function () {
+    $mailer = (string) config('mail.default');
+    $this->info('Mailer: '.$mailer);
+    $this->info('From: '.config('mail.from.address'));
+    $this->info('Admin: '.config('coachnow.admin_email'));
+
+    if ($mailer === 'resend') {
+        $key = (string) config('services.resend.key');
+        $this->info('RESEND_API_KEY: '.($key !== '' ? 'set ('.strlen($key).' chars)' : '(empty)'));
+        $this->comment('Resend uses HTTPS — no SMTP ports. Verify domain at https://resend.com/domains or use onboarding@resend.dev for tests.');
+
+        return 0;
+    }
+
     $host = (string) config('mail.mailers.smtp.host');
     $port = (int) config('mail.mailers.smtp.port', 587);
     $scheme = config('mail.mailers.smtp.scheme');
 
     $this->info("Configured SMTP: {$host}:{$port} scheme=".($scheme ?: 'null'));
-    $this->info('Mailer: '.config('mail.default'));
     $this->info('Username: '.(config('mail.mailers.smtp.username') ?: '(empty)'));
+    $this->warn('If SMTP is blocked on live, switch to MAIL_MAILER=resend + RESEND_API_KEY.');
 
     $targets = [
         ['smtp.gmail.com', 587],
@@ -116,7 +140,7 @@ Artisan::command('mail:diagnose', function () {
             $this->line("Certificate CN: {$cn}");
             if ($checkHost === 'smtp.gmail.com' && $cn !== 'smtp.gmail.com' && ! str_contains((string) $cn, 'google')) {
                 $this->error('Host is rewriting Gmail SMTP to its own server. Remote Gmail SMTP is blocked.');
-                $this->warn('Ask the host to disable “SMTP Restrictions” for this account so outbound smtp.gmail.com is allowed.');
+                $this->warn('Use MAIL_MAILER=resend + RESEND_API_KEY (HTTPS API — no SMTP).');
             } else {
                 $this->info('Certificate looks OK for this target.');
             }
@@ -126,4 +150,4 @@ Artisan::command('mail:diagnose', function () {
     }
 
     return 0;
-})->purpose('Diagnose SMTP connectivity and certificate interception');
+})->purpose('Diagnose mail config (Resend or SMTP interception)');

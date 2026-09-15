@@ -92,7 +92,7 @@ class AppMailer
             $message = $e->getMessage();
 
             if (str_contains($message, 'did not match expected CN') || str_contains($message, 'smtp.gmail.com')) {
-                $message .= ' | Host is likely intercepting remote SMTP (cPanel SMTP Restrictions). Ask the host to allow outbound SMTP to smtp.gmail.com, then keep MAIL_HOST=smtp.gmail.com.';
+                $message .= ' | Host is blocking remote SMTP. Switch to MAIL_MAILER=resend with RESEND_API_KEY (HTTPS, no SMTP needed).';
             }
 
             Log::warning('Mail send failed: '.$message, [
