@@ -31,6 +31,7 @@
   <link rel="stylesheet" href="{{ asset('assets/css/coach-portal.css') }}?v={{ @filemtime(public_path('assets/css/coach-portal.css')) ?: time() }}">
   <link rel="stylesheet" href="{{ asset('assets/css/scroll-progress.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/form-busy.css') }}?v={{ @filemtime(public_path('assets/css/form-busy.css')) ?: time() }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/dialog.css') }}?v={{ @filemtime(public_path('assets/css/dialog.css')) ?: time() }}">
   @stack('styles')
 </head>
 <body class="admin-body font-sans antialiased">
@@ -143,7 +144,11 @@
     </script>
   @endif
 
+  <script>
+    window.CoachNowCoachId = @json($currentCoachId ?? null);
+  </script>
   <script src="{{ asset('assets/js/form-busy.js') }}?v={{ @filemtime(public_path('assets/js/form-busy.js')) ?: time() }}"></script>
+  <script src="{{ asset('assets/js/dialog.js') }}?v={{ @filemtime(public_path('assets/js/dialog.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/coach-dashboard.js') }}?v={{ @filemtime(public_path('assets/js/coach-dashboard.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/coach-session-requests.js') }}?v={{ @filemtime(public_path('assets/js/coach-session-requests.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/scroll-progress.js') }}"></script>

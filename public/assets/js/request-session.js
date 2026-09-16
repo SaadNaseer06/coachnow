@@ -24,11 +24,15 @@
     return payload;
   }
 
+  const params = new URLSearchParams(window.location.search);
+  const coachFromPage = document.getElementById('reqRequestedCoachId')?.value || '';
+  const coachFromQuery = params.get('coach') || '';
+
   const state = {
     location: '',
-    sport: 'Soccer',
+    sport: '',
     date: '',
-    preferredTime: 'Anytime',
+    preferredTime: '',
     locationId: '',
     locationName: '',
     locationCity: '',
@@ -38,7 +42,9 @@
     priceRange: '',
     sessionType: '',
     knowByAt: null,
-    requestedCoachId: document.getElementById('reqRequestedCoachId')?.value || '',
+    requestedCoachId: String(coachFromPage || coachFromQuery || ''),
+    preferredLocationId: document.getElementById('reqStage')?.dataset.preferredLocation || '',
+    sortByNearest: false,
     minPlayers: '',
     maxPlayers: '',
     playerLevel: '',
@@ -59,6 +65,14 @@
     form4: document.getElementById('reqFormStep4'),
     locationInput: document.getElementById('reqLocation'),
     useLocationBtn: document.getElementById('reqUseLocation'),
+    useCoachParkBtn: document.getElementById('reqUseCoachPark'),
+    locationRefine: document.getElementById('reqLocationRefine'),
+    showAllLocationsBtn: document.getElementById('reqShowAllLocations'),
+    locationEmpty: document.getElementById('reqLocationEmpty'),
+    locationEmptyClear: document.getElementById('reqLocationEmptyClear'),
+    locationCount: document.getElementById('reqLocationCount'),
+    locationStepLead: document.getElementById('reqLocationStepLead'),
+    locationList: document.getElementById('reqLocations'),
     dateInput: document.getElementById('reqDate'),
     locationCards: document.querySelectorAll('.req-loc-card'),
     locationLabel: document.getElementById('reqSelectedLocationLabel'),
@@ -151,6 +165,77 @@
     return d;
   }
 
+  function notify(message, title = 'Notice') {
+    if (window.CoachNowDialog?.alert) {
+      return window.CoachNowDialog.alert({ title, message, confirmLabel: 'Got it' });
+    }
+    window.alert(message);
+    return Promise.resolve(true);
+  }
+
+  function filterLocations(query, { sortNearest = false } = {}) {
+    const q = String(query || '').trim().toLowerCase();
+    const preferred = state.preferredLocationId;
+    const cards = [...els.locationCards];
+    let visible = 0;
+
+    cards.forEach((card) => {
+      const name = (card.dataset.locationName || '').toLowerCase();
+      const city = (card.dataset.locationCity || '').toLowerCase();
+      const id = card.dataset.locationId || '';
+      const hay = `${name} ${city} ${id}`;
+      const isPreferred = preferred && id === preferred;
+      const matches = !q || hay.includes(q);
+      card.hidden = !matches;
+      card.classList.toggle('is-recommended', Boolean(isPreferred && matches));
+      const badge = card.querySelector('.req-loc-card__badge');
+      if (badge) badge.hidden = !(isPreferred && matches);
+      if (matches) visible += 1;
+    });
+
+    if (els.locationList) {
+      const sorted = cards.slice().sort((a, b) => {
+        const aPref = preferred && a.dataset.locationId === preferred ? 0 : 1;
+        const bPref = preferred && b.dataset.locationId === preferred ? 0 : 1;
+        if (aPref !== bPref) return aPref - bPref;
+        if (sortNearest || state.sortByNearest) {
+          return Number(a.dataset.distance || 999) - Number(b.dataset.distance || 999);
+        }
+        return 0;
+      });
+      sorted.forEach((card) => els.locationList.appendChild(card));
+    }
+
+    if (els.locationCount) {
+      els.locationCount.hidden = false;
+      els.locationCount.textContent = visible === 1
+        ? '1 park shown'
+        : `${visible} parks shown`;
+    }
+
+    if (els.locationEmpty) {
+      els.locationEmpty.hidden = visible !== 0;
+    }
+
+    if (els.locationStepLead) {
+      if (q) {
+        els.locationStepLead.textContent = `Showing parks matching “${query.trim()}”. Pick one to continue.`;
+      } else if (sortNearest || state.sortByNearest) {
+        els.locationStepLead.textContent = 'Parks sorted by nearest distance. Pick one to continue.';
+      } else if (preferred) {
+        els.locationStepLead.textContent = 'Recommended park is marked — or pick another location.';
+      } else {
+        els.locationStepLead.textContent = 'Pick a park to continue.';
+      }
+    }
+
+    return visible;
+  }
+
+  function syncLocationRefine(value) {
+    if (els.locationRefine) els.locationRefine.value = value || '';
+  }
+
   function goToStep(step) {
     els.steps.forEach((section) => {
       const n = Number(section.dataset.step);
@@ -238,7 +323,7 @@
   }
 
   function filterTimeGroups() {
-    const pref = state.preferredTime;
+    const pref = state.preferredTime || 'Anytime';
     document.querySelectorAll('.req-time-group').forEach((group) => {
       const period = group.dataset.period;
       if (pref === 'Anytime') {
@@ -449,34 +534,75 @@
         els.form1.reportValidity();
         return;
       }
+
       state.location = els.locationInput?.value.trim() || '';
-      state.sport = document.getElementById('reqSport')?.value || 'Soccer';
+      state.sport = document.getElementById('reqSport')?.value || '';
       state.date = els.dateInput?.value || '';
-      state.preferredTime = document.getElementById('reqPreferredTime')?.value || 'Anytime';
+      state.preferredTime = document.getElementById('reqPreferredTime')?.value || '';
+
+      if (!state.sport || !state.date || !state.preferredTime) {
+        notify('Choose a sport, date, and preferred time before continuing.', 'Missing details');
+        return;
+      }
 
       const base = state.date ? new Date(`${state.date}T12:00:00`) : new Date();
       buildDateStrip(base);
       filterTimeGroups();
+      syncLocationRefine(state.location);
+      filterLocations(state.location, { sortNearest: state.sortByNearest });
       goToStep(2);
+    });
+  }
+
+  if (els.useCoachParkBtn) {
+    els.useCoachParkBtn.addEventListener('click', () => {
+      const name = els.useCoachParkBtn.dataset.parkName || '';
+      if (els.locationInput) els.locationInput.value = name;
+      state.location = name;
+      state.sortByNearest = false;
+      els.locationInput?.focus();
     });
   }
 
   if (els.useLocationBtn) {
     els.useLocationBtn.addEventListener('click', () => {
-      if (els.locationInput) els.locationInput.value = 'Sommers Bend, Murrieta, CA';
+      state.sortByNearest = true;
+      if (els.locationInput) els.locationInput.value = '';
+      state.location = '';
+      notify(
+        'We’ll show parks sorted by nearest distance on the next step. Choose a sport, date, and time window, then tap Find locations.',
+        'Nearest parks'
+      );
     });
   }
+
+  els.locationRefine?.addEventListener('input', () => {
+    filterLocations(els.locationRefine.value, { sortNearest: state.sortByNearest });
+  });
+
+  const showAllParks = () => {
+    state.sortByNearest = false;
+    if (els.locationInput) els.locationInput.value = '';
+    syncLocationRefine('');
+    filterLocations('', { sortNearest: false });
+  };
+
+  els.showAllLocationsBtn?.addEventListener('click', showAllParks);
+  els.locationEmptyClear?.addEventListener('click', showAllParks);
 
   els.locationCards.forEach((card) => {
     const select = () => {
       state.locationId = card.dataset.locationId || '';
       state.locationName = card.dataset.locationName || '';
       state.locationCity = card.dataset.locationCity || '';
+      state.location = state.locationName;
+      if (els.locationInput) els.locationInput.value = state.locationName;
       if (els.locationLabel) els.locationLabel.textContent = state.locationName;
       els.locationCards.forEach((c) => c.classList.toggle('is-selected', c === card));
       renderTimeSlots(els.morningSlots, morningSlots);
       renderTimeSlots(els.afternoonSlots, afternoonSlots);
       renderTimeSlots(els.eveningSlots, eveningSlots);
+      filterTimeGroups();
       if (els.toDetailsBtn) els.toDetailsBtn.disabled = true;
       state.selectedTime = '';
       updateSummary();
@@ -595,6 +721,13 @@
 
   async function publishRequest(cardLabel) {
     state.cardOnFile = cardLabel;
+    // Re-read in case the hidden field was rendered after init.
+    const liveCoachId = document.getElementById('reqRequestedCoachId')?.value
+      || new URLSearchParams(window.location.search).get('coach')
+      || state.requestedCoachId
+      || '';
+    state.requestedCoachId = String(liveCoachId || '');
+
     window.CoachNowBusy?.setBusy(els.cardConfirmBtn, { label: 'Publishing…' });
     try {
       const payload = await apiFetch('/api/session-requests', {
@@ -634,7 +767,7 @@
       closeCardModal();
       goToStep(5);
     } catch (error) {
-      window.alert(error.message || 'Could not publish session request.');
+      await notify(error.message || 'Could not publish session request.', 'Request failed');
     } finally {
       window.CoachNowBusy?.clearBusy(els.cardConfirmBtn);
     }
@@ -697,7 +830,7 @@
         paidLabel.textContent = `${players.length || 1} players on roster · latest join paid with ${paidWith}`;
       }
     } catch (error) {
-      window.alert(error.message || 'Could not join this session.');
+      await notify(error.message || 'Could not join this session.', 'Join failed');
     } finally {
       window.CoachNowBusy?.clearBusy(els.joinPayBtn);
     }
@@ -719,20 +852,6 @@
   renderTimeSlots(els.afternoonSlots, afternoonSlots);
   renderTimeSlots(els.eveningSlots, eveningSlots);
   setMinDate();
-
-  const preferredLocation = document.getElementById('reqStage')?.dataset.preferredLocation;
-  if (preferredLocation) {
-    const preferredCard = [...els.locationCards].find((card) => card.dataset.locationId === preferredLocation);
-    if (preferredCard) {
-      state.locationId = preferredCard.dataset.locationId || '';
-      state.locationName = preferredCard.dataset.locationName || '';
-      state.locationCity = preferredCard.dataset.locationCity || '';
-      state.location = state.locationName;
-      preferredCard.classList.add('is-selected');
-      if (els.locationInput) els.locationInput.value = state.locationName;
-      if (els.locationLabel) els.locationLabel.textContent = state.locationName;
-    }
-  }
 
   els.steps.forEach((section) => {
     const active = Number(section.dataset.step) === 1;

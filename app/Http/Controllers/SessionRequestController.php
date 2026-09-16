@@ -38,16 +38,10 @@ class SessionRequestController extends Controller
                 return response()->json(['data' => []]);
             }
 
-            $query->where(function ($q) use ($coach) {
-                $q->where('host_coach_id', $coach->id)
-                    ->orWhere(function ($open) use ($coach) {
-                        $open->where('status', 'open')
-                            ->where(function ($target) use ($coach) {
-                                $target->where('requested_coach_id', $coach->id)
-                                    ->orWhereNull('requested_coach_id');
-                            });
-                    });
-            });
+            $query->visibleToCoach($coach);
+        } else {
+            // Admins / unknown roles: no coach inbox dump.
+            $query->whereRaw('1 = 0');
         }
 
         $items = $query->limit(40)->get()->map->toPortalArray()->values();

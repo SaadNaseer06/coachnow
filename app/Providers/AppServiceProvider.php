@@ -31,17 +31,31 @@ class AppServiceProvider extends ServiceProvider
         });
 
         View::composer('layouts.coach', function ($view) {
-            $sessionRequests = SessionRequest::query()
-                ->with(['players', 'requester', 'hostCoach.user', 'location'])
+            $user = auth()->user();
+            $coach = $user?->coach;
+
+            $query = SessionRequest::query()
+                ->with(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location'])
                 ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
-                ->orderByDesc('created_at')
+                ->orderByDesc('created_at');
+
+            if ($coach) {
+                $query->visibleToCoach($coach);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+
+            $sessionRequests = $query
                 ->limit(40)
                 ->get()
                 ->map->toPortalArray()
                 ->values()
                 ->all();
 
-            $view->with('sessionRequests', $sessionRequests);
+            $view->with([
+                'sessionRequests' => $sessionRequests,
+                'currentCoachId' => $coach?->id,
+            ]);
         });
 
         if (! $this->app->environment('local')) {

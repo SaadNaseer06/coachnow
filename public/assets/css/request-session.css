@@ -409,6 +409,65 @@
 
 /* ---------- Locations ---------- */
 
+.req-field-hint {
+  margin: 0.55rem 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #71717a;
+}
+
+.req-inline-chip {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #da020c;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.req-inline-chip:hover {
+  color: #bf020a;
+}
+
+.req-loc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.req-loc-toolbar__search {
+  flex: 1 1 220px;
+}
+
+.req-loc-count {
+  margin: 0 0 0.75rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: #71717a;
+}
+
+.req-loc-empty {
+  margin-top: 0.5rem;
+  padding: 1.25rem;
+  border-radius: 14px;
+  border: 1px dashed #d4d4d8;
+  background: #fafafa;
+  text-align: center;
+}
+
+.req-loc-empty p {
+  margin: 0 0 0.85rem;
+  font-size: 13px;
+  color: #52525b;
+}
+
 .req-locations {
   display: grid;
   gap: 1rem;
@@ -425,6 +484,10 @@
   transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.req-loc-card[hidden] {
+  display: none !important;
+}
+
 .req-loc-card:hover,
 .req-loc-card:focus-visible,
 .req-loc-card.is-selected {
@@ -432,6 +495,10 @@
   transform: translateY(-2px);
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.07);
   outline: none;
+}
+
+.req-loc-card.is-recommended {
+  border-color: rgba(218, 2, 12, 0.35);
 }
 
 .req-loc-card__media {
@@ -451,6 +518,24 @@
   color: #191615;
   font-size: 11px;
   font-weight: 700;
+}
+
+.req-loc-card__badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 0.24rem 0.6rem;
+  border-radius: 999px;
+  background: #da020c;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.req-loc-card__badge[hidden] {
+  display: none !important;
 }
 
 .req-loc-card__body {

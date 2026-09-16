@@ -48,6 +48,7 @@
   <link rel="stylesheet" href="{{ asset('assets/css/site.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/scroll-progress.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/form-busy.css') }}?v={{ @filemtime(public_path('assets/css/form-busy.css')) ?: time() }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/dialog.css') }}?v={{ @filemtime(public_path('assets/css/dialog.css')) ?: time() }}">
   @stack('styles')
 </head>
 <body class="font-sans bg-white text-zinc-900 antialiased selection:bg-brand-red selection:text-white">
@@ -61,6 +62,7 @@
 
   <script src="https://unpkg.com/lenis@1.3.26/dist/lenis.min.js"></script>
   <script src="{{ asset('assets/js/form-busy.js') }}?v={{ @filemtime(public_path('assets/js/form-busy.js')) ?: time() }}"></script>
+  <script src="{{ asset('assets/js/dialog.js') }}?v={{ @filemtime(public_path('assets/js/dialog.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/site.js') }}"></script>
   <script src="{{ asset('assets/js/scroll-progress.js') }}"></script>
   @stack('scripts')

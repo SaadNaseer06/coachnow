@@ -60,14 +60,29 @@
 
                 <form id="reqFormStep1" class="req-form" novalidate>
                   <div class="req-field">
-                    <label for="reqLocation">Location</label>
+                    <label for="reqLocation">Search parks</label>
                     <div class="req-input-wrap">
                       <svg class="req-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
-                      <input type="text" id="reqLocation" name="location" placeholder="Park, city, or ZIP" required autocomplete="address-level2">
+                      <input
+                        type="text"
+                        id="reqLocation"
+                        name="location"
+                        placeholder="{{ !empty($requestedCoach?->location) ? 'e.g. '.$requestedCoach->location->name : 'Park, city, or ZIP' }}"
+                        autocomplete="address-level2"
+                      >
                     </div>
+                    @if (! empty($requestedCoach?->location))
+                      <p class="req-field-hint" id="reqCoachParkHint">
+                        {{ $requestedCoach->display_name }}’s usual park is
+                        <button type="button" class="req-inline-chip" id="reqUseCoachPark" data-park-name="{{ $requestedCoach->location->name }}" data-park-city="{{ $requestedCoach->location->area }}" data-park-id="{{ $requestedCoach->location->slug }}">
+                          {{ $requestedCoach->location->name }}
+                        </button>
+                        — tap to use it, or search another park.
+                      </p>
+                    @endif
                     <button type="button" class="req-link-btn" id="reqUseLocation">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
-                      Use my location
+                      Sort by nearest parks
                     </button>
                   </div>
 
@@ -75,7 +90,8 @@
                     <div class="req-field">
                       <label for="reqSport">Sport</label>
                       <select id="reqSport" name="sport" required>
-                        <option value="Soccer" selected>Soccer</option>
+                        <option value="" disabled selected>Select sport</option>
+                        <option value="Soccer">Soccer</option>
                         <option value="Basketball">Basketball</option>
                         <option value="Baseball">Baseball</option>
                         <option value="Softball">Softball</option>
@@ -95,7 +111,8 @@
                   <div class="req-field">
                     <label for="reqPreferredTime">Preferred time</label>
                     <select id="reqPreferredTime" name="preferred_time" required>
-                      <option value="Anytime" selected>Anytime</option>
+                      <option value="" disabled selected>Select a time window</option>
+                      <option value="Anytime">Anytime</option>
                       <option value="Morning">Morning (8 AM – 12 PM)</option>
                       <option value="Afternoon">Afternoon (12 PM – 7 PM)</option>
                       <option value="Evening">Evening (7 PM – 10 PM)</option>
@@ -118,15 +135,34 @@
                   </button>
                   <div>
                     <h2 id="reqStep2Title" class="req-title req-title--sm">Choose a location</h2>
-                    <p class="req-lead req-lead--sm">Coaches near this spot will be notified about your request.</p>
+                    <p class="req-lead req-lead--sm" id="reqLocationStepLead">Parks matching what you entered — pick one to continue.</p>
                   </div>
                 </header>
 
+                <div class="req-loc-toolbar">
+                  <div class="req-input-wrap req-loc-toolbar__search">
+                    <svg class="req-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input type="search" id="reqLocationRefine" placeholder="Refine by park or city" autocomplete="off">
+                  </div>
+                  <button type="button" class="req-link-btn" id="reqShowAllLocations">Show all parks</button>
+                </div>
+
+                <p class="req-loc-count" id="reqLocationCount" hidden></p>
                 <div class="req-locations" id="reqLocations">
                   @forelse ($locations ?? [] as $loc)
-                  <article class="req-loc-card" data-location-id="{{ $loc->slug }}" data-location-name="{{ $loc->name }}" data-location-city="{{ $loc->area }}" tabindex="0" role="button" aria-label="Select {{ $loc->name }}">
+                  <article
+                    class="req-loc-card"
+                    data-location-id="{{ $loc->slug }}"
+                    data-location-name="{{ $loc->name }}"
+                    data-location-city="{{ $loc->area }}"
+                    data-distance="{{ (float) $loc->distance_miles }}"
+                    tabindex="0"
+                    role="button"
+                    aria-label="Select {{ $loc->name }}"
+                  >
                     <div class="req-loc-card__media" style="background-image:url('{{ asset($loc->image_path ?: 'assets/Background.png') }}')">
                       <span class="req-loc-card__distance">{{ number_format((float) $loc->distance_miles, 1) }} mi</span>
+                      <span class="req-loc-card__badge" hidden>Recommended</span>
                     </div>
                     <div class="req-loc-card__body">
                       <div class="req-loc-card__text">
@@ -144,6 +180,10 @@
                   <p class="text-[13px] text-zinc-500">No park locations are available yet.</p>
                   @endforelse
                 </div>
+                <div class="req-loc-empty" id="reqLocationEmpty" hidden>
+                  <p>No parks matched your search.</p>
+                  <button type="button" class="req-btn req-btn--ghost" id="reqLocationEmptyClear">Show all parks</button>
+                </div>
               </div>
             </section>
 
@@ -155,7 +195,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
                   </button>
                   <div>
-                    <h2 id="reqStep3Title" class="req-title req-title--sm">Pick a time at <span id="reqSelectedLocationLabel">Sommers Bend</span></h2>
+                    <h2 id="reqStep3Title" class="req-title req-title--sm">Pick a time at <span id="reqSelectedLocationLabel">your park</span></h2>
                     <p class="req-lead req-lead--sm">Choose the day and start time you are requesting.</p>
                   </div>
                 </header>

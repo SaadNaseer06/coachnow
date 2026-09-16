@@ -98,6 +98,23 @@ class SessionRequest extends Model
     }
 
     /**
+     * Scope requests this coach is allowed to see in their inbox.
+     */
+    public function scopeVisibleToCoach($query, Coach $coach)
+    {
+        return $query->where(function ($q) use ($coach) {
+            $q->where('host_coach_id', $coach->id)
+                ->orWhere(function ($open) use ($coach) {
+                    $open->where('status', 'open')
+                        ->where(function ($target) use ($coach) {
+                            $target->where('requested_coach_id', $coach->id)
+                                ->orWhereNull('requested_coach_id');
+                        });
+                });
+        });
+    }
+
+    /**
      * Conflict if the athlete or target coach already has an active slot at this date/time.
      */
     public static function hasSchedulingConflict(
@@ -338,6 +355,7 @@ class SessionRequest extends Model
             'acceptExpiresAt' => $this->know_by_at ? ((int) $this->know_by_at->getTimestamp() * 1000) : null,
             'posted' => $this->postedLabel(),
             'accepted_by' => $this->hostCoach?->display_name,
+            'host_coach_id' => $this->host_coach_id,
             'requested_coach_id' => $this->requested_coach_id,
             'requested_coach' => $this->requestedCoach?->display_name,
             'players_joined' => count($players),

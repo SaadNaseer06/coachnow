@@ -105,7 +105,16 @@
     const reference = btn.getAttribute('data-reference');
     if (!reference) return;
 
-    if (!window.confirm('Cancel this session request? Coaches will no longer see it.')) {
+    const confirmed = window.CoachNowDialog?.confirm
+      ? await window.CoachNowDialog.confirm({
+          title: 'Cancel request?',
+          message: 'Cancel this session request? Coaches will no longer see it.',
+          confirmLabel: 'Cancel request',
+          cancelLabel: 'Keep request',
+        })
+      : window.confirm('Cancel this session request? Coaches will no longer see it.');
+
+    if (!confirmed) {
       return;
     }
 
@@ -149,7 +158,14 @@
       window.CoachNowBusy?.clearBusy(btn);
       btn.disabled = false;
       btn.textContent = 'Cancel';
-      window.alert(error.message || 'Could not cancel this request.');
+      if (window.CoachNowDialog?.alert) {
+        await window.CoachNowDialog.alert({
+          title: 'Cancel failed',
+          message: error.message || 'Could not cancel this request.',
+        });
+      } else {
+        window.alert(error.message || 'Could not cancel this request.');
+      }
     }
   });
 })();

@@ -44,6 +44,21 @@
   let adjustingCard = null;
   let lookingManual = false;
   let cachedRequests = [];
+  const currentCoachId = window.CoachNowCoachId != null ? Number(window.CoachNowCoachId) : null;
+
+  function requestVisibleToCurrentCoach(req) {
+    if (!req) return false;
+    if (currentCoachId == null) return false;
+
+    const hostId = req.host_coach_id != null ? Number(req.host_coach_id) : null;
+    const requestedId = req.requested_coach_id != null ? Number(req.requested_coach_id) : null;
+    const status = req.status || 'open';
+
+    if (hostId === currentCoachId) return true;
+    if (status !== 'open') return false;
+    if (requestedId == null) return true; // open marketplace
+    return requestedId === currentCoachId;
+  }
 
   function escapeHtml(str) {
     return String(str ?? '')
@@ -412,7 +427,14 @@
       } catch (error) {
         window.CoachNowBusy?.clearBusy(btn);
         if (declineBtn) declineBtn.disabled = false;
-        window.alert(error.message || 'Could not accept request.');
+        if (window.CoachNowDialog?.alert) {
+          await window.CoachNowDialog.alert({
+            title: 'Accept failed',
+            message: error.message || 'Could not accept request.',
+          });
+        } else {
+          window.alert(error.message || 'Could not accept request.');
+        }
       }
     });
 
@@ -570,7 +592,8 @@
   async function loadLiveRequests() {
     try {
       const payload = await apiFetch('/api/session-requests');
-      const requests = Array.isArray(payload.data) ? payload.data : [];
+      const requests = (Array.isArray(payload.data) ? payload.data : [])
+        .filter(requestVisibleToCurrentCoach);
       writeStoredRequests(requests);
 
       const seen = getSeenIds();
