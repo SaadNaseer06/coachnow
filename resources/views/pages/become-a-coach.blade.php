@@ -31,14 +31,60 @@
           </div>
           <div class="form-card p-6 lg:p-8 motion-item motion-from-right" style="--motion-delay:120ms">
             <h3 class="text-[20px] font-semibold text-[#191615] mb-1">Apply to Join</h3>
-            <p class="text-[13px] text-zinc-500 mb-6">Tell us a bit about yourself and we will follow up.</p>
-            <form onsubmit="return false;" class="space-y-4">
-              <label class="block"><span class="block text-[12px] font-medium text-[#191615] mb-2">Full Name</span><input type="text" placeholder="Your name" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10"></label>
-              <label class="block"><span class="block text-[12px] font-medium text-[#191615] mb-2">Email</span><input type="email" placeholder="you@email.com" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10"></label>
-              <label class="block"><span class="block text-[12px] font-medium text-[#191615] mb-2">Primary Sport</span><select class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none"><option>Soccer</option><option>Futsal</option><option>Performance &amp; Speed</option></select></label>
-              <label class="block"><span class="block text-[12px] font-medium text-[#191615] mb-2">Years of Experience</span><select class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none"><option>1–3 years</option><option>4–5 years</option><option>6–7 years</option><option>8+ years</option></select></label>
-              <label class="block"><span class="block text-[12px] font-medium text-[#191615] mb-2">Short Bio</span><textarea rows="4" placeholder="Share your coaching style and who you train" class="w-full rounded-[10px] border border-zinc-300 px-4 py-3 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10 resize-y"></textarea></label>
-              <button type="submit" class="w-full h-11 rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-[13px] font-semibold transition-colors">Submit Application</button>
+            <p class="text-[13px] text-zinc-500 mb-6">Create your coach account — we’ll review your profile before you appear on Find a Coach.</p>
+
+            @if ($errors->any())
+              <div class="mb-4 rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+                <ul class="list-disc pl-4 space-y-1">
+                  @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                  @endforeach
+                </ul>
+              </div>
+            @endif
+
+            <form method="POST" action="{{ route('become-a-coach.submit') }}" class="space-y-4">
+              @csrf
+              <label class="block">
+                <span class="block text-[12px] font-medium text-[#191615] mb-2">Full Name</span>
+                <input type="text" name="name" value="{{ old('name') }}" required placeholder="Your name" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+              </label>
+              <label class="block">
+                <span class="block text-[12px] font-medium text-[#191615] mb-2">Email</span>
+                <input type="email" name="email" value="{{ old('email') }}" required placeholder="you@email.com" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+              </label>
+              <label class="block">
+                <span class="block text-[12px] font-medium text-[#191615] mb-2">Primary Sport</span>
+                <select name="specialty" required class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none">
+                  <option value="Soccer" @selected(old('specialty') === 'Soccer')>Soccer</option>
+                  <option value="Futsal" @selected(old('specialty') === 'Futsal')>Futsal</option>
+                  <option value="Performance & Speed" @selected(old('specialty') === 'Performance & Speed')>Performance &amp; Speed</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="block text-[12px] font-medium text-[#191615] mb-2">Years of Experience</span>
+                <select name="experience" required class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none">
+                  @foreach (\App\Models\Coach::EXPERIENCE_OPTIONS as $option)
+                    <option value="{{ $option }}" @selected(old('experience') === $option)>{{ $option }}</option>
+                  @endforeach
+                </select>
+              </label>
+              <label class="block">
+                <span class="block text-[12px] font-medium text-[#191615] mb-2">Short Bio</span>
+                <textarea name="bio" rows="4" required placeholder="Share your coaching style and who you train" class="w-full rounded-[10px] border border-zinc-300 px-4 py-3 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10 resize-y">{{ old('bio') }}</textarea>
+              </label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label class="block">
+                  <span class="block text-[12px] font-medium text-[#191615] mb-2">Password</span>
+                  <input type="password" name="password" required placeholder="At least 8 characters" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                </label>
+                <label class="block">
+                  <span class="block text-[12px] font-medium text-[#191615] mb-2">Confirm password</span>
+                  <input type="password" name="password_confirmation" required placeholder="••••••••" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                </label>
+              </div>
+              <button type="submit" class="w-full h-11 rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-[13px] font-semibold transition-colors" data-loading-text="Submitting…">Submit Application</button>
+              <p class="text-[12px] text-zinc-500 text-center">Already have an account? <a href="{{ route('login') }}" class="text-brand-red font-medium hover:underline">Log in</a></p>
             </form>
           </div>
         </div>

@@ -7,9 +7,15 @@ use App\Models\Coach;
 use App\Models\Location;
 use App\Models\SessionRequest;
 use App\Models\SharedVideo;
+use App\Models\User;
 use App\Services\AppMailer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class PageController extends Controller
@@ -64,6 +70,64 @@ class PageController extends Controller
     public function becomeACoach(): View
     {
         return view('pages.become-a-coach');
+    }
+
+    public function submitBecomeACoach(Request $request): RedirectResponse
+    {
+        $specialtyMap = [
+            'Soccer' => 'Private Soccer Training',
+            'Futsal' => 'Futsal',
+            'Performance & Speed' => 'Performance & Speed',
+        ];
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'specialty' => ['required', 'string', 'in:Soccer,Futsal,Performance & Speed'],
+            'experience' => ['required', 'string', Rule::in(Coach::EXPERIENCE_OPTIONS)],
+            'bio' => ['required', 'string', 'max:2000'],
+            'password' => ['required', 'confirmed', Password::min(8)],
+        ]);
+
+        $user = DB::transaction(function () use ($data, $specialtyMap) {
+            $user = User::query()->create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => $data['password'],
+                'role' => 'coach',
+            ]);
+
+            $displayName = str_starts_with(strtolower($data['name']), 'coach ')
+                ? $data['name']
+                : 'Coach '.Str::of($data['name'])->before(' ')->toString();
+
+            $coach = Coach::query()->create([
+                'user_id' => $user->id,
+                'display_name' => $displayName,
+                'status' => 'pending',
+                'specialty' => $specialtyMap[$data['specialty']] ?? 'Private Soccer Training',
+                'experience' => $data['experience'],
+                'bio' => $data['bio'],
+            ]);
+
+            $user->setRelation('coach', $coach);
+
+            return $user;
+        });
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        $mailer = app(AppMailer::class);
+        $mailer->sendWelcome($user);
+        $coach = $user->coach ?? Coach::query()->where('user_id', $user->id)->first();
+        if ($coach) {
+            $mailer->notifyAdminsOfPendingCoach($coach);
+        }
+
+        return redirect()
+            ->route('coach.profile')
+            ->with('success', 'Application received! Finish your profile so an admin can approve your Find a Coach listing.');
     }
 
     public function about(): View
@@ -154,12 +218,12 @@ class PageController extends Controller
         $hostedRequest = SessionRequest::query()
             ->where('requester_id', $user->id)
             ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
-            ->with(['hostCoach', 'location'])
+            ->with(['hostCoach', 'requestedCoach', 'location'])
             ->orderByDesc('created_at')
             ->first();
 
         $sessionRequests = SessionRequest::query()
-            ->with(['hostCoach.user', 'location', 'players'])
+            ->with(['hostCoach.user', 'requestedCoach.user', 'location', 'players'])
             ->where(function ($q) use ($user) {
                 $q->where('requester_id', $user->id)
                     ->orWhereHas('players', fn ($p) => $p->where('user_id', $user->id));
@@ -205,7 +269,7 @@ class PageController extends Controller
         ]);
     }
 
-    public function requestSession(): View
+    public function requestSession(Request $request): View
     {
         $locations = Location::query()
             ->where('status', 'live')
@@ -213,8 +277,20 @@ class PageController extends Controller
             ->orderBy('distance_miles')
             ->get();
 
+        $requestedCoach = null;
+        $coachId = $request->query('coach');
+        if ($coachId) {
+            $requestedCoach = Coach::query()
+                ->with('location')
+                ->where('id', $coachId)
+                ->where('status', 'active')
+                ->first();
+        }
+
         return view('pages.request-session', [
             'locations' => $locations,
+            'requestedCoach' => $requestedCoach,
+            'preferredLocationSlug' => $requestedCoach?->location?->slug,
         ]);
     }
 }

@@ -580,7 +580,7 @@
                   default => '8-10',
                 };
                 $session = match (true) {
-                  str_contains($specialty, 'group') => 'group',
+                  str_contains($specialty, 'group') => 'group semi-private',
                   str_contains($specialty, 'team') || str_contains($specialty, 'clinic') => 'group camp',
                   str_contains($specialty, '1-on-1') || str_contains($specialty, 'private') => '1on1',
                   default => '1on1',
@@ -602,7 +602,7 @@
                 data-age="{{ $ageTags }}"
                 data-session="{{ $session }}"
                 data-location="{{ strtolower(trim(($coach->location?->name ?? '').' '.($coach->location?->area ?? '').' '.($coach->display_name ?? ''))) }}"
-                data-availability="weekday-morning weekday-evening weekend-morning"
+                data-availability="weekday-morning weekday-afternoon weekday-evening weekend-morning weekend-afternoon weekend-evening"
                 data-when="today tomorrow this-weekend next-week">
 
                 <img src="{{ $photo }}"
@@ -641,15 +641,15 @@
                     View Profile
                     <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
                   </a>
-                  <a href="{{ route('coach-profile', $coach) }}#booking"
-                     class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
+                  <a href="{{ route('request-session', ['coach' => $coach->id]) }}"
+                    class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
                     <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                       <rect x="3" y="4" width="18" height="18" rx="2"></rect>
                       <line x1="16" y1="2" x2="16" y2="6"></line>
                       <line x1="8" y1="2" x2="8" y2="6"></line>
                       <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
-                    View Times
+                    Book Now
                   </a>
                 </div>
               </article>

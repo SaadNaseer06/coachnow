@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [PageController::class, 'home'])->name('home');
 Route::get('/find-a-coach', [PageController::class, 'findACoach'])->name('find-a-coach');
 Route::get('/become-a-coach', [PageController::class, 'becomeACoach'])->name('become-a-coach');
+Route::post('/become-a-coach', [PageController::class, 'submitBecomeACoach'])->name('become-a-coach.submit');
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/faq', [PageController::class, 'faq'])->name('faq');
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');

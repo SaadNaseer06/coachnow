@@ -70,6 +70,9 @@ class DashboardController extends Controller
 
         $coaches = Coach::query()
             ->with(['user', 'location'])
+            ->withCount([
+                'bookings as upcoming_bookings_count' => fn ($q) => $q->upcoming(),
+            ])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($inner) use ($search) {
                     $inner->where('display_name', 'like', "%{$search}%")
@@ -170,6 +173,7 @@ class DashboardController extends Controller
     {
         $data = $request->validate([
             'status' => ['required', Rule::in(['pending', 'active', 'paused'])],
+            'force' => ['sometimes', 'boolean'],
         ]);
 
         if ($data['status'] === 'active' && ! $coach->isReadyForListing()) {
@@ -180,13 +184,30 @@ class DashboardController extends Controller
                 ]);
         }
 
+        $upcomingCount = 0;
+        if ($data['status'] === 'paused') {
+            $upcomingCount = Booking::query()
+                ->forCoach($coach->id)
+                ->upcoming()
+                ->count();
+
+            if ($upcomingCount > 0 && ! $request->boolean('force')) {
+                return redirect()
+                    ->route('admin.coaches')
+                    ->withErrors([
+                        'status' => $coach->display_name.' has '.$upcomingCount.' upcoming session'.($upcomingCount === 1 ? '' : 's').'. Confirm pause to hide them from Find a Coach — existing bookings stay on the calendar until you reschedule or cancel them.',
+                    ]);
+            }
+        }
+
         $coach->update(['status' => $data['status']]);
 
         app(AppMailer::class)->notifyCoachStatusChanged($coach->fresh(['user']), $data['status']);
 
         $message = match ($data['status']) {
             'active' => $coach->display_name.' is now live on Find a Coach.',
-            'paused' => $coach->display_name.' was paused and hidden from Find a Coach.',
+            'paused' => $coach->display_name.' was paused and hidden from Find a Coach.'
+                .($upcomingCount > 0 ? ' '.$upcomingCount.' upcoming booking'.($upcomingCount === 1 ? '' : 's').' still need attention.' : ''),
             default => $coach->display_name.' was set back to pending.',
         };
 

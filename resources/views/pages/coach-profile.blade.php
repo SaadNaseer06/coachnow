@@ -324,7 +324,7 @@
               <option>Choose a time</option><option>4:00 PM</option><option>5:30 PM</option><option>6:15 PM</option>
             </select>
 
-            <a href="{{ route('request-session') }}"
+            <a href="{{ route('request-session', ['coach' => $coach->id]) }}"
               class="w-full h-11 rounded-[10px] mt-4 bg-brand-red hover:bg-brand-red-hover text-white text-[12px] lg:text-[13px] font-semibold transition-colors inline-flex items-center justify-center gap-2"><img src="{{ asset('assets/Group 273355246-1.svg') }}" alt="" class="w-4 h-4 object-contain" style="filter:brightness(0) invert(1)">Book Session</a>
             <a href="{{ route('contact') }}"
               class="w-full h-11 rounded-[10px] mt-3 border border-[#191615] bg-white text-[#191615] text-[12px] lg:text-[13px] font-medium hover:bg-[#191615] hover:text-white transition-colors inline-flex items-center justify-center gap-2"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path><path d="M8 9h8M8 13h5"></path></svg>Send Message</a>

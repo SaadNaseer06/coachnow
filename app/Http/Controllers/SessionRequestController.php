@@ -23,7 +23,7 @@ class SessionRequestController extends Controller
         $user = $request->user();
 
         $query = SessionRequest::query()
-            ->with(['players', 'requester', 'hostCoach.user', 'location'])
+            ->with(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location'])
             ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
             ->orderByDesc('created_at');
 
@@ -31,6 +31,22 @@ class SessionRequestController extends Controller
             $query->where(function ($q) use ($user) {
                 $q->where('requester_id', $user->id)
                     ->orWhereHas('players', fn ($p) => $p->where('user_id', $user->id));
+            });
+        } elseif ($user->isCoach()) {
+            $coach = $this->resolveCoachProfile($request);
+            if (! $coach) {
+                return response()->json(['data' => []]);
+            }
+
+            $query->where(function ($q) use ($coach) {
+                $q->where('host_coach_id', $coach->id)
+                    ->orWhere(function ($open) use ($coach) {
+                        $open->where('status', 'open')
+                            ->where(function ($target) use ($coach) {
+                                $target->where('requested_coach_id', $coach->id)
+                                    ->orWhereNull('requested_coach_id');
+                            });
+                    });
             });
         }
 
@@ -55,7 +71,7 @@ class SessionRequestController extends Controller
             'location_id' => ['nullable', 'string'],
             'location_name' => ['required', 'string', 'max:120'],
             'location_city' => ['nullable', 'string', 'max:120'],
-            'session_date' => ['required', 'date'],
+            'session_date' => ['required', 'date', 'after_or_equal:today'],
             'session_time' => ['nullable', 'string', 'max:20'],
             'session_type' => ['required', 'string', 'max:160'],
             'sport' => ['nullable', 'string', 'max:80'],
@@ -68,6 +84,7 @@ class SessionRequestController extends Controller
             'know_by_at' => ['nullable', 'date'],
             'card_on_file' => ['nullable', 'string', 'max:120'],
             'deposit' => ['nullable', 'numeric', 'min:0'],
+            'requested_coach_id' => ['nullable', 'integer', 'exists:coaches,id'],
         ]);
 
         $user = $request->user();
@@ -83,6 +100,18 @@ class SessionRequestController extends Controller
                 ->first();
         }
 
+        $requestedCoach = null;
+        if (! empty($data['requested_coach_id'])) {
+            $requestedCoach = Coach::query()
+                ->where('id', $data['requested_coach_id'])
+                ->where('status', 'active')
+                ->first();
+
+            if (! $requestedCoach) {
+                return response()->json(['message' => 'That coach is not available for booking.'], 422);
+            }
+        }
+
         $time = null;
         if (! empty($data['session_time'])) {
             try {
@@ -92,7 +121,22 @@ class SessionRequestController extends Controller
             }
         }
 
-        $session = DB::transaction(function () use ($data, $user, $location, $time) {
+        if (SessionRequest::hasSchedulingConflict(
+            $user->id,
+            $data['session_date'],
+            $time,
+            $requestedCoach?->id
+        )) {
+            $who = $requestedCoach
+                ? $requestedCoach->display_name.' already has'
+                : 'You already have';
+
+            return response()->json([
+                'message' => $who.' a session at that date and time. Pick a different slot.',
+            ], 422);
+        }
+
+        $session = DB::transaction(function () use ($data, $user, $location, $time, $requestedCoach) {
             $session = SessionRequest::query()->create([
                 'reference' => SessionRequest::generateReference(),
                 'requester_id' => $user->id,
@@ -113,6 +157,7 @@ class SessionRequestController extends Controller
                 'know_by_at' => $data['know_by_at'] ?? null,
                 'deposit_amount' => $data['deposit'] ?? 10,
                 'card_on_file' => $data['card_on_file'] ?? null,
+                'requested_coach_id' => $requestedCoach?->id,
                 'status' => 'open',
             ]);
 
@@ -128,7 +173,7 @@ class SessionRequestController extends Controller
                 'card_on_file' => $data['card_on_file'] ?? null,
             ]);
 
-            return $session->load(['players', 'requester', 'hostCoach.user', 'location']);
+            return $session->load(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location']);
         });
 
         $payload = $session->toPortalArray();
@@ -141,7 +186,7 @@ class SessionRequestController extends Controller
     public function accept(Request $request, string $reference): JsonResponse
     {
         $session = SessionRequest::query()
-            ->with(['players', 'requester'])
+            ->with(['players', 'requester', 'requestedCoach'])
             ->where('reference', $reference)
             ->firstOrFail();
 
@@ -152,6 +197,30 @@ class SessionRequestController extends Controller
         $coach = $this->resolveCoachProfile($request);
         if (! $coach) {
             return response()->json(['message' => 'Coach profile required to host a session.'], 422);
+        }
+
+        if ($coach->status !== 'active') {
+            return response()->json(['message' => 'Only active coaches can accept session requests.'], 422);
+        }
+
+        if (! $session->isVisibleToCoach($coach)) {
+            return response()->json(['message' => 'This request was sent to a different coach.'], 403);
+        }
+
+        $time = $session->session_time
+            ? Carbon::parse($session->session_time)->format('H:i:s')
+            : null;
+
+        if ($session->session_date && SessionRequest::hasSchedulingConflict(
+            (int) $session->requester_id,
+            $session->session_date->toDateString(),
+            $time,
+            $coach->id,
+            $session->id
+        )) {
+            return response()->json([
+                'message' => 'You already have a session at that date and time. Decline this request or free the slot first.',
+            ], 422);
         }
 
         DB::transaction(function () use ($session, $coach) {
@@ -182,7 +251,7 @@ class SessionRequestController extends Controller
             );
         });
 
-        $session->refresh()->load(['players', 'requester', 'hostCoach.user', 'location']);
+        $session->refresh()->load(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location']);
         $payload = $session->toPortalArray();
         $this->broadcastSessionRequest($payload, 'accepted');
         app(AppMailer::class)->sendSessionRequestAccepted($session);

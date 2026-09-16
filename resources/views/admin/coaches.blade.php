@@ -92,7 +92,13 @@
                 —
               @endif
             </td>
-            <td><span class="admin-badge {{ $statusClass }}">{{ ucfirst($coach->status) }}</span></td>
+            <td><span class="admin-badge {{ $statusClass }}">{{ ucfirst($coach->status) }}</span>
+              @if ($coach->status !== 'active')
+                <span class="block text-[10px] text-zinc-400 mt-1">Hidden on Find a Coach</span>
+              @elseif (! $coach->isReadyForListing())
+                <span class="block text-[10px] text-amber-600 mt-1">Profile incomplete</span>
+              @endif
+            </td>
             <td class="whitespace-nowrap">
               @if ($coach->status === 'pending')
                 <form method="POST" action="{{ route('admin.coaches.status', $coach) }}" class="inline">
@@ -110,10 +116,11 @@
               @else
                 <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-admin-modal-open="editCoachModal-{{ $coach->id }}">Edit</button>
                 @if ($coach->status === 'active')
-                  <form method="POST" action="{{ route('admin.coaches.status', $coach) }}" class="inline">
+                  <form method="POST" action="{{ route('admin.coaches.status', $coach) }}" class="inline" data-pause-form @if(($coach->upcoming_bookings_count ?? 0) > 0) data-upcoming="{{ $coach->upcoming_bookings_count }}" @endif>
                     @csrf
                     @method('PATCH')
                     <input type="hidden" name="status" value="paused">
+                    <input type="hidden" name="force" value="0">
                     <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm" data-loading-text="Pausing…">Pause</button>
                   </form>
                 @else
@@ -293,3 +300,26 @@
   </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+  document.querySelectorAll('[data-pause-form]').forEach((form) => {
+    form.addEventListener('submit', (event) => {
+      const upcoming = Number(form.dataset.upcoming || 0);
+      const forceInput = form.querySelector('input[name="force"]');
+      if (upcoming <= 0) {
+        if (forceInput) forceInput.value = '1';
+        return;
+      }
+      const ok = window.confirm(
+        `This coach has ${upcoming} upcoming session${upcoming === 1 ? '' : 's'}. Pause anyway? They will be hidden from Find a Coach, but bookings stay on the calendar until you reschedule or cancel them.`
+      );
+      if (!ok) {
+        event.preventDefault();
+        return;
+      }
+      if (forceInput) forceInput.value = '1';
+    });
+  });
+</script>
+@endpush

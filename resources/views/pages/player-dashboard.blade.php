@@ -150,18 +150,22 @@
           <div class="player-panel-head">
             <div class="flex items-center gap-3.5">
               @php
-                $focusCoach = $latestPast?->coach ?? $nextBooking?->coach;
+                $focusCoach = $nextBooking?->coach
+                  ?? $hostedRequest?->hostCoach
+                  ?? $hostedRequest?->requestedCoach
+                  ?? $latestPast?->coach;
                 $focusCoachName = $focusCoach?->display_name ?? 'Your coach';
                 $focusInitials = collect(preg_split('/\s+/', trim($focusCoachName)) ?: [])
                   ->map(fn ($p) => strtoupper(substr($p, 0, 1)))->take(2)->implode('') ?: 'CN';
+                $focusIsUpcoming = (bool) ($nextBooking || ($hostedRequest && in_array($hostedRequest->status, ['open', 'hosted', 'awaiting_deposit', 'confirmed'], true)));
               @endphp
               <div class="w-12 h-12 rounded-full bg-[#191615] text-white grid place-items-center text-sm font-bold ring-2 ring-brand-red/20">{{ $focusInitials }}</div>
               <div>
-                <p class="player-section-kicker">{{ $latestPast ? 'Latest session' : 'Next focus' }}</p>
-                <h2 class="player-panel-title">{{ $focusCoachName }}@if($latestPast) · {{ $latestPast->session_date?->format('F j') }}@endif</h2>
+                <p class="player-section-kicker">{{ $focusIsUpcoming ? 'Next focus' : 'Latest session' }}</p>
+                <h2 class="player-panel-title">{{ $focusCoachName }}@if(! $focusIsUpcoming && $latestPast) · {{ $latestPast->session_date?->format('F j') }}@endif</h2>
               </div>
             </div>
-            <span class="inline-flex items-center px-3 py-1.5 rounded-full {{ $latestPast ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-600' }} text-[10px] font-bold uppercase tracking-[0.08em] shrink-0">{{ $latestPast ? 'Complete' : 'Upcoming' }}</span>
+            <span class="inline-flex items-center px-3 py-1.5 rounded-full {{ $focusIsUpcoming ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-600' }} text-[10px] font-bold uppercase tracking-[0.08em] shrink-0">{{ $focusIsUpcoming ? 'Upcoming' : 'Complete' }}</span>
           </div>
 
           <div class="player-focus-box mb-5">
@@ -227,7 +231,9 @@
                   </p>
                   <p class="player-req-card__sub">
                     {{ $req['role_label'] }}
-                    @if ($req['coach'])
+                    @if (! empty($req['waiting_label']))
+                      · {{ $req['waiting_label'] }}
+                    @elseif ($req['coach'])
                       · Hosted by {{ $req['coach'] }}
                     @elseif ($req['status'] === 'open')
                       · Waiting for a coach

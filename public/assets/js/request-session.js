@@ -38,6 +38,7 @@
     priceRange: '',
     sessionType: '',
     knowByAt: null,
+    requestedCoachId: document.getElementById('reqRequestedCoachId')?.value || '',
     minPlayers: '',
     maxPlayers: '',
     playerLevel: '',
@@ -615,6 +616,7 @@
           know_by_at: state.knowByAt ? state.knowByAt.toISOString() : null,
           card_on_file: cardLabel,
           deposit: DEPOSIT_AMOUNT,
+          requested_coach_id: state.requestedCoachId ? Number(state.requestedCoachId) : null,
         }),
       });
 
@@ -717,6 +719,20 @@
   renderTimeSlots(els.afternoonSlots, afternoonSlots);
   renderTimeSlots(els.eveningSlots, eveningSlots);
   setMinDate();
+
+  const preferredLocation = document.getElementById('reqStage')?.dataset.preferredLocation;
+  if (preferredLocation) {
+    const preferredCard = [...els.locationCards].find((card) => card.dataset.locationId === preferredLocation);
+    if (preferredCard) {
+      state.locationId = preferredCard.dataset.locationId || '';
+      state.locationName = preferredCard.dataset.locationName || '';
+      state.locationCity = preferredCard.dataset.locationCity || '';
+      state.location = state.locationName;
+      preferredCard.classList.add('is-selected');
+      if (els.locationInput) els.locationInput.value = state.locationName;
+      if (els.locationLabel) els.locationLabel.textContent = state.locationName;
+    }
+  }
 
   els.steps.forEach((section) => {
     const active = Number(section.dataset.step) === 1;

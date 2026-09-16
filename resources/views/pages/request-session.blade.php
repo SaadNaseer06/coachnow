@@ -44,13 +44,18 @@
             </ol>
           </div>
 
-          <div class="req-stage" id="reqStage">
+          <div class="req-stage" id="reqStage" @if(!empty($preferredLocationSlug)) data-preferred-location="{{ $preferredLocationSlug }}" @endif>
             {{-- Step 1 --}}
             <section class="req-step is-active" data-step="1" aria-labelledby="reqStep1Title">
               <div class="req-card">
                 <header class="req-head">
                   <h2 id="reqStep1Title" class="req-title">What session do you need?</h2>
-                  <p class="req-lead">Start with the basics. You can leave the request open so any nearby coach can accept it.</p>
+                  @if (! empty($requestedCoach))
+                    <p class="req-lead">Requesting <strong>{{ $requestedCoach->display_name }}</strong>. Only this coach can accept — other coaches will not see it.</p>
+                    <input type="hidden" id="reqRequestedCoachId" value="{{ $requestedCoach->id }}">
+                  @else
+                    <p class="req-lead">Start with the basics. Leave the request open so any nearby coach can accept it, or book from a coach profile to target one coach.</p>
+                  @endif
                 </header>
 
                 <form id="reqFormStep1" class="req-form" novalidate>
@@ -294,7 +299,13 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
                 </div>
                 <h2 id="reqSuccessTitle" class="req-title">Your request is live</h2>
-                <p class="req-lead req-lead--center">Nearby coaches have been notified. You will get a text as soon as someone accepts.</p>
+                <p class="req-lead req-lead--center">
+                  @if (! empty($requestedCoach))
+                    {{ $requestedCoach->display_name }} has been notified. You’ll get an update as soon as they accept.
+                  @else
+                    Nearby coaches have been notified. You will get a text as soon as someone accepts.
+                  @endif
+                </p>
 
                 <div class="req-live-card">
                   <div class="req-live-card__head">
