@@ -7,7 +7,6 @@ use App\Models\SessionRequest;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -61,7 +60,7 @@ class AppServiceProvider extends ServiceProvider
                 'sessionRequests' => $sessionRequests,
                 'currentCoachId' => $coach?->id,
                 'sessionRequestsIsAdmin' => $isAdmin,
-                'unreadContactCount' => $isAdmin && Schema::hasTable('contact_messages')
+                'unreadContactCount' => $isAdmin
                     ? ContactMessage::query()->whereNull('read_at')->count()
                     : 0,
             ]);

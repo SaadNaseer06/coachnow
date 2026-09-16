@@ -94,17 +94,13 @@ class SharedVideo extends Model
         }
 
         if ($this->isUpload() && $this->file_path) {
-            try {
-                $generated = app(\App\Services\VideoCompressionService::class)
-                    ->generateThumbnailForStoredVideo($this->file_path, $this->disk ?: 'public');
+            $generated = app(\App\Services\VideoCompressionService::class)
+                ->generateThumbnailForStoredVideo($this->file_path, $this->disk ?: 'public');
 
-                if ($generated) {
-                    $this->forceFill(['thumbnail_path' => $generated])->save();
+            if ($generated) {
+                $this->forceFill(['thumbnail_path' => $generated])->save();
 
-                    return Storage::disk($this->disk ?: 'public')->url($generated);
-                }
-            } catch (\Throwable) {
-                // Keep the dashboard usable if thumbnail generation fails.
+                return Storage::disk($this->disk ?: 'public')->url($generated);
             }
         }
 
