@@ -116,7 +116,7 @@
               @else
                 <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-admin-modal-open="editCoachModal-{{ $coach->id }}">Edit</button>
                 @if ($coach->status === 'active')
-                  <form method="POST" action="{{ route('admin.coaches.status', $coach) }}" class="inline" data-pause-form @if(($coach->upcoming_commitments_count ?? $coach->upcoming_bookings_count ?? 0) > 0) data-upcoming="{{ $coach->upcoming_commitments_count ?? $coach->upcoming_bookings_count }}" @endif>
+                  <form method="POST" action="{{ route('admin.coaches.status', $coach) }}" class="inline" data-pause-form data-no-busy @if(($coach->upcoming_commitments_count ?? $coach->upcoming_bookings_count ?? 0) > 0) data-upcoming="{{ $coach->upcoming_commitments_count ?? $coach->upcoming_bookings_count }}" @endif>
                     @csrf
                     @method('PATCH')
                     <input type="hidden" name="status" value="paused">
@@ -327,6 +327,7 @@
     form.addEventListener('submit', async (event) => {
       if (form.dataset.pauseConfirmed === '1') return;
       event.preventDefault();
+      window.CoachNowBusy?.clearFormBusy(form);
 
       const upcoming = Number(form.dataset.upcoming || 0);
       const forceInput = form.querySelector('input[name="force"]');
@@ -345,9 +346,15 @@
         });
       }
 
-      if (!ok) return;
+      if (!ok) {
+        window.CoachNowBusy?.clearFormBusy(form);
+        return;
+      }
+
       if (forceInput) forceInput.value = '1';
       form.dataset.pauseConfirmed = '1';
+      const pauseBtn = event.submitter || form.querySelector('button[type="submit"]');
+      window.CoachNowBusy?.setBusy(pauseBtn, { label: pauseBtn?.getAttribute('data-loading-text') || 'Pausing…' });
       form.submit();
     });
   });
