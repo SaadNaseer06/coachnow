@@ -168,6 +168,7 @@
                   class="text-[11px] sm:text-xs text-zinc-300 hover:text-white mt-1.5 pl-1 text-left transition-colors">
                   Choose a Date
                 </button>
+                <input type="date" id="whenDate" min="{{ now()->toDateString() }}" class="mt-1.5 h-9 rounded-lg border-0 bg-white/95 px-2 text-[12px] text-zinc-800 hidden w-full max-w-[220px]" aria-label="Choose a date">
               </div>
 
 
@@ -610,6 +611,7 @@
                 data-session="{{ $session }}"
                 data-location="{{ strtolower(trim(($coach->location?->name ?? '').' '.($coach->location?->area ?? '').' '.($coach->display_name ?? ''))) }}"
                 data-availability="weekday-morning weekday-afternoon weekday-evening weekend-morning weekend-afternoon weekend-evening"
+                data-occupied='@json($occupancy[$coach->id] ?? [])'
                 data-when="today tomorrow this-weekend next-week">
 
                 <img src="{{ $photo }}"
@@ -650,7 +652,7 @@
                   </a>
                   @if (! auth()->check() || auth()->user()->isAthlete())
                   <a href="{{ route('request-session', ['coach' => $coach->id]) }}"
-                    class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
+                    class="js-search-carry coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
                     <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                       <rect x="3" y="4" width="18" height="18" rx="2"></rect>
                       <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -694,5 +696,6 @@
 @endsection
 
 @push('scripts')
+  <script src="{{ asset('assets/js/search-draft.js') }}?v={{ @filemtime(public_path('assets/js/search-draft.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/find-a-coach.js') }}?v={{ @filemtime(public_path('assets/js/find-a-coach.js')) ?: time() }}"></script>
 @endpush

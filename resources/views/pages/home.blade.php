@@ -623,5 +623,6 @@
   <script>
     window.COACHNOW_LOCATIONS = @json($homeLocations ?? []);
   </script>
+  <script src="{{ asset('assets/js/search-draft.js') }}?v={{ @filemtime(public_path('assets/js/search-draft.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/index.js') }}"></script>
 @endpush

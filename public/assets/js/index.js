@@ -865,10 +865,20 @@
 
   if (useLocationBtn && locationInput) {
     useLocationBtn.addEventListener('click', () => {
-      locationInput.value = 'Sommers Bend';
-      openLocationDropdown();
-      filterLocationItems('Sommers Bend');
-      closeAllDropdowns();
+      const finish = (coords) => {
+        if (coords) window.CoachNowSearch?.write({ lat: coords.latitude, lng: coords.longitude });
+        locationInput.placeholder = 'Sorted by nearest listed parks on Find a Coach';
+        openLocationDropdown();
+      };
+      if (!navigator.geolocation) {
+        finish();
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => finish(pos.coords),
+        () => finish(),
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+      );
     });
   }
 
@@ -917,14 +927,24 @@
   searchForm.addEventListener('submit', (event) => {
     event.preventDefault();
     const params = new URLSearchParams();
-    if (locationInput && locationInput.value.trim()) {
-      params.set('location', locationInput.value.trim());
-    }
-    if (whenInput && whenInput.value) params.set('when', whenInput.value);
+    const location = locationInput && locationInput.value.trim();
+    const date = whenInput && whenInput.value;
     const sport = document.getElementById('sportSelect');
     const session = document.getElementById('sessionTypeSelect');
-    if (sport) params.set('sport', sport.value);
-    if (session) params.set('session', session.value);
+    if (location) params.set('location', location);
+    if (date) params.set('date', date);
+    const sportSlug = sport?.value || '';
+    const sportLabel = sport?.selectedOptions?.[0]?.text?.trim() || '';
+    if (sportSlug) params.set('sport', sportSlug);
+    const sessionValue = session?.value && session.value !== 'all' ? session.value : '';
+    if (sessionValue) params.set('session', sessionValue);
+    window.CoachNowSearch?.write({
+      location: location || '',
+      date: date || '',
+      sport: sportLabel && sportSlug ? sportLabel : '',
+      sportSlug,
+      session: sessionValue,
+    });
     const qs = params.toString();
     window.location.href = qs ? `/find-a-coach?${qs}` : '/find-a-coach';
   });

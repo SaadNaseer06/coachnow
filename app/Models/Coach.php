@@ -259,6 +259,65 @@ class Coach extends Model
         return $tags === [] ? 'youth-5-8 youth-9-12 teen' : implode(' ', array_unique($tags));
     }
 
+    /**
+     * Occupied 60-minute windows from bookings and hosted/targeted requests.
+     * Coaches do not publish open slots — this is the real busy data.
+     *
+     * @param  list<int>  $coachIds
+     * @return array<int, list<array{date:string,time:?string,minutes:int}>>
+     */
+    public static function occupancyByCoachIds($coachIds): array
+    {
+        $ids = collect($coachIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $from = now()->toDateString();
+        $to = now()->addDays(21)->toDateString();
+        $rows = [];
+
+        $bookings = Booking::query()
+            ->whereIn('coach_id', $ids)
+            ->where('status', '!=', 'cancelled')
+            ->whereDate('session_date', '>=', $from)
+            ->whereDate('session_date', '<=', $to)
+            ->get(['coach_id', 'session_date', 'session_time', 'duration_minutes']);
+
+        foreach ($bookings as $booking) {
+            $rows[$booking->coach_id][] = [
+                'date' => optional($booking->session_date)->toDateString(),
+                'time' => $booking->session_time ? substr((string) $booking->session_time, 0, 5) : null,
+                'minutes' => (int) ($booking->duration_minutes ?: 60),
+            ];
+        }
+
+        $requests = SessionRequest::query()
+            ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
+            ->whereDate('session_date', '>=', $from)
+            ->whereDate('session_date', '<=', $to)
+            ->where(function ($query) use ($ids) {
+                $query->whereIn('host_coach_id', $ids)
+                    ->orWhereIn('requested_coach_id', $ids);
+            })
+            ->get(['host_coach_id', 'requested_coach_id', 'session_date', 'session_time']);
+
+        foreach ($requests as $request) {
+            $coachId = $request->host_coach_id ?: $request->requested_coach_id;
+            if (! $coachId || ! $ids->contains((int) $coachId)) {
+                continue;
+            }
+
+            $rows[$coachId][] = [
+                'date' => optional($request->session_date)->toDateString(),
+                'time' => $request->session_time ? substr((string) $request->session_time, 0, 5) : null,
+                'minutes' => 60,
+            ];
+        }
+
+        return $rows;
+    }
+
     public function deleteStoredPhoto(): void
     {
         $path = (string) $this->photo_path;

@@ -63,8 +63,11 @@ class PageController extends Controller
             ->orderBy('display_name')
             ->get();
 
+        $occupancy = Coach::occupancyByCoachIds($coaches->pluck('id')->all());
+
         return view('pages.find-a-coach', [
             'coaches' => $coaches,
+            'occupancy' => $occupancy,
         ]);
     }
 
@@ -334,6 +337,12 @@ class PageController extends Controller
             'requestedCoach' => $requestedCoach,
             'coaches' => $coaches,
             'preferredLocationSlug' => $requestedCoach?->location?->slug,
+            'searchPrefill' => [
+                'location' => trim((string) $request->query('location', '')),
+                'date' => trim((string) $request->query('date', '')),
+                'sport' => trim((string) $request->query('sport', '')),
+                'session' => trim((string) $request->query('session', '')),
+            ],
         ]);
     }
 }

@@ -326,7 +326,7 @@
 
             @if (! auth()->check() || auth()->user()->isAthlete())
             <a href="{{ route('request-session', ['coach' => $coach->id]) }}"
-              class="w-full h-11 rounded-[10px] mt-4 bg-brand-red hover:bg-brand-red-hover text-white text-[12px] lg:text-[13px] font-semibold transition-colors inline-flex items-center justify-center gap-2"><img src="{{ asset('assets/Group 273355246-1.svg') }}" alt="" class="w-4 h-4 object-contain" style="filter:brightness(0) invert(1)">Book Session</a>
+              class="js-search-carry w-full h-11 rounded-[10px] mt-4 bg-brand-red hover:bg-brand-red-hover text-white text-[12px] lg:text-[13px] font-semibold transition-colors inline-flex items-center justify-center gap-2"><img src="{{ asset('assets/Group 273355246-1.svg') }}" alt="" class="w-4 h-4 object-contain" style="filter:brightness(0) invert(1)">Book Session</a>
             @elseif (auth()->user()->isCoach() && (int) auth()->user()->coach?->id === (int) $coach->id)
             <a href="{{ route('coach.profile') }}"
               class="w-full h-11 rounded-[10px] mt-4 bg-brand-red hover:bg-brand-red-hover text-white text-[12px] lg:text-[13px] font-semibold transition-colors inline-flex items-center justify-center">Edit my listing</a>
@@ -353,5 +353,6 @@
 @endsection
 
 @push('scripts')
+  <script src="{{ asset('assets/js/search-draft.js') }}?v={{ @filemtime(public_path('assets/js/search-draft.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/coach-profile.js') }}"></script>
 @endpush

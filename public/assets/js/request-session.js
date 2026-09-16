@@ -458,6 +458,60 @@
     }
   }
 
+  function matchSelectValue(select, wanted) {
+    if (!select || !wanted) return false;
+    const want = String(wanted).trim().toLowerCase();
+    const hit = [...select.options].find((option) => (
+      option.value.toLowerCase() === want || option.text.trim().toLowerCase() === want
+    ));
+    if (!hit) return false;
+    select.value = hit.value;
+    return true;
+  }
+
+  function applySearchPrefill() {
+    const query = new URLSearchParams(window.location.search);
+    const draft = window.CoachNowSearch?.read() || {};
+    const date = query.get('date') || draft.date || '';
+    const sport = query.get('sport') || draft.sport || draft.sportSlug || '';
+    const session = query.get('session') || draft.session || '';
+    const location = query.get('location') || draft.location || '';
+
+    if (date && els.dateInput) {
+      els.dateInput.value = date;
+      state.date = date;
+      const parsed = new Date(`${date}T12:00:00`);
+      if (!Number.isNaN(parsed.getTime())) {
+        state.selectedDate = parsed;
+        buildDateStrip(parsed);
+      }
+    }
+
+    const sportEl = document.getElementById('reqSport');
+    if (sportEl && sport) {
+      matchSelectValue(sportEl, sport) || matchSelectValue(sportEl, String(sport).replace(/-/g, ' '));
+    }
+
+    if (location && els.locationInput && !els.locationInput.value.trim()) {
+      els.locationInput.value = location;
+      state.location = location;
+    }
+
+    const typeEl = document.getElementById('reqSessionType');
+    if (typeEl && session && !typeEl.value) {
+      const mapped = {
+        '1on1': 'Private 1-on-1 Session',
+        group: 'Skills Training — Group Session',
+        camp: 'Small-Sided Games — Group Session',
+      }[session] || session;
+      matchSelectValue(typeEl, mapped);
+    }
+
+    if (draft.lat && draft.lng) {
+      state.sortByNearest = true;
+    }
+  }
+
   function playersLabel() {
     if (state.minPlayers && state.maxPlayers) return `${state.minPlayers}–${state.maxPlayers}`;
     if (state.minPlayers) return `${state.minPlayers}+`;
@@ -941,6 +995,7 @@
   renderTimeSlots(els.afternoonSlots, afternoonSlots);
   renderTimeSlots(els.eveningSlots, eveningSlots);
   setMinDate();
+  applySearchPrefill();
 
   els.steps.forEach((section) => {
     const active = Number(section.dataset.step) === 1;

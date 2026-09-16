@@ -359,6 +359,8 @@
       const sportSelect = document.getElementById('sportSelect');
       const sessionTypeSelect = document.getElementById('sessionTypeSelect');
       const whenSelect = document.getElementById('whenSelect');
+      const whenDate = document.getElementById('whenDate');
+      const chooseDateBtn = document.getElementById('chooseDateBtn');
       const locationInput = document.getElementById('locationInput');
       const useLocationButton = document.getElementById('useLocationBtn');
       const filterTitles = Array.from(document.querySelectorAll('#filtersPanel .filter-title'));
@@ -499,13 +501,83 @@
         return selected.some((value) => available.includes(String(value).toLowerCase()));
       }
 
+      function toISODate(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
+      function presetToDate(value) {
+        if (!value) return '';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (value === 'today') return toISODate(today);
+        if (value === 'tomorrow') {
+          today.setDate(today.getDate() + 1);
+          return toISODate(today);
+        }
+        if (value === 'this-weekend') {
+          const day = today.getDay();
+          const add = day === 6 || day === 0 ? 0 : 6 - day;
+          today.setDate(today.getDate() + add);
+          return toISODate(today);
+        }
+        if (value === 'next-week') {
+          const add = ((8 - today.getDay()) % 7) || 7;
+          today.setDate(today.getDate() + add);
+          return toISODate(today);
+        }
+        return '';
+      }
+
+      function selectedSearchDate() {
+        return (whenDate?.value || '').trim() || presetToDate(whenSelect?.value || '');
+      }
+
+      function coachHasFreeSlot(card, isoDate) {
+        if (!isoDate) return true;
+        let occupied = [];
+        try {
+          occupied = JSON.parse(card.dataset.occupied || '[]');
+        } catch {
+          occupied = [];
+        }
+        const dayItems = occupied.filter((item) => item && item.date === isoDate);
+        if (dayItems.some((item) => !item.time)) return false;
+        for (let hour = 8; hour < 19; hour += 1) {
+          const start = hour * 60;
+          const end = start + 60;
+          const clash = dayItems.some((item) => {
+            const parts = String(item.time || '').split(':');
+            const mins = (Number(parts[0]) || 0) * 60 + (Number(parts[1]) || 0);
+            const busyEnd = mins + (Number(item.minutes) || 60);
+            return start < busyEnd && mins < end;
+          });
+          if (!clash) return true;
+        }
+        return false;
+      }
+
+      function persistSearchDraft() {
+        const sportOption = sportSelect?.selectedOptions?.[0];
+        window.CoachNowSearch?.write({
+          location: (locationInput?.value || '').trim(),
+          date: selectedSearchDate(),
+          sport: sportOption?.text?.trim() && sportSelect.value ? sportOption.text.trim() : '',
+          sportSlug: sportSelect?.value || '',
+          session: sessionTypeSelect?.value === 'all' ? '' : (sessionTypeSelect?.value || ''),
+        });
+      }
+
       function syncSearchFiltersFromHero() {
         searchFilters = {
           sport: sportSelect?.value || '',
           session: sessionTypeSelect?.value === 'all' ? '' : (sessionTypeSelect?.value || ''),
-          when: whenSelect?.value || '',
+          when: selectedSearchDate(),
           location: (locationInput?.value || '').trim().toLowerCase()
         };
+        persistSearchDraft();
       }
 
       function applyFilters() {
@@ -524,6 +596,7 @@
         const session = selectedValues('session');
         const availability = selectedValues('availability');
         const locationQuery = (searchFilters.location || (locationInput?.value || '').trim().toLowerCase());
+        const searchDate = selectedSearchDate();
         let visibleCount = 0;
 
         cards.forEach((card) => {
@@ -547,7 +620,7 @@
             cardHasAny(card, 'availability', availability) &&
             (!searchFilters.sport || cardSports.includes(String(searchFilters.sport).toLowerCase())) &&
             (!searchFilters.session || cardSessions.includes(String(searchFilters.session).toLowerCase())) &&
-            (!searchFilters.when || cardWhen.includes(String(searchFilters.when).toLowerCase())) &&
+            (!searchFilters.when || coachHasFreeSlot(card, searchDate)) &&
             (!locationQuery || locationQuery === 'current location' || cardLocation.includes(locationQuery));
 
           card.hidden = !matches;
@@ -588,6 +661,7 @@
         if (sportSelect) sportSelect.value = '';
         if (sessionTypeSelect) sessionTypeSelect.value = 'all';
         if (whenSelect) whenSelect.value = '';
+        if (whenDate) whenDate.value = '';
         searchFilters = { sport: '', session: '', when: '', location: '' };
         sortByNearest = false;
         applyFilters();
@@ -640,46 +714,74 @@
         applyFilters();
       });
       whenSelect?.addEventListener('change', () => {
+        if (whenDate && whenSelect.value) whenDate.value = presetToDate(whenSelect.value);
+        syncSearchFiltersFromHero();
+        applyFilters();
+      });
+      chooseDateBtn?.addEventListener('click', () => {
+        if (!whenDate) return;
+        whenDate.classList.remove('hidden');
+        whenDate.showPicker?.();
+        whenDate.focus();
+      });
+      whenDate?.addEventListener('change', () => {
+        if (whenSelect && whenDate.value) whenSelect.value = '';
         syncSearchFiltersFromHero();
         applyFilters();
       });
       locationInput?.addEventListener('input', () => {
         searchFilters.location = (locationInput.value || '').trim().toLowerCase();
+        persistSearchDraft();
         schedulePriceApply();
       });
 
       useLocationButton?.addEventListener('click', () => {
-        if (!navigator.geolocation) {
-          sortByNearest = true;
-          if (locationInput) locationInput.value = '';
-          searchFilters.location = '';
+        sortByNearest = true;
+        const finish = (coords) => {
+          if (coords) window.CoachNowSearch?.write({ lat: coords.latitude, lng: coords.longitude });
+          if (locationInput) locationInput.placeholder = 'Sorted by nearest listed parks';
+          useLocationButton.disabled = false;
+          persistSearchDraft();
           applyFilters();
+        };
+
+        if (!navigator.geolocation) {
+          finish();
           return;
         }
 
         useLocationButton.disabled = true;
         navigator.geolocation.getCurrentPosition(
-          () => {
-            sortByNearest = true;
-            if (locationInput) locationInput.value = '';
-            searchFilters.location = '';
-            useLocationButton.disabled = false;
-            applyFilters();
-          },
-          () => {
-            sortByNearest = true;
-            if (locationInput) {
-              locationInput.value = '';
-              locationInput.placeholder = 'Sorted by nearest listed parks';
-            }
-            searchFilters.location = '';
-            useLocationButton.disabled = false;
-            applyFilters();
-          },
+          (pos) => finish(pos.coords),
+          () => finish(),
           { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
         );
       });
 
+      const params = new URLSearchParams(window.location.search);
+      const draft = window.CoachNowSearch?.read() || {};
+      if (locationInput && (params.get('location') || draft.location)) {
+        locationInput.value = params.get('location') || draft.location;
+      }
+      if (sportSelect) {
+        const slug = params.get('sport') || draft.sportSlug || '';
+        if (slug) sportSelect.value = slug;
+        else if (draft.sport) {
+          const match = [...sportSelect.options].find((opt) => opt.text.trim().toLowerCase() === String(draft.sport).toLowerCase());
+          if (match) sportSelect.value = match.value;
+        }
+      }
+      if (sessionTypeSelect && (params.get('session') || draft.session)) {
+        sessionTypeSelect.value = params.get('session') || draft.session;
+      }
+      const incomingDate = params.get('date') || draft.date || '';
+      if (incomingDate && whenDate) {
+        whenDate.value = incomingDate;
+        whenDate.classList.remove('hidden');
+        if (whenSelect) whenSelect.value = '';
+      }
+
+      syncSearchFiltersFromHero();
       applyFilters();
     })();
 

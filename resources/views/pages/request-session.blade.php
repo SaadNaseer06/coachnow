@@ -498,6 +498,7 @@
 @endsection
 
 @push('scripts')
+  <script src="{{ asset('assets/js/search-draft.js') }}?v={{ @filemtime(public_path('assets/js/search-draft.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/coach-profile.js') }}"></script>
   <script src="{{ asset('assets/js/payment-methods.js') }}?v={{ @filemtime(public_path('assets/js/payment-methods.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/request-session.js') }}?v={{ @filemtime(public_path('assets/js/request-session.js')) ?: time() }}"></script>
