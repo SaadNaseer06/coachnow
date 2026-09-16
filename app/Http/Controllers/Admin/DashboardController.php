@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Coach;
+use App\Models\ContactMessage;
 use App\Models\Location;
 use App\Models\SessionRequest;
 use App\Models\User;
@@ -387,6 +388,45 @@ class DashboardController extends Controller
                 'activity' => $activity,
             ],
         ]);
+    }
+
+    public function messages(Request $request): View
+    {
+        $search = trim((string) $request->query('q', ''));
+        $status = (string) $request->query('status', '');
+
+        $messages = ContactMessage::query()
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('topic', 'like', "%{$search}%")
+                        ->orWhere('message', 'like', "%{$search}%");
+                });
+            })
+            ->when($status === 'unread', fn ($query) => $query->whereNull('read_at'))
+            ->when($status === 'read', fn ($query) => $query->whereNotNull('read_at'))
+            ->orderByRaw('CASE WHEN read_at IS NULL THEN 0 ELSE 1 END')
+            ->orderByDesc('created_at')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('admin.messages', [
+            'messages' => $messages,
+            'filters' => [
+                'q' => $search,
+                'status' => $status,
+            ],
+        ]);
+    }
+
+    public function markMessageRead(ContactMessage $message): RedirectResponse
+    {
+        if ($message->read_at === null) {
+            $message->forceFill(['read_at' => now()])->save();
+        }
+
+        return back()->with('success', 'Message marked as read.');
     }
 
     public function schedule(\Illuminate\Http\Request $request): View

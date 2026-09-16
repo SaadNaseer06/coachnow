@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Coach;
+use App\Models\ContactMessage;
 use App\Models\Location;
 use App\Models\SessionRequest;
 use App\Models\SharedVideo;
@@ -171,6 +172,8 @@ class PageController extends Controller
 
     public function submitContact(Request $request): RedirectResponse
     {
+        $fromHome = $request->input('from') === 'home';
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255'],
@@ -179,16 +182,27 @@ class PageController extends Controller
             'agree' => ['accepted'],
         ]);
 
+        ContactMessage::query()->create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'topic' => $data['topic'],
+            'message' => $data['message'],
+            'source' => $fromHome ? 'home' : 'contact',
+        ]);
+
         app(AppMailer::class)->sendContactMessage([
             'name' => $data['name'],
             'email' => $data['email'],
             'topic' => $data['topic'],
             'message' => $data['message'],
+            'source' => $fromHome ? 'Home' : 'Contact page',
         ]);
 
-        return redirect()
-            ->route('contact')
-            ->with('success', 'Thanks — your message was sent. We’ll get back to you soon.');
+        $redirect = $fromHome
+            ? redirect()->to(route('home').'#contact')
+            : redirect()->route('contact');
+
+        return $redirect->with('success', 'Thanks — your message was sent. We’ll get back to you soon.');
     }
 
     public function coachProfile(Coach $coach): View

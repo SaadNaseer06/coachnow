@@ -495,34 +495,45 @@
 
           <div class="rounded-[18px] bg-[#F3F3F3] p-3 lg:p-4">
             <div class="rounded-[15px] bg-white px-4 py-4 lg:px-5 lg:py-4">
-              <form id="contactForm" onsubmit="return false;">
+              @if ($errors->any() && old('from') === 'home')
+                <div class="mb-4 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700" role="alert">
+                  {{ $errors->first() }}
+                </div>
+              @endif
+              <form id="contactForm" method="POST" action="{{ route('contact.submit') }}" data-loading-text="Sending…">
+                @csrf
+                <input type="hidden" name="from" value="home">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <label class="block">
                     <span class="block text-[12px] lg:text-[13px] font-medium text-[#191615] mb-2">Your Name</span>
-                    <input type="text" placeholder="Enter your name" class="w-full h-[40px] rounded-[10px] border border-zinc-300 bg-white px-4 text-[12px] lg:text-[13px] text-zinc-800 placeholder:text-zinc-400 outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                    <input type="text" name="name" value="{{ old('name') }}" required placeholder="Enter your name" class="w-full h-[40px] rounded-[10px] border border-zinc-300 bg-white px-4 text-[12px] lg:text-[13px] text-zinc-800 placeholder:text-zinc-400 outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
                   </label>
                   <label class="block">
                     <span class="block text-[12px] lg:text-[13px] font-medium text-[#191615] mb-2">Email Address</span>
-                    <input type="email" placeholder="Enter your email address" class="w-full h-[40px] rounded-[10px] border border-zinc-300 bg-white px-4 text-[12px] lg:text-[13px] text-zinc-800 placeholder:text-zinc-400 outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+                    <input type="email" name="email" value="{{ old('email') }}" required placeholder="Enter your email address" class="w-full h-[40px] rounded-[10px] border border-zinc-300 bg-white px-4 text-[12px] lg:text-[13px] text-zinc-800 placeholder:text-zinc-400 outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
                   </label>
                   <label class="block">
                     <span class="block text-[12px] lg:text-[13px] font-medium text-[#191615] mb-2">How can we help?</span>
                     <div class="relative">
-                      <select class="w-full h-[40px] rounded-[10px] border border-zinc-300 bg-white px-4 pr-9 text-[12px] lg:text-[13px] text-zinc-600 outline-none appearance-none focus:border-brand-red">
-                        <option>Finding a Coach</option>
-                        <option>Becoming a Coach</option>
-                        <option>General Question</option>
+                      <select name="topic" required class="w-full h-[40px] rounded-[10px] border border-zinc-300 bg-white px-4 pr-9 text-[12px] lg:text-[13px] text-zinc-600 outline-none appearance-none focus:border-brand-red">
+                        <option value="Finding a Coach" @selected(old('topic') === 'Finding a Coach')>Finding a Coach</option>
+                        <option value="Becoming a Coach" @selected(old('topic') === 'Becoming a Coach')>Becoming a Coach</option>
+                        <option value="General Question" @selected(old('topic', 'General Question') === 'General Question')>General Question</option>
                       </select>
                       <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
                     </div>
                   </label>
                 </div>
+                <label class="block mt-3">
+                  <span class="block text-[12px] lg:text-[13px] font-medium text-[#191615] mb-2">Message</span>
+                  <textarea name="message" rows="3" required placeholder="Tell us a little more" class="w-full rounded-[10px] border border-zinc-300 bg-white px-4 py-2.5 text-[12px] lg:text-[13px] text-zinc-800 placeholder:text-zinc-400 outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10 resize-y">{{ old('message') }}</textarea>
+                </label>
                 <div class="mt-4 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center">
                   <label class="flex items-center gap-2 text-[11px] lg:text-[12px] text-zinc-500 leading-[1.45]">
-                    <input type="checkbox" class="w-4 h-4 shrink-0 rounded border-zinc-300">
+                    <input type="checkbox" name="agree" value="1" @checked(old('agree')) required class="w-4 h-4 shrink-0 rounded border-zinc-300 accent-[#DA020C]">
                     <span>By submitting this form, you agree to our Privacy Policy and Terms &amp; Conditions.</span>
                   </label>
-                  <button type="submit" class="inline-flex items-center justify-center px-7 h-[40px] rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-[12px] lg:text-[13px] font-semibold transition-colors">Contact Us Now</button>
+                  <button type="submit" data-loading-text="Sending…" class="inline-flex items-center justify-center px-7 h-[40px] rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-[12px] lg:text-[13px] font-semibold transition-colors">Contact Us Now</button>
                 </div>
               </form>
             </div>

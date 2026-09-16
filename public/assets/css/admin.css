@@ -129,6 +129,25 @@ body.admin-body {
   opacity: 1;
 }
 
+.admin-nav-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #fff;
+  color: #da020c;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.admin-nav-link.is-active .admin-nav-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
 .admin-sidebar-footer {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 14px;

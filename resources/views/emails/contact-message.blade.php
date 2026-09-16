@@ -2,7 +2,8 @@
 # New contact message
 
 **From:** {{ $payload['name'] }} ({{ $payload['email'] }})  
-**Topic:** {{ $payload['topic'] }}
+**Topic:** {{ $payload['topic'] }}  
+**Sent from:** {{ $payload['source'] ?? 'Contact page' }}
 
 {{ $payload['message'] }}
 
