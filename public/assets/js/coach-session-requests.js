@@ -47,11 +47,29 @@
   const currentCoachId = window.CoachNowCoachId != null ? Number(window.CoachNowCoachId) : null;
 
   const isAdminViewer = Boolean(window.CoachNowIsAdmin);
+  const declinedKey = `coachnow_declined_requests_${currentCoachId || 'none'}`;
+
+  function readDeclinedIds() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(declinedKey) || '[]');
+      return new Set(Array.isArray(stored) ? stored.map(String) : []);
+    } catch {
+      return new Set();
+    }
+  }
+
+  function markDeclined(id) {
+    if (!id) return;
+    const ids = readDeclinedIds();
+    ids.add(String(id));
+    localStorage.setItem(declinedKey, JSON.stringify([...ids]));
+  }
 
   function requestVisibleToCurrentCoach(req) {
     if (!req) return false;
     if (isAdminViewer) return true;
     if (currentCoachId == null) return false;
+    if (readDeclinedIds().has(String(req.id))) return false;
 
     const hostId = req.host_coach_id != null ? Number(req.host_coach_id) : null;
     const requestedId = req.requested_coach_id != null ? Number(req.requested_coach_id) : null;
@@ -443,18 +461,41 @@
       }
     });
 
-    card.querySelector('[data-decline-request]')?.addEventListener('click', () => {
+    card.querySelector('[data-decline-request]')?.addEventListener('click', async () => {
       const btn = card.querySelector('[data-decline-request]');
-      window.CoachNowBusy?.setBusy(btn, { label: 'Declining…' });
       const id = card.dataset.requestId;
-      if (id) {
+      if (!id) return;
+
+      const ok = window.CoachNowDialog?.confirm
+        ? await window.CoachNowDialog.confirm({
+            title: 'Decline this request?',
+            message: 'It will leave your inbox. If it was sent only to you, the player is told it was declined.',
+            confirmLabel: 'Decline',
+            cancelLabel: 'Keep it',
+          })
+        : false;
+      if (!ok) return;
+
+      window.CoachNowBusy?.setBusy(btn, { label: 'Declining…' });
+      try {
+        await apiFetch(`/api/session-requests/${encodeURIComponent(id)}/decline`, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        });
+        markDeclined(id);
         writeStoredRequests(readStoredRequests().filter((item) => item.id !== id));
-      }
-      window.setTimeout(() => {
         card.remove();
         updateCountdowns();
         updateBadges();
-      }, 180);
+      } catch (error) {
+        window.CoachNowBusy?.clearBusy(btn);
+        if (window.CoachNowDialog?.alert) {
+          await window.CoachNowDialog.alert({
+            title: 'Decline failed',
+            message: error.message || 'Could not decline this request.',
+          });
+        }
+      }
     });
 
     card.querySelector('[data-adjust-details]')?.addEventListener('click', () => openAdjustOverlay(card));
@@ -466,6 +507,7 @@
     const requestedId = req.requested_coach_id != null ? Number(req.requested_coach_id) : null;
     const status = req.status || 'open';
     if (status !== 'open') return false;
+    if (req.acceptExpiresAt && Number(req.acceptExpiresAt) <= Date.now()) return false;
     if (requestedId == null) return true;
     return requestedId === currentCoachId;
   }

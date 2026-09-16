@@ -43,6 +43,10 @@
       && (
           empty($request['requested_coach_id'])
           || (int) $request['requested_coach_id'] === (int) $currentCoachId
+      )
+      && (
+          empty($request['acceptExpiresAt'])
+          || (int) $request['acceptExpiresAt'] > (int) (microtime(true) * 1000)
       );
   $estPayout = '';
   $estLabel = $joined > 0 ? 'Est. payout' : 'Est. if filled';

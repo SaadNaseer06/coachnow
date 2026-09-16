@@ -645,6 +645,7 @@
                     View Profile
                     <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
                   </a>
+                  @if (! auth()->check() || auth()->user()->isAthlete())
                   <a href="{{ route('request-session', ['coach' => $coach->id]) }}"
                     class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
                     <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -655,6 +656,12 @@
                     </svg>
                     Book Now
                   </a>
+                  @elseif (auth()->user()->isCoach() && (int) auth()->user()->coach?->id === (int) $coach->id)
+                  <a href="{{ route('coach.profile') }}"
+                    class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-[#191615] bg-white text-[#191615] font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red hover:text-white transition-all">
+                    Edit my listing
+                  </a>
+                  @endif
                 </div>
               </article>
             @empty

@@ -6,12 +6,14 @@
   $dashboardActive = request()->routeIs('player-dashboard', 'coach.*', 'admin.*');
 
   $dashboardLinks = [];
+  $showRequestSession = ! auth()->check() || auth()->user()->isAthlete();
+  $showBecomeCoach = ! auth()->check() || auth()->user()->isAthlete();
   if (auth()->check()) {
       $user = auth()->user();
       if ($user->isAthlete()) {
           $dashboardLinks[] = ['label' => 'Player Dashboard', 'route' => 'player-dashboard', 'active' => request()->routeIs('player-dashboard')];
       }
-      if ($user->isCoach() || $user->isAdmin()) {
+      if ($user->isCoach()) {
           $dashboardLinks[] = ['label' => 'Coach Dashboard', 'route' => 'coach.dashboard', 'active' => request()->routeIs('coach.*')];
       }
       if ($user->isAdmin()) {
@@ -30,8 +32,12 @@
       <ul class="flex items-center gap-0.5 list-none m-0 p-0 text-xs font-normal">
         <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $navActive : $navIdle }}">Home</a></li>
         <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile') ? $navActive : $navIdle }}">Find a Coach</a></li>
-        <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $navActive : $navIdle }}">Request Session</a></li>
-        <li><a href="{{ route('become-a-coach') }}" class="{{ request()->routeIs('become-a-coach') ? $navActive : $navIdle }}">Become a Coach</a></li>
+        @if ($showRequestSession)
+          <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $navActive : $navIdle }}">Request Session</a></li>
+        @endif
+        @if ($showBecomeCoach)
+          <li><a href="{{ route('become-a-coach') }}" class="{{ request()->routeIs('become-a-coach') ? $navActive : $navIdle }}">Become a Coach</a></li>
+        @endif
         @auth
           @if (count($dashboardLinks) === 1)
             <li><a href="{{ route($dashboardLinks[0]['route']) }}" class="{{ $dashboardActive ? $navActive : $navIdle }}">Dashboard</a></li>
@@ -84,8 +90,12 @@
     <ul class="flex flex-col gap-2 text-sm font-medium text-zinc-200">
       <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $mobileActive : $mobileIdle }}">Home</a></li>
       <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile') ? $mobileActive : $mobileIdle }}">Find a Coach</a></li>
-      <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $mobileActive : $mobileIdle }}">Request Session</a></li>
-      <li><a href="{{ route('become-a-coach') }}" class="{{ request()->routeIs('become-a-coach') ? $mobileActive : $mobileIdle }}">Become a Coach</a></li>
+      @if ($showRequestSession)
+        <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $mobileActive : $mobileIdle }}">Request Session</a></li>
+      @endif
+      @if ($showBecomeCoach)
+        <li><a href="{{ route('become-a-coach') }}" class="{{ request()->routeIs('become-a-coach') ? $mobileActive : $mobileIdle }}">Become a Coach</a></li>
+      @endif
       @auth
         @if (count($dashboardLinks) === 1)
           <li><a href="{{ route($dashboardLinks[0]['route']) }}" class="{{ $dashboardActive ? $mobileActive : $mobileIdle }}">Dashboard</a></li>

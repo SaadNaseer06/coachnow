@@ -84,6 +84,14 @@
             </div>
           </div>
         @endif
+        @if (session('error'))
+          <div class="admin-alert admin-alert--error" role="alert">
+            <div class="admin-alert__body">
+              <p class="admin-alert__label">Notice</p>
+              <p class="admin-alert__text">{{ session('error') }}</p>
+            </div>
+          </div>
+        @endif
         @yield('content')
       </main>
     </div>

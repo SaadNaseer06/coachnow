@@ -48,7 +48,21 @@
       <div class="admin-user-avatar">{{ strtoupper(substr(auth()->user()->name ?? 'CL', 0, 2)) }}</div>
       <div class="admin-user-meta">
         <div class="admin-user-name">{{ auth()->user()->coach?->display_name ?? auth()->user()->name ?? 'Coach' }}</div>
-        <div class="admin-user-role">{{ auth()->user()->coach?->status === 'active' ? 'Live on Find a Coach' : 'Complete your profile' }}</div>
+        <div class="admin-user-role">
+          @php
+            $coachStatus = auth()->user()->coach?->status;
+            $ready = (bool) auth()->user()->coach?->isReadyForListing();
+          @endphp
+          @if ($coachStatus === 'active')
+            Live on Find a Coach
+          @elseif ($coachStatus === 'paused')
+            Paused — not listed
+          @elseif ($ready)
+            Pending admin review
+          @else
+            Complete your profile
+          @endif
+        </div>
       </div>
     </div>
   </div>

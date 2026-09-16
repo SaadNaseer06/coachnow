@@ -56,6 +56,16 @@
   @include('partials.preloader')
   @include('partials.header')
 
+  @if (session('error') || (session('success') && ! request()->routeIs('contact')))
+    <div class="fixed inset-x-0 top-[4.75rem] z-[60] px-4">
+      @if (session('error'))
+        <div class="max-w-[720px] mx-auto rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-800 shadow-sm" role="alert">{{ session('error') }}</div>
+      @elseif (session('success'))
+        <div class="max-w-[720px] mx-auto rounded-[10px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] text-emerald-800 shadow-sm" role="status">{{ session('success') }}</div>
+      @endif
+    </div>
+  @endif
+
   @yield('content')
 
   @include('partials.footer')

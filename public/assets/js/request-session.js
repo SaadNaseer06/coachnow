@@ -854,7 +854,9 @@
       closeCardModal();
       goToStep(5);
     } catch (error) {
-      await notify(error.message || 'Could not publish session request.', 'Request failed');
+      window.CoachNowBusy?.clearBusy(els.cardConfirmBtn);
+      const overlap = /overlap|already have|not free|only available coach/i.test(error.message || '');
+      await notify(error.message || 'Could not publish session request.', overlap ? 'That time is taken' : 'Request failed');
     } finally {
       window.CoachNowBusy?.clearBusy(els.cardConfirmBtn);
     }

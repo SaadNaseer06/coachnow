@@ -171,7 +171,20 @@ class DashboardController extends Controller
             'bio' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $coach->update($data);
+        $coach->update(collect($data)->except('status')->all());
+
+        if ($data['status'] !== $coach->status && $data['status'] === 'paused') {
+            return redirect()
+                ->route('admin.coaches')
+                ->withErrors([
+                    'status' => 'Use Pause on the coach list to confirm and suspend upcoming sessions.',
+                ]);
+        }
+
+        if ($data['status'] !== $coach->fresh()->status) {
+            $coach->update(['status' => $data['status']]);
+            app(AppMailer::class)->notifyCoachStatusChanged($coach->fresh(['user']), $data['status']);
+        }
 
         return redirect()
             ->route('admin.coaches')

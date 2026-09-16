@@ -67,13 +67,37 @@ class PageController extends Controller
         ]);
     }
 
-    public function becomeACoach(): View
+    public function becomeACoach(): View|RedirectResponse
     {
+        $user = auth()->user();
+
+        if ($user?->isCoach()) {
+            return redirect()
+                ->route('coach.profile')
+                ->with('success', 'You’re already signed in as a coach.');
+        }
+
+        if ($user?->isAdmin()) {
+            return redirect()
+                ->route('admin.dashboard')
+                ->with('error', 'Admin accounts don’t apply as coaches.');
+        }
+
+        if ($user?->isAthlete()) {
+            return redirect()
+                ->route('player-dashboard')
+                ->with('error', 'Sign out first, then apply with a coach email.');
+        }
+
         return view('pages.become-a-coach');
     }
 
     public function submitBecomeACoach(Request $request): RedirectResponse
     {
+        if (auth()->check()) {
+            return redirect()->to(auth()->user()->dashboardPath())
+                ->with('error', 'Sign out first to apply as a coach.');
+        }
         $specialtyMap = [
             'Soccer' => 'Private Soccer Training',
             'Futsal' => 'Futsal',

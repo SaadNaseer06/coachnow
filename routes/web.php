@@ -24,17 +24,20 @@ Route::get('/coach-profile', fn () => redirect()->route('find-a-coach'));
 Route::get('/coaches/{coach}', [PageController::class, 'coachProfile'])->name('coach-profile');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/player-dashboard', [PageController::class, 'playerDashboard'])->name('player-dashboard');
-    Route::get('/request-session', [PageController::class, 'requestSession'])->name('request-session');
+    Route::middleware('role:athlete')->group(function () {
+        Route::get('/player-dashboard', [PageController::class, 'playerDashboard'])->name('player-dashboard');
+        Route::get('/request-session', [PageController::class, 'requestSession'])->name('request-session');
+        Route::post('/api/session-requests', [SessionRequestController::class, 'store'])->name('session-requests.store');
+        Route::post('/api/session-requests/{reference}/join', [SessionRequestController::class, 'join'])->name('session-requests.join');
+        Route::post('/api/session-requests/{reference}/cancel', [SessionRequestController::class, 'cancel'])->name('session-requests.cancel');
+    });
 
     Route::get('/api/session-requests', [SessionRequestController::class, 'index'])->name('session-requests.index');
-    Route::post('/api/session-requests', [SessionRequestController::class, 'store'])->name('session-requests.store');
     Route::get('/api/session-requests/{reference}', [SessionRequestController::class, 'show'])->name('session-requests.show');
-    Route::post('/api/session-requests/{reference}/join', [SessionRequestController::class, 'join'])->name('session-requests.join');
-    Route::post('/api/session-requests/{reference}/cancel', [SessionRequestController::class, 'cancel'])->name('session-requests.cancel');
 
-    Route::middleware('role:coach,admin')->group(function () {
+    Route::middleware('role:coach')->group(function () {
         Route::post('/api/session-requests/{reference}/accept', [SessionRequestController::class, 'accept'])->name('session-requests.accept');
+        Route::post('/api/session-requests/{reference}/decline', [SessionRequestController::class, 'decline'])->name('session-requests.decline');
         Route::patch('/api/session-requests/{reference}', [SessionRequestController::class, 'update'])->name('session-requests.update');
     });
 });
@@ -58,7 +61,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 | Coach portal
 |--------------------------------------------------------------------------
 */
-Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach,admin'])->group(function () {
+Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach'])->group(function () {
     Route::get('/schedule', [CoachController::class, 'schedule'])->name('schedule');
     Route::get('/dashboard', [CoachController::class, 'dashboard'])->name('dashboard');
     Route::get('/profile', [CoachController::class, 'profile'])->name('profile');

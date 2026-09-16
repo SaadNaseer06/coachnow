@@ -188,6 +188,13 @@ class SessionRequestController extends Controller
             return response()->json(['message' => 'This request is no longer open.'], 422);
         }
 
+        if ($session->isAcceptCutoffPassed()) {
+            $session->update(['status' => 'expired']);
+            $this->broadcastSessionRequest($session->fresh()->load(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location'])->toPortalArray(), 'expired');
+
+            return response()->json(['message' => 'This request expired — the parent’s cutoff has passed.'], 422);
+        }
+
         $user = $request->user();
         if ($user?->isAdmin()) {
             return response()->json(['message' => 'Admins can view session requests but cannot accept them.'], 403);
@@ -261,6 +268,52 @@ class SessionRequestController extends Controller
         return response()->json(['data' => $payload]);
     }
 
+    public function decline(Request $request, string $reference): JsonResponse
+    {
+        $session = SessionRequest::query()
+            ->with(['players', 'requester', 'requestedCoach'])
+            ->where('reference', $reference)
+            ->firstOrFail();
+
+        $user = $request->user();
+        if ($user?->isAdmin()) {
+            return response()->json(['message' => 'Admins can view session requests but cannot decline them.'], 403);
+        }
+
+        if ($session->status !== 'open') {
+            return response()->json(['message' => 'This request is no longer open.'], 422);
+        }
+
+        $coach = $this->resolveCoachProfile($request);
+        if (! $coach || ! $session->isVisibleToCoach($coach)) {
+            return response()->json(['message' => 'This request was sent to a different coach.'], 403);
+        }
+
+        $targeted = $session->requested_coach_id !== null
+            && (int) $session->requested_coach_id === (int) $coach->id;
+
+        if ($targeted) {
+            $session->update([
+                'status' => 'cancelled',
+                'coach_note' => 'Declined by '.$coach->display_name,
+            ]);
+            $session->refresh()->load(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location']);
+            $payload = $session->toPortalArray();
+            $this->broadcastSessionRequest($payload, 'cancelled');
+
+            return response()->json([
+                'data' => $payload,
+                'message' => 'You declined this request. The player has been notified.',
+            ]);
+        }
+
+        return response()->json([
+            'data' => $session->toPortalArray(),
+            'hidden' => true,
+            'message' => 'Hidden from your inbox. Other coaches can still accept it.',
+        ]);
+    }
+
     public function join(Request $request, string $reference): JsonResponse
     {
         $data = $request->validate([
@@ -277,6 +330,10 @@ class SessionRequestController extends Controller
 
         if (! in_array($session->status, ['hosted', 'awaiting_deposit', 'confirmed'], true) || ! $session->host_coach_id) {
             return response()->json(['message' => 'A coach must accept this request before other players can join.'], 422);
+        }
+
+        if ($session->isJoinClosed()) {
+            return response()->json(['message' => 'Joining closed 30 minutes before the session starts.'], 422);
         }
 
         if ($session->max_players !== null && $session->players->count() >= $session->max_players) {

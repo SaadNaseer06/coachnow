@@ -15,8 +15,22 @@ class EnsureUserRole
     {
         $user = $request->user();
 
-        if (! $user || (! empty($roles) && ! in_array($user->role, $roles, true))) {
-            abort(403, 'You do not have access to this area.');
+        if (! $user) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Please sign in to continue.'], 401);
+            }
+
+            return redirect()->guest(route('login'));
+        }
+
+        if (! empty($roles) && ! in_array($user->role, $roles, true)) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'That action is not available for this account.'], 403);
+            }
+
+            return redirect()
+                ->to($user->dashboardPath())
+                ->with('error', 'That page is for a different account type. You were sent back to your dashboard.');
         }
 
         return $next($request);

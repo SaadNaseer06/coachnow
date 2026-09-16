@@ -112,7 +112,7 @@
           confirmLabel: 'Cancel request',
           cancelLabel: 'Keep request',
         })
-      : window.confirm('Cancel this session request? Coaches will no longer see it.');
+      : false;
 
     if (!confirmed) {
       return;

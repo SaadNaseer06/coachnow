@@ -422,6 +422,34 @@ class SessionRequest extends Model
         return $this->status === 'open';
     }
 
+    public function startsAt(): ?Carbon
+    {
+        if (! $this->session_date || ! $this->session_time) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($this->session_date->toDateString().' '.$this->session_time);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public function isAcceptCutoffPassed(): bool
+    {
+        return $this->know_by_at !== null && $this->know_by_at->lte(now());
+    }
+
+    public function isJoinClosed(): bool
+    {
+        $start = $this->startsAt();
+        if (! $start) {
+            return false;
+        }
+
+        return now()->gte($start->copy()->subMinutes(30));
+    }
+
     public function canBeViewedBy(?User $user): bool
     {
         if (! $user) {
