@@ -54,16 +54,27 @@
                 <input type="email" name="email" value="{{ old('email') }}" required placeholder="you@email.com" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
               </label>
               <label class="block">
-                <span class="block text-[12px] font-medium text-[#191615] mb-2">Primary Sport</span>
+                <span class="block text-[12px] font-medium text-[#191615] mb-2">Sport</span>
+                <select name="sport" required class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none">
+                  <option value="" disabled {{ old('sport') ? '' : 'selected' }}>Select sport</option>
+                  @foreach (\App\Models\User::SPORTS as $sport)
+                    <option value="{{ $sport }}" @selected(old('sport') === $sport)>{{ $sport }}</option>
+                  @endforeach
+                </select>
+              </label>
+              <label class="block">
+                <span class="block text-[12px] font-medium text-[#191615] mb-2">Specialty</span>
                 <select name="specialty" required class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none">
-                  <option value="Soccer" @selected(old('specialty') === 'Soccer')>Soccer</option>
-                  <option value="Futsal" @selected(old('specialty') === 'Futsal')>Futsal</option>
-                  <option value="Performance & Speed" @selected(old('specialty') === 'Performance & Speed')>Performance &amp; Speed</option>
+                  <option value="" disabled {{ old('specialty') ? '' : 'selected' }}>Select specialty</option>
+                  @foreach (\App\Models\Coach::SPECIALTIES as $specialty)
+                    <option value="{{ $specialty }}" @selected(old('specialty') === $specialty)>{{ $specialty }}</option>
+                  @endforeach
                 </select>
               </label>
               <label class="block">
                 <span class="block text-[12px] font-medium text-[#191615] mb-2">Years of Experience</span>
                 <select name="experience" required class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none">
+                  <option value="" disabled {{ old('experience') ? '' : 'selected' }}>Select experience</option>
                   @foreach (\App\Models\Coach::EXPERIENCE_OPTIONS as $option)
                     <option value="{{ $option }}" @selected(old('experience') === $option)>{{ $option }}</option>
                   @endforeach

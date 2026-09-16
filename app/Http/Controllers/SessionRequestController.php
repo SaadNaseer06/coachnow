@@ -7,6 +7,7 @@ use App\Models\Coach;
 use App\Models\Location;
 use App\Models\SessionRequest;
 use App\Models\SessionRequestPlayer;
+use App\Models\User;
 use App\Services\AppMailer;
 use App\Services\SessionBookingService;
 use Illuminate\Http\JsonResponse;
@@ -73,7 +74,7 @@ class SessionRequestController extends Controller
             'session_date' => ['required', 'date', 'after_or_equal:today'],
             'session_time' => ['nullable', 'string', 'max:20'],
             'session_type' => ['required', 'string', 'max:160'],
-            'sport' => ['nullable', 'string', 'max:80'],
+            'sport' => ['required', 'string', Rule::in(User::SPORTS)],
             'age_range' => ['nullable', 'string', 'max:80'],
             'price_range' => ['nullable', 'string', 'max:80'],
             'player_level' => ['nullable', 'string', 'max:80'],
@@ -140,7 +141,7 @@ class SessionRequestController extends Controller
                 'session_date' => $data['session_date'],
                 'session_time' => $time,
                 'session_type' => $data['session_type'],
-                'sport' => $data['sport'] ?? 'Soccer',
+                'sport' => $data['sport'],
                 'age_range' => $data['age_range'] ?? null,
                 'price_range' => $data['price_range'] ?? null,
                 'player_level' => $data['player_level'] ?? null,

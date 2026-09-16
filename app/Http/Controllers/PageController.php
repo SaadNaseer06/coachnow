@@ -99,25 +99,21 @@ class PageController extends Controller
             return redirect()->to(auth()->user()->dashboardPath())
                 ->with('error', 'Sign out first to apply as a coach.');
         }
-        $specialtyMap = [
-            'Soccer' => 'Private Soccer Training',
-            'Futsal' => 'Futsal',
-            'Performance & Speed' => 'Performance & Speed',
-        ];
-
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'specialty' => ['required', 'string', 'in:Soccer,Futsal,Performance & Speed'],
+            'sport' => ['required', 'string', Rule::in(User::SPORTS)],
+            'specialty' => ['required', 'string', Rule::in(Coach::SPECIALTIES)],
             'experience' => ['required', 'string', Rule::in(Coach::EXPERIENCE_OPTIONS)],
             'bio' => ['required', 'string', 'max:2000'],
             'password' => ['required', 'confirmed', Password::min(8)],
         ]);
 
-        $user = DB::transaction(function () use ($data, $specialtyMap) {
+        $user = DB::transaction(function () use ($data) {
             $user = User::query()->create([
                 'name' => $data['name'],
                 'email' => $data['email'],
+                'sport' => $data['sport'],
                 'password' => $data['password'],
                 'role' => 'coach',
             ]);
@@ -130,7 +126,8 @@ class PageController extends Controller
                 'user_id' => $user->id,
                 'display_name' => $displayName,
                 'status' => 'pending',
-                'specialty' => $specialtyMap[$data['specialty']] ?? 'Private Soccer Training',
+                'sport' => $data['sport'],
+                'specialty' => $data['specialty'],
                 'experience' => $data['experience'],
                 'bio' => $data['bio'],
             ]);

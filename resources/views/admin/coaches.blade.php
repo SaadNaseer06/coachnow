@@ -174,8 +174,18 @@
             </select>
           </label>
           <label class="admin-field">
+            <span>Sport</span>
+            <select class="admin-select" name="sport" required>
+              <option value="">Select sport…</option>
+              @foreach (\App\Models\User::SPORTS as $sport)
+                <option value="{{ $sport }}" @selected(old('sport', $coach->sport) === $sport)>{{ $sport }}</option>
+              @endforeach
+            </select>
+          </label>
+          <label class="admin-field">
             <span>Specialty</span>
             <select class="admin-select" name="specialty" required>
+              <option value="">Select specialty…</option>
               @foreach (\App\Models\Coach::SPECIALTIES as $specialty)
                 <option value="{{ $specialty }}" @selected(old('specialty', $coach->specialty) === $specialty)>{{ $specialty }}</option>
               @endforeach
@@ -255,8 +265,18 @@
           </select>
         </label>
         <label class="admin-field">
+          <span>Sport</span>
+          <select class="admin-select" name="sport" required>
+            <option value="">Select sport…</option>
+            @foreach (\App\Models\User::SPORTS as $sport)
+              <option value="{{ $sport }}" @selected(old('sport') === $sport)>{{ $sport }}</option>
+            @endforeach
+          </select>
+        </label>
+        <label class="admin-field">
           <span>Specialty</span>
           <select class="admin-select" name="specialty" required>
+            <option value="">Select specialty…</option>
             @foreach (\App\Models\Coach::SPECIALTIES as $specialty)
               <option value="{{ $specialty }}" @selected(old('specialty') === $specialty)>{{ $specialty }}</option>
             @endforeach
@@ -264,11 +284,11 @@
         </label>
         <label class="admin-field">
           <span>Ages</span>
-          <input class="admin-input" type="text" name="ages" value="{{ old('ages', 'Ages 8–14') }}" maxlength="80" placeholder="Ages 8–14">
+          <input class="admin-input" type="text" name="ages" value="{{ old('ages') }}" maxlength="80" placeholder="Ages 8–14">
         </label>
         <label class="admin-field">
           <span>Rate ($ / session)</span>
-          <input class="admin-input" type="number" name="rate" value="{{ old('rate', '50') }}" required min="0" max="9999" step="1">
+          <input class="admin-input" type="number" name="rate" value="{{ old('rate') }}" required min="0" max="9999" step="1" placeholder="50">
         </label>
         <label class="admin-field">
           <span>Status</span>

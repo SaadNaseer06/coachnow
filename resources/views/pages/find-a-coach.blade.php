@@ -197,10 +197,10 @@
 
                   <select id="sportSelect"
                     class="min-w-0 flex-1 bg-transparent text-zinc-900 text-sm font-medium outline-none appearance-none cursor-pointer pr-7">
-
-                    <option value="soccer" selected>Soccer</option>
-                    <option value="futsal">Futsal</option>
-                    <option value="fitness">Performance &amp; Speed</option>
+                    <option value="" selected>All sports</option>
+                    @foreach (\App\Models\User::SPORTS as $sport)
+                      <option value="{{ \App\Models\User::sportFilterValue($sport) }}">{{ $sport }}</option>
+                    @endforeach
                   </select>
 
                   <svg class="w-3.5 h-3.5 text-zinc-500 absolute right-3 pointer-events-none"
@@ -573,7 +573,10 @@
             @forelse ($coaches ?? [] as $index => $coach)
               @php
                 $specialty = strtolower($coach->specialty ?? '');
-                $sport = str_contains($specialty, 'futsal') ? 'soccer futsal' : (str_contains($specialty, 'performance') || str_contains($specialty, 'speed') ? 'soccer fitness' : 'soccer');
+                $sport = \App\Models\User::sportFilterValue($coach->sport);
+                if ($sport === '') {
+                    $sport = str_contains($specialty, 'futsal') ? 'futsal' : (str_contains($specialty, 'performance') || str_contains($specialty, 'speed') ? 'fitness' : '');
+                }
                 $experience = match (true) {
                   str_starts_with((string) $coach->experience, '1-3') => '1-3',
                   str_starts_with((string) $coach->experience, '4-5') => '4-5',

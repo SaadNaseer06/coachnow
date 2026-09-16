@@ -8,6 +8,7 @@ use App\Models\Coach;
 use App\Models\Location;
 use App\Models\SessionRequest;
 use App\Models\SharedVideo;
+use App\Models\User;
 use App\Services\SessionBookingService;
 use App\Services\VideoCompressionService;
 use Illuminate\Http\RedirectResponse;
@@ -326,7 +327,7 @@ class CoachController extends Controller
                 'slug' => null,
                 'name' => 'Select a player',
                 'age' => '—',
-                'sport' => 'Soccer',
+                'sport' => '—',
             ],
             'roster' => $roster->all(),
         ]);
@@ -354,6 +355,7 @@ class CoachController extends Controller
         $data = $request->validate([
             'display_name' => ['required', 'string', 'max:120'],
             'specialty' => ['required', 'string', Rule::in(Coach::SPECIALTIES)],
+            'sport' => ['required', 'string', Rule::in(User::SPORTS)],
             'experience' => ['required', 'string', Rule::in(Coach::EXPERIENCE_OPTIONS)],
             'ages' => ['required', 'string', 'max:80'],
             'location_id' => ['required', 'integer', 'exists:locations,id'],
@@ -376,6 +378,7 @@ class CoachController extends Controller
         unset($data['photo'], $data['remove_photo']);
 
         $coach->update($data);
+        $coach->user?->update(['sport' => $data['sport']]);
         $coach->refresh();
 
         $message = $coach->isProfileComplete()
@@ -542,7 +545,7 @@ class CoachController extends Controller
                     'name' => $name,
                     'initials' => $initials ?: 'PL',
                     'age' => '—',
-                    'sport' => $coach->specialty ? Str::before($coach->specialty, ' ') : 'Soccer',
+                    'sport' => $first->athlete?->sport ?: '—',
                     'sessions' => $group->count(),
                     'focus' => $latestType,
                     'next' => $upcoming?->whenLabel() ?? 'No upcoming',

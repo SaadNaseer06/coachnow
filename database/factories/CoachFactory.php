@@ -26,6 +26,7 @@ class CoachFactory extends Factory
                 'Team Training',
                 'Performance & Speed',
             ]),
+            'sport' => fake()->randomElement(User::SPORTS),
             'experience' => fake()->randomElement(['1-3 years', '4-5 years', '6-7 years', '8+ years']),
             'ages' => 'Ages 8–14',
             'status' => 'active',

@@ -585,7 +585,7 @@
         if (distanceRange) distanceRange.value = '100';
         updateDistanceDisplay();
         if (locationInput) locationInput.value = '';
-        if (sportSelect) sportSelect.value = 'soccer';
+        if (sportSelect) sportSelect.value = '';
         if (sessionTypeSelect) sessionTypeSelect.value = 'all';
         if (whenSelect) whenSelect.value = '';
         searchFilters = { sport: '', session: '', when: '', location: '' };

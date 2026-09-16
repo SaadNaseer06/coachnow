@@ -59,13 +59,24 @@
             </label>
           </div>
 
+          <label class="block">
+            <span class="block text-[12px] font-medium text-[#191615] mb-2">Sport</span>
+            <select name="sport" required class="auth-input appearance-none bg-white">
+              <option value="" disabled {{ old('sport') ? '' : 'selected' }}>Select sport</option>
+              @foreach (\App\Models\User::SPORTS as $sport)
+                <option value="{{ $sport }}" @selected(old('sport') === $sport)>{{ $sport }}</option>
+              @endforeach
+            </select>
+          </label>
+
           <div data-coach-fields class="space-y-4 {{ old('role') === 'coach' ? '' : 'hidden' }}">
             <div class="auth-grid-2">
               <label class="block">
                 <span class="block text-[12px] font-medium text-[#191615] mb-2">Specialty</span>
                 <select name="specialty" class="auth-input appearance-none bg-white">
+                  <option value="">Select specialty</option>
                   @foreach (\App\Models\Coach::SPECIALTIES as $specialty)
-                    <option value="{{ $specialty }}" @selected(old('specialty', 'Private Soccer Training') === $specialty)>{{ $specialty }}</option>
+                    <option value="{{ $specialty }}" @selected(old('specialty') === $specialty)>{{ $specialty }}</option>
                   @endforeach
                 </select>
               </label>
@@ -73,7 +84,8 @@
               <label class="block">
                 <span class="block text-[12px] font-medium text-[#191615] mb-2">Years of Experience</span>
                 <select name="experience" class="auth-input appearance-none bg-white">
-                  <option value="1-3 years" @selected(old('experience', '1-3 years') === '1-3 years')>1–3 years</option>
+                  <option value="">Select experience</option>
+                  <option value="1-3 years" @selected(old('experience') === '1-3 years')>1–3 years</option>
                   <option value="4-5 years" @selected(old('experience') === '4-5 years')>4–5 years</option>
                   <option value="6-7 years" @selected(old('experience') === '6-7 years')>6–7 years</option>
                   <option value="8+ years" @selected(old('experience') === '8+ years')>8+ years</option>

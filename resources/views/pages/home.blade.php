@@ -159,9 +159,10 @@
                     </svg>
                     <select id="sportSelect"
                       class="min-w-0 flex-1 bg-transparent text-zinc-900 text-sm font-medium outline-none appearance-none cursor-pointer pr-7">
-                      <option value="soccer" selected>Soccer</option>
-                      <option value="futsal">Futsal</option>
-                      <option value="fitness">Performance & Speed</option>
+                      <option value="" selected>All sports</option>
+                      @foreach (\App\Models\User::SPORTS as $sport)
+                        <option value="{{ \App\Models\User::sportFilterValue($sport) }}">{{ $sport }}</option>
+                      @endforeach
                     </select>
                     <svg class="w-3.5 h-3.5 text-zinc-500 absolute right-3 pointer-events-none" viewBox="0 0 24 24"
                       fill="none" stroke="currentColor" stroke-width="2">

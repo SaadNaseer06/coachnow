@@ -90,7 +90,7 @@
           </div>
           <div>
             <p class="text-[17px] font-semibold text-white leading-tight">{{ $user->name }}</p>
-            <p class="text-[13px] text-zinc-300 mt-1">Athlete · Soccer</p>
+            <p class="text-[13px] text-zinc-300 mt-1">Athlete@if($user->sport) · {{ $user->sport }}@endif</p>
             <p class="text-[12px] text-zinc-400 mt-0.5">{{ $user->email }}</p>
           </div>
         </div>

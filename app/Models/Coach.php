@@ -45,6 +45,7 @@ class Coach extends Model
         'location_id',
         'display_name',
         'specialty',
+        'sport',
         'experience',
         'ages',
         'status',
@@ -113,7 +114,9 @@ class Coach extends Model
         $specialty = trim((string) $this->specialty);
 
         if ($specialty === '') {
-            return 'Professional Soccer Coach';
+            $sport = trim((string) $this->sport);
+
+            return $sport !== '' ? $sport.' Coach' : 'Coach';
         }
 
         if (str_contains(strtolower($specialty), 'coach')) {
@@ -174,6 +177,7 @@ class Coach extends Model
     public function isReadyForListing(): bool
     {
         return filled($this->display_name)
+            && filled($this->sport)
             && filled($this->specialty)
             && filled($this->experience)
             && filled($this->ages)
@@ -190,6 +194,9 @@ class Coach extends Model
 
         if (! filled($this->display_name)) {
             $missing[] = 'Display name';
+        }
+        if (! filled($this->sport)) {
+            $missing[] = 'Sport';
         }
         if (! filled($this->specialty)) {
             $missing[] = 'Specialty';

@@ -107,12 +107,10 @@
                     <div class="req-field">
                       <label for="reqSport">Sport</label>
                       <select id="reqSport" name="sport" required>
-                        <option value="" disabled selected>Select sport</option>
-                        <option value="Soccer">Soccer</option>
-                        <option value="Basketball">Basketball</option>
-                        <option value="Baseball">Baseball</option>
-                        <option value="Softball">Softball</option>
-                        <option value="Tennis">Tennis</option>
+                        <option value="" disabled @selected(! old('sport', auth()->user()?->sport))>Select sport</option>
+                        @foreach (\App\Models\User::SPORTS as $sport)
+                          <option value="{{ $sport }}" @selected(old('sport', auth()->user()?->sport) === $sport)>{{ $sport }}</option>
+                        @endforeach
                       </select>
                     </div>
 

@@ -23,12 +23,41 @@ class User extends Authenticatable
     /**
      * @var list<string>
      */
+    public const SPORTS = [
+        'Soccer',
+        'Futsal',
+        'Basketball',
+        'Baseball',
+        'Softball',
+        'Tennis',
+        'Performance & Speed',
+    ];
+
+    public static function sportFilterValue(?string $sport): string
+    {
+        $sport = strtolower(trim((string) $sport));
+
+        if ($sport === '') {
+            return '';
+        }
+
+        if (str_contains($sport, 'performance') || str_contains($sport, 'speed')) {
+            return 'fitness';
+        }
+
+        return str_replace([' & ', ' '], ['-', '-'], $sport);
+    }
+
+    /**
+     * @var list<string>
+     */
     protected $fillable = [
         'name',
         'email',
         'password',
         'role',
         'phone',
+        'sport',
     ];
 
     /**

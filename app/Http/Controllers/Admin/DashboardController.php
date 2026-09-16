@@ -118,6 +118,7 @@ class DashboardController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', Password::min(8)],
             'location_id' => ['required', 'integer', 'exists:locations,id'],
+            'sport' => ['required', 'string', Rule::in(User::SPORTS)],
             'specialty' => ['required', 'string', Rule::in(Coach::SPECIALTIES)],
             'ages' => ['nullable', 'string', 'max:80'],
             'rate' => ['required', 'numeric', 'min:0', 'max:9999'],
@@ -130,6 +131,7 @@ class DashboardController extends Controller
             $user = User::query()->create([
                 'name' => $data['name'],
                 'email' => $data['email'],
+                'sport' => $data['sport'],
                 'password' => $data['password'],
                 'role' => User::ROLE_COACH,
             ]);
@@ -142,6 +144,7 @@ class DashboardController extends Controller
                 'user_id' => $user->id,
                 'location_id' => $data['location_id'],
                 'display_name' => $displayName,
+                'sport' => $data['sport'],
                 'specialty' => $data['specialty'],
                 'ages' => $data['ages'] ?? null,
                 'experience' => $data['experience'] ?? null,
@@ -164,6 +167,7 @@ class DashboardController extends Controller
         $data = $request->validate([
             'display_name' => ['required', 'string', 'max:120'],
             'location_id' => ['required', 'integer', 'exists:locations,id'],
+            'sport' => ['required', 'string', Rule::in(User::SPORTS)],
             'specialty' => ['required', 'string', Rule::in(Coach::SPECIALTIES)],
             'ages' => ['nullable', 'string', 'max:80'],
             'rate' => ['required', 'numeric', 'min:0', 'max:9999'],
@@ -173,6 +177,7 @@ class DashboardController extends Controller
         ]);
 
         $coach->update(collect($data)->except('status')->all());
+        $coach->user?->update(['sport' => $data['sport']]);
 
         if ($data['status'] !== $coach->status && $data['status'] === 'paused') {
             return redirect()

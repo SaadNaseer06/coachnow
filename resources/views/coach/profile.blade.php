@@ -92,6 +92,16 @@
     </label>
 
     <label class="admin-field">
+      <span>Sport</span>
+      <select class="admin-select" name="sport" required>
+        <option value="">Select sport…</option>
+        @foreach (\App\Models\User::SPORTS as $sport)
+          <option value="{{ $sport }}" @selected(old('sport', $coach->sport) === $sport)>{{ $sport }}</option>
+        @endforeach
+      </select>
+    </label>
+
+    <label class="admin-field">
       <span>Specialty</span>
       <select class="admin-select" name="specialty" required>
         <option value="">Select specialty…</option>

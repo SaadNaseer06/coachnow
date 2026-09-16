@@ -562,7 +562,7 @@ class SessionRequest extends Model
             'session_type' => $this->session_type,
             'age_range' => $this->age_range,
             'price_range' => $this->price_range,
-            'sport' => $this->sport ?? 'Soccer',
+            'sport' => $this->sport ?: '—',
             'notes' => $this->notes,
             'min_players' => $this->min_players ?? '',
             'max_players' => $this->max_players ?? '',

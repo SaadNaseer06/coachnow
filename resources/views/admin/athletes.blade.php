@@ -24,6 +24,7 @@
         <tr>
           <th>Athlete / Family</th>
           <th>Email</th>
+          <th>Sport</th>
           <th>Sessions</th>
           <th>Last Booking</th>
           <th>Preferred Park</th>
@@ -51,6 +52,7 @@
               </div>
             </td>
             <td>{{ $athlete->email }}</td>
+            <td>{{ $athlete->sport ?: '—' }}</td>
             <td>{{ $athlete->sessions_count ?? 0 }}</td>
             <td>{{ $lastLabel }}</td>
             <td>{{ $athlete->preferred_park ?? '—' }}</td>
@@ -64,7 +66,7 @@
           </tr>
         @empty
           <tr>
-            <td colspan="6" class="text-center text-zinc-500 py-8">No athletes match these filters.</td>
+            <td colspan="7" class="text-center text-zinc-500 py-8">No athletes match these filters.</td>
           </tr>
         @endforelse
       </tbody>

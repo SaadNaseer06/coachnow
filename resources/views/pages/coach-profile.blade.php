@@ -13,7 +13,7 @@
   $parkName = $coach->location?->name;
   $bio = filled($coach->bio)
     ? $coach->bio
-    : $name.' is a dedicated soccer coach focused on fundamentals, confidence, discipline, and long-term player development.';
+    : $name.' is a dedicated'.($coach->sport ? ' '.strtolower($coach->sport) : '').' coach focused on fundamentals, confidence, discipline, and long-term player development.';
   $privateRate = $coach->privateRate();
   $groupRate = $coach->groupRate();
   $teamRate = $coach->teamRate();
@@ -150,7 +150,7 @@
                   </div>
                   <div class="flex items-center gap-3">
                     <span class="w-11 h-11 rounded-full bg-brand-red grid place-items-center shrink-0"><img src="{{ asset('assets/Group 273355221.svg') }}" alt="" class="w-5 h-6 object-contain"></span>
-                    <div><strong class="block text-[15px] lg:text-[16px]">{{ $coach->specialty ?: 'Soccer' }}</strong><span class="text-[12px] lg:text-[13px] text-zinc-500">Primary Focus</span></div>
+                    <div><strong class="block text-[15px] lg:text-[16px]">{{ $coach->sport ?: ($coach->specialty ?: '—') }}</strong><span class="text-[12px] lg:text-[13px] text-zinc-500">Primary Focus</span></div>
                   </div>
                 </div>
 
@@ -171,7 +171,7 @@
               <aside class="rounded-[12px] border border-zinc-200 overflow-hidden divide-y divide-zinc-200">
                 <div class="p-4">
                   <h4 class="flex items-center gap-2 text-[14px] lg:text-[15px] font-semibold mb-3"><img src="{{ asset('assets/Vector.png') }}" alt="" class="w-4 h-4 object-contain shrink-0">Sports</h4>
-                  <p class="flex items-center gap-2 pl-6 text-[12px] lg:text-[13px] text-zinc-500"><img src="{{ asset('assets/Vector.png') }}" alt="" class="w-3.5 h-3.5 object-contain shrink-0" style="filter:brightness(0) saturate(100%) invert(11%) sepia(97%) saturate(6477%) hue-rotate(356deg) brightness(91%) contrast(114%)">Soccer</p>
+                  <p class="flex items-center gap-2 pl-6 text-[12px] lg:text-[13px] text-zinc-500"><img src="{{ asset('assets/Vector.png') }}" alt="" class="w-3.5 h-3.5 object-contain shrink-0" style="filter:brightness(0) saturate(100%) invert(11%) sepia(97%) saturate(6477%) hue-rotate(356deg) brightness(91%) contrast(114%)">{{ $coach->sport ?: '—' }}</p>
                 </div>
                 <div class="p-4">
                   <h4 class="flex items-center gap-2 text-[14px] lg:text-[15px] font-semibold mb-3"><img src="{{ asset('assets/Group 273354911.svg') }}" alt="" class="w-4 h-4 object-contain shrink-0" style="filter:brightness(0) saturate(100%) invert(11%) sepia(97%) saturate(6477%) hue-rotate(356deg) brightness(91%) contrast(114%)">Session Types</h4>
@@ -341,7 +341,7 @@
             <h3 class="text-[15px] lg:text-[16px] font-semibold px-5 py-4">Quick Info</h3>
             <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-zinc-200 text-[12px] lg:text-[13px] text-zinc-500"><span class="inline-flex items-center gap-2"><img src="{{ asset('assets/Group 273355246.svg') }}" alt="" class="w-4 h-4 object-contain shrink-0">Response Time</span><span>In Hours</span></div>
             <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-zinc-200 text-[12px] lg:text-[13px] text-zinc-500"><span class="inline-flex items-center gap-2"><img src="{{ asset('assets/Group 273355246-1.svg') }}" alt="" class="w-4 h-4 object-contain shrink-0">Joined Date</span><span>{{ $joined }}</span></div>
-            <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-zinc-200 text-[12px] lg:text-[13px] text-zinc-500"><span class="inline-flex items-center gap-2"><img src="{{ asset('assets/Group 273354911.svg') }}" alt="" class="w-4 h-4 object-contain shrink-0">Specialty</span><span class="text-right">{{ $coach->specialty ?: 'Soccer' }}</span></div>
+            <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-zinc-200 text-[12px] lg:text-[13px] text-zinc-500"><span class="inline-flex items-center gap-2"><img src="{{ asset('assets/Group 273354911.svg') }}" alt="" class="w-4 h-4 object-contain shrink-0">Specialty</span><span class="text-right">{{ $coach->specialty ?: ($coach->sport ?: '—') }}</span></div>
             <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-zinc-200 text-[12px] lg:text-[13px] text-zinc-500"><span class="inline-flex items-center gap-2"><img src="{{ asset('assets/Group 273354911-1.svg') }}" alt="" class="w-4 h-4 object-contain shrink-0">Ages</span><span>{{ $coach->ages ?: 'All ages' }}</span></div>
             <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-zinc-200 text-[12px] lg:text-[13px] text-zinc-500"><span class="inline-flex items-center gap-2"><img src="{{ asset('assets/Group 273354911-2.svg') }}" alt="" class="w-4 h-4 object-contain shrink-0">Rating</span><span>{{ $rating }} / 5</span></div>
           </div>

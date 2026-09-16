@@ -590,7 +590,7 @@
           <div><dt>Age range</dt><dd>${escapeHtml(req.age_range || '—')}</dd></div>
           <div><dt>Budget / player</dt><dd>${escapeHtml(req.price_range || '—')}</dd></div>
           ${payoutFieldHtml(req, players.length || Number(card.dataset.playersJoined || 0))}
-          <div><dt>Sport</dt><dd>${escapeHtml(req.sport || 'Soccer')}</dd></div>
+          <div><dt>Sport</dt><dd>${escapeHtml(req.sport || '—')}</dd></div>
           ${extraFieldsHtml(req)}
         </div>
         ${req.notes ? `<p class="coach-req-card__notes">${escapeHtml(req.notes)}</p>` : ''}
@@ -626,7 +626,7 @@
         <div><dt>Age range</dt><dd>${escapeHtml(req.age_range || '—')}</dd></div>
         <div><dt>Budget / player</dt><dd>${escapeHtml(req.price_range || '—')}</dd></div>
         ${payoutFieldHtml(req, 0)}
-        <div><dt>Sport</dt><dd>${escapeHtml(req.sport || 'Soccer')}</dd></div>
+        <div><dt>Sport</dt><dd>${escapeHtml(req.sport || '—')}</dd></div>
         ${extraFieldsHtml(req)}
       </div>
       ${req.notes ? `<p class="coach-req-card__notes">${escapeHtml(req.notes)}</p>` : ''}

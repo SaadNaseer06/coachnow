@@ -818,7 +818,7 @@
           session_date: sessionDateIso(),
           session_time: state.selectedTime || null,
           session_type: state.sessionType,
-          sport: state.sport || 'Soccer',
+          sport: state.sport || '',
           age_range: state.ageRange || null,
           price_range: state.priceRange || null,
           player_level: state.playerLevel || null,

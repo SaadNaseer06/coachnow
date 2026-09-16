@@ -60,6 +60,7 @@ class AuthController extends Controller
             'phone' => ['nullable', 'string', 'max:40'],
             'password' => ['required', 'confirmed', Password::min(8)],
             'role' => ['required', 'in:athlete,coach'],
+            'sport' => ['required', 'string', Rule::in(User::SPORTS)],
             'specialty' => ['required_if:role,coach', 'nullable', 'string', Rule::in(Coach::SPECIALTIES)],
             'experience' => ['required_if:role,coach', 'nullable', 'string', Rule::in(Coach::EXPERIENCE_OPTIONS)],
             'bio' => ['required_if:role,coach', 'nullable', 'string', 'max:2000'],
@@ -70,6 +71,7 @@ class AuthController extends Controller
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
+                'sport' => $data['sport'],
                 'password' => $data['password'],
                 'role' => $data['role'],
             ]);
@@ -83,6 +85,7 @@ class AuthController extends Controller
                     'user_id' => $user->id,
                     'display_name' => $displayName,
                     'status' => 'pending',
+                    'sport' => $data['sport'],
                     'specialty' => $data['specialty'],
                     'experience' => $data['experience'],
                     'bio' => $data['bio'],

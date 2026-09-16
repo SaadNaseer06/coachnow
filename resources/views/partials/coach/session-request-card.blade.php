@@ -143,7 +143,7 @@
     @endif
     <div>
       <dt>Sport</dt>
-      <dd>{{ $request['sport'] ?? 'Soccer' }}</dd>
+      <dd>{{ $request['sport'] ?? '—' }}</dd>
     </div>
     <div data-players-row @if ($playersLabel === '' && ! $isHosted) hidden @endif>
       <dt>Players</dt>
