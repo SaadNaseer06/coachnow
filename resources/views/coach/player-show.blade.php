@@ -247,7 +247,7 @@
                   @endif
                 </p>
               </div>
-              <form method="POST" action="{{ route('coach.players.videos.destroy', ['player' => $player['slug'], 'video' => $video['id']]) }}" onsubmit="return confirm('Remove this shared video?');">
+              <form method="POST" action="{{ route('coach.players.videos.destroy', ['player' => $player['slug'], 'video' => $video['id']]) }}" data-confirm-remove>
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm" data-loading-text="Removing…">Remove</button>
@@ -414,5 +414,25 @@
       });
       sync();
     })();
+
+    document.querySelectorAll('[data-confirm-remove]').forEach((form) => {
+      form.addEventListener('submit', async (event) => {
+        if (form.dataset.confirmed === '1') return;
+        event.preventDefault();
+
+        const ok = window.CoachNowDialog?.confirm
+          ? await window.CoachNowDialog.confirm({
+              title: 'Remove this video?',
+              message: 'This shared video will be removed from the player’s library.',
+              confirmLabel: 'Remove video',
+              cancelLabel: 'Keep it',
+            })
+          : false;
+
+        if (!ok) return;
+        form.dataset.confirmed = '1';
+        form.submit();
+      });
+    });
   </script>
 @endpush

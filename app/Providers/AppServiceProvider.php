@@ -30,16 +30,19 @@ class AppServiceProvider extends ServiceProvider
             $event->message->embedFromPath($logo, 'coachnow-logo', 'image/png');
         });
 
-        View::composer('layouts.coach', function ($view) {
+        View::composer(['layouts.coach', 'layouts.admin'], function ($view) {
             $user = auth()->user();
             $coach = $user?->coach;
+            $isAdmin = (bool) $user?->isAdmin();
 
             $query = SessionRequest::query()
                 ->with(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location'])
                 ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
                 ->orderByDesc('created_at');
 
-            if ($coach) {
+            if ($isAdmin) {
+                // Admins can view every request, including private/targeted ones.
+            } elseif ($coach) {
                 $query->visibleToCoach($coach);
             } else {
                 $query->whereRaw('1 = 0');
@@ -55,6 +58,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with([
                 'sessionRequests' => $sessionRequests,
                 'currentCoachId' => $coach?->id,
+                'sessionRequestsIsAdmin' => $isAdmin,
             ]);
         });
 

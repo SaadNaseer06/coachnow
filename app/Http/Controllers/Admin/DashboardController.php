@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Coach;
 use App\Models\Location;
+use App\Models\SessionRequest;
 use App\Models\User;
 use App\Services\AppMailer;
 use Illuminate\Http\RedirectResponse;
@@ -72,6 +73,7 @@ class DashboardController extends Controller
             ->with(['user', 'location'])
             ->withCount([
                 'bookings as upcoming_bookings_count' => fn ($q) => $q->upcoming(),
+                'requestedSessions as open_request_count' => fn ($q) => $q->where('status', 'open'),
             ])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($inner) use ($search) {
@@ -87,6 +89,13 @@ class DashboardController extends Controller
             ->orderByDesc('created_at')
             ->paginate(15)
             ->withQueryString();
+
+        $coaches->getCollection()->transform(function (Coach $coach) {
+            $coach->upcoming_commitments_count = (int) ($coach->upcoming_bookings_count ?? 0)
+                + (int) ($coach->open_request_count ?? 0);
+
+            return $coach;
+        });
 
         $locations = Location::query()->orderBy('name')->get(['id', 'name']);
 
@@ -185,18 +194,20 @@ class DashboardController extends Controller
         }
 
         $upcomingCount = 0;
+        $suspendedCount = 0;
         if ($data['status'] === 'paused') {
-            $upcomingCount = Booking::query()
-                ->forCoach($coach->id)
-                ->upcoming()
-                ->count();
+            $upcomingCount = $this->upcomingCommitmentCount($coach);
 
             if ($upcomingCount > 0 && ! $request->boolean('force')) {
                 return redirect()
                     ->route('admin.coaches')
                     ->withErrors([
-                        'status' => $coach->display_name.' has '.$upcomingCount.' upcoming session'.($upcomingCount === 1 ? '' : 's').'. Confirm pause to hide them from Find a Coach — existing bookings stay on the calendar until you reschedule or cancel them.',
+                        'status' => $coach->display_name.' has '.$upcomingCount.' upcoming session'.($upcomingCount === 1 ? '' : 's').'. Confirm pause to hide them from Find a Coach and suspend those sessions.',
                     ]);
+            }
+
+            if ($request->boolean('force') || $upcomingCount > 0) {
+                $suspendedCount = $this->suspendUpcomingSessions($coach);
             }
         }
 
@@ -207,7 +218,7 @@ class DashboardController extends Controller
         $message = match ($data['status']) {
             'active' => $coach->display_name.' is now live on Find a Coach.',
             'paused' => $coach->display_name.' was paused and hidden from Find a Coach.'
-                .($upcomingCount > 0 ? ' '.$upcomingCount.' upcoming booking'.($upcomingCount === 1 ? '' : 's').' still need attention.' : ''),
+                .($suspendedCount > 0 ? ' '.$suspendedCount.' upcoming session'.($suspendedCount === 1 ? '' : 's').' were suspended.' : ''),
             default => $coach->display_name.' was set back to pending.',
         };
 
@@ -453,6 +464,49 @@ class DashboardController extends Controller
         }
 
         return Carbon::today()->startOfWeek(Carbon::MONDAY);
+    }
+
+    private function upcomingCommitmentCount(Coach $coach): int
+    {
+        $bookings = Booking::query()
+            ->forCoach($coach->id)
+            ->upcoming()
+            ->count();
+
+        $openRequests = SessionRequest::query()
+            ->where('requested_coach_id', $coach->id)
+            ->where('status', 'open')
+            ->count();
+
+        return $bookings + $openRequests;
+    }
+
+    private function suspendUpcomingSessions(Coach $coach): int
+    {
+        $bookingCount = Booking::query()
+            ->forCoach($coach->id)
+            ->upcoming()
+            ->update(['status' => 'cancelled']);
+
+        $requestCount = SessionRequest::query()
+            ->where(function ($q) use ($coach) {
+                $q->where('requested_coach_id', $coach->id)
+                    ->orWhere('host_coach_id', $coach->id);
+            })
+            ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
+            ->where(function ($q) {
+                $q->whereDate('session_date', '>', now()->toDateString())
+                    ->orWhere(function ($inner) {
+                        $inner->whereDate('session_date', now()->toDateString())
+                            ->where(function ($time) {
+                                $time->whereNull('session_time')
+                                    ->orWhereTime('session_time', '>=', now()->format('H:i:s'));
+                            });
+                    });
+            })
+            ->update(['status' => 'cancelled']);
+
+        return $bookingCount + $requestCount;
     }
 
     private function timeToGrid(string $time, int $duration): array

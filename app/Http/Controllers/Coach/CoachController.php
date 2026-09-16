@@ -54,7 +54,7 @@ class CoachController extends Controller
         $upcomingTotal = Booking::query()
             ->forCoach($coach->id)
             ->confirmed()
-            ->whereDate('session_date', '>=', Carbon::today())
+            ->upcoming()
             ->count();
 
         return view('coach.schedule', [
@@ -488,9 +488,7 @@ class CoachController extends Controller
         $nearest = Booking::query()
             ->forCoach($coach->id)
             ->confirmed()
-            ->whereDate('session_date', '>=', Carbon::today())
-            ->orderBy('session_date')
-            ->orderBy('session_time')
+            ->upcoming()
             ->first();
 
         if (! $nearest) {
@@ -530,7 +528,7 @@ class CoachController extends Controller
                 $name = $first->displayName();
                 $slug = $first->athleteSlug();
                 $upcoming = $group
-                    ->filter(fn (Booking $b) => $b->session_date && $b->session_date->gte(Carbon::today()))
+                    ->filter(fn (Booking $b) => $b->isUpcoming())
                     ->sortBy(fn (Booking $b) => ($b->session_date?->timestamp ?? 0).' '.($b->session_time ?? ''))
                     ->first();
                 $latestType = $first->session_type ?? 'General';

@@ -78,6 +78,16 @@ class Coach extends Model
         return $this->hasMany(Booking::class);
     }
 
+    public function requestedSessions(): HasMany
+    {
+        return $this->hasMany(SessionRequest::class, 'requested_coach_id');
+    }
+
+    public function hostedSessions(): HasMany
+    {
+        return $this->hasMany(SessionRequest::class, 'host_coach_id');
+    }
+
     public function sharedVideos(): HasMany
     {
         return $this->hasMany(SharedVideo::class);

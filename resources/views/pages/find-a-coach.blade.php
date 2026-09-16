@@ -147,7 +147,8 @@
                   <select id="whenSelect"
                     class="min-w-0 flex-1 bg-transparent text-zinc-900 text-sm font-medium outline-none appearance-none cursor-pointer pr-7">
 
-                    <option value="today" selected>Today</option>
+                    <option value="" selected>Any day</option>
+                    <option value="today">Today</option>
                     <option value="tomorrow">Tomorrow</option>
                     <option value="this-weekend">This Weekend</option>
                     <option value="next-week">Next Week</option>
@@ -324,11 +325,11 @@
               <div class="relative pt-7 mb-3">
                 <output id="distanceValue" for="distanceRange"
                   class="absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-md bg-brand-red px-2 py-1 text-[10px] font-semibold leading-none text-white shadow-sm">
-                  50 mi
+                  100 mi
                 </output>
-                <input id="distanceRange" type="range" min="0" max="50" value="50" step="1"
+                <input id="distanceRange" type="range" min="0" max="100" value="100" step="1"
                   aria-label="Maximum distance in miles"
-                  aria-valuetext="50 miles"
+                  aria-valuetext="100 miles"
                   class="block w-full h-2 accent-[#DA020C] cursor-pointer">
               </div>
 
@@ -585,10 +586,13 @@
                   str_contains($specialty, '1-on-1') || str_contains($specialty, 'private') => '1on1',
                   default => '1on1',
                 };
-                $distance = (float) ($coach->location?->distance_miles ?? 5);
+                $distance = $coach->location?->distance_miles;
+                $distance = $distance !== null ? (float) $distance : null;
                 $photo = $coach->photoUrl();
                 $delay = 80 + ($index * 80);
-                $distanceLabel = number_format($distance, 1).' miles away'.($coach->location ? ' · '.$coach->location->name : '');
+                $distanceLabel = $distance !== null
+                  ? number_format($distance, 1).' miles away'.($coach->location ? ' · '.$coach->location->name : '')
+                  : ($coach->location ? $coach->location->name : 'Location TBD');
                 $ageTags = $coach->ageFilterTags();
               @endphp
               <article
@@ -596,7 +600,7 @@
                 style="--motion-delay:{{ $delay }}ms;"
                 data-price="{{ (int) $coach->rate }}"
                 data-rating="{{ number_format((float) $coach->rating, 1) }}"
-                data-distance="{{ $distance }}"
+                data-distance="{{ $distance !== null ? $distance : '' }}"
                 data-sport="{{ $sport }}"
                 data-experience="{{ $experience }}"
                 data-age="{{ $ageTags }}"

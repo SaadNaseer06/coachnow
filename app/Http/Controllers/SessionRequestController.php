@@ -32,6 +32,8 @@ class SessionRequestController extends Controller
                 $q->where('requester_id', $user->id)
                     ->orWhereHas('players', fn ($p) => $p->where('user_id', $user->id));
             });
+        } elseif ($user->isAdmin()) {
+            // View all requests, including private ones targeted at a specific coach.
         } elseif ($user->isCoach()) {
             $coach = $this->resolveCoachProfile($request);
             if (! $coach) {
@@ -40,7 +42,6 @@ class SessionRequestController extends Controller
 
             $query->visibleToCoach($coach);
         } else {
-            // Admins / unknown roles: no coach inbox dump.
             $query->whereRaw('1 = 0');
         }
 
@@ -49,12 +50,16 @@ class SessionRequestController extends Controller
         return response()->json(['data' => $items]);
     }
 
-    public function show(string $reference): JsonResponse
+    public function show(Request $request, string $reference): JsonResponse
     {
         $session = SessionRequest::query()
-            ->with(['players', 'requester', 'hostCoach.user', 'location'])
+            ->with(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location'])
             ->where('reference', $reference)
             ->firstOrFail();
+
+        if (! $session->canBeViewedBy($request->user())) {
+            return response()->json(['message' => 'You cannot view this session request.'], 403);
+        }
 
         return response()->json(['data' => $session->toPortalArray()]);
     }
@@ -126,7 +131,7 @@ class SessionRequestController extends Controller
                 : 'You already have';
 
             return response()->json([
-                'message' => $who.' a session at that date and time. Pick a different slot.',
+                'message' => $who.' a session that overlaps that time. Sessions last 60 minutes — pick a slot after the other session ends.',
             ], 422);
         }
 
@@ -188,6 +193,11 @@ class SessionRequestController extends Controller
             return response()->json(['message' => 'This request is no longer open.'], 422);
         }
 
+        $user = $request->user();
+        if ($user?->isAdmin()) {
+            return response()->json(['message' => 'Admins can view session requests but cannot accept them.'], 403);
+        }
+
         $coach = $this->resolveCoachProfile($request);
         if (! $coach) {
             return response()->json(['message' => 'Coach profile required to host a session.'], 422);
@@ -213,7 +223,7 @@ class SessionRequestController extends Controller
             $session->id
         )) {
             return response()->json([
-                'message' => 'You already have a session at that date and time. Decline this request or free the slot first.',
+                'message' => 'You already have a session that overlaps that time. Sessions last 60 minutes — pick a different slot.',
             ], 422);
         }
 
@@ -267,8 +277,8 @@ class SessionRequestController extends Controller
             ->where('reference', $reference)
             ->firstOrFail();
 
-        if (! in_array($session->status, ['open', 'hosted', 'awaiting_deposit', 'confirmed'], true)) {
-            return response()->json(['message' => 'This request cannot accept new players.'], 422);
+        if (! in_array($session->status, ['hosted', 'awaiting_deposit', 'confirmed'], true) || ! $session->host_coach_id) {
+            return response()->json(['message' => 'A coach must accept this request before other players can join.'], 422);
         }
 
         if ($session->max_players !== null && $session->players->count() >= $session->max_players) {
@@ -294,10 +304,6 @@ class SessionRequestController extends Controller
                 'paid_with' => $data['paid_with'] ?? null,
                 'card_on_file' => $data['card_on_file'] ?? null,
             ]);
-
-            if ($session->status === 'open') {
-                $session->update(['status' => 'hosted']);
-            }
 
             $joined = $session->players()->count();
             if ($session->max_players !== null) {
@@ -351,7 +357,12 @@ class SessionRequestController extends Controller
         $user = $request->user();
         $coach = $this->resolveCoachProfile($request);
         $isHost = $coach && $session->host_coach_id === $coach->id;
-        if (! $user->isAdmin() && ! $isHost) {
+
+        if ($user->isAdmin() && ! $isHost) {
+            return response()->json(['message' => 'Admins can view session requests but cannot accept or adjust them.'], 403);
+        }
+
+        if (! $isHost) {
             return response()->json(['message' => 'Only the hosting coach can adjust this request.'], 403);
         }
 
@@ -360,8 +371,15 @@ class SessionRequestController extends Controller
             'max_players' => ['nullable', 'integer', 'min:1', 'max:30'],
             'looking_for' => ['nullable', 'integer', 'min:0', 'max:30'],
             'coach_note' => ['nullable', 'string', 'max:1000'],
-            'status' => ['nullable', Rule::in(['open', 'hosted', 'awaiting_deposit', 'confirmed', 'expired', 'cancelled'])],
+            'status' => ['nullable', Rule::in(['hosted', 'awaiting_deposit', 'confirmed', 'expired', 'cancelled'])],
         ]);
+
+        if (array_key_exists('status', $data) && $data['status'] !== null) {
+            $hostedStatuses = ['hosted', 'awaiting_deposit', 'confirmed'];
+            if ($session->status === 'open' && in_array($data['status'], $hostedStatuses, true)) {
+                return response()->json(['message' => 'Use Accept to host a session request.'], 403);
+            }
+        }
 
         $session->fill(collect($data)->only([
             'min_players',

@@ -88,8 +88,8 @@ class Booking extends Model
     public function scopeUpcoming(Builder $query): Builder
     {
         return $query
-            ->where('session_date', '>=', now()->toDateString())
             ->where('status', '!=', 'cancelled')
+            ->where(fn (Builder $q) => $this->constrainNotEnded($q))
             ->orderBy('session_date')
             ->orderBy('session_time');
     }
@@ -97,16 +97,79 @@ class Booking extends Model
     public function scopePast(Builder $query): Builder
     {
         return $query
-            ->where(function ($q) {
-                $q->where('session_date', '<', now()->toDateString())
-                    ->orWhere(function ($inner) {
-                        $inner->whereDate('session_date', now()->toDateString())
-                            ->whereTime('session_time', '<', now()->format('H:i:s'));
-                    });
-            })
             ->where('status', '!=', 'cancelled')
+            ->where(fn (Builder $q) => $this->constrainEnded($q))
             ->orderByDesc('session_date')
             ->orderByDesc('session_time');
+    }
+
+    /**
+     * Still on the calendar: future date, or today and the 60-minute slot has not ended.
+     */
+    public function isUpcoming(): bool
+    {
+        if ($this->status === 'cancelled' || ! $this->session_date) {
+            return false;
+        }
+
+        $start = $this->startsAt();
+        if (! $start) {
+            return $this->session_date->toDateString() >= now()->toDateString();
+        }
+
+        return $start->copy()->addMinutes($this->durationMinutes())->gt(now());
+    }
+
+    public function durationMinutes(): int
+    {
+        $minutes = (int) ($this->duration_minutes ?: 0);
+
+        return $minutes > 0 ? $minutes : SessionRequest::defaultDurationMinutes();
+    }
+
+    public function startsAt(): ?Carbon
+    {
+        if (! $this->session_date || ! $this->session_time) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($this->session_date->toDateString().' '.$this->session_time);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function constrainNotEnded(Builder $query): Builder
+    {
+        $today = now()->toDateString();
+        $latestStart = now()->subMinutes(SessionRequest::defaultDurationMinutes())->format('H:i:s');
+
+        return $query->where(function (Builder $q) use ($today, $latestStart) {
+            $q->whereDate('session_date', '>', $today)
+                ->orWhere(function (Builder $inner) use ($today, $latestStart) {
+                    $inner->whereDate('session_date', $today)
+                        ->where(function (Builder $time) use ($latestStart) {
+                            $time->whereNull('session_time')
+                                ->orWhereTime('session_time', '>', $latestStart);
+                        });
+                });
+        });
+    }
+
+    private function constrainEnded(Builder $query): Builder
+    {
+        $today = now()->toDateString();
+        $latestStart = now()->subMinutes(SessionRequest::defaultDurationMinutes())->format('H:i:s');
+
+        return $query->where(function (Builder $q) use ($today, $latestStart) {
+            $q->whereDate('session_date', '<', $today)
+                ->orWhere(function (Builder $inner) use ($today, $latestStart) {
+                    $inner->whereDate('session_date', $today)
+                        ->whereNotNull('session_time')
+                        ->whereTime('session_time', '<=', $latestStart);
+                });
+        });
     }
 
     public function scopeConfirmed(Builder $query): Builder

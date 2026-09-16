@@ -150,14 +150,11 @@
           <div class="player-panel-head">
             <div class="flex items-center gap-3.5">
               @php
-                $focusCoach = $nextBooking?->coach
-                  ?? $hostedRequest?->hostCoach
-                  ?? $hostedRequest?->requestedCoach
-                  ?? $latestPast?->coach;
-                $focusCoachName = $focusCoach?->display_name ?? 'Your coach';
-                $focusInitials = collect(preg_split('/\s+/', trim($focusCoachName)) ?: [])
+                $focusCoach = $nextBooking?->coach ?? $latestPast?->coach;
+                $focusCoachName = $focusCoach?->display_name ?? 'No session yet';
+                $focusInitials = collect(preg_split('/\s+/', trim($focusCoach?->display_name ?? 'CN')) ?: [])
                   ->map(fn ($p) => strtoupper(substr($p, 0, 1)))->take(2)->implode('') ?: 'CN';
-                $focusIsUpcoming = (bool) ($nextBooking || ($hostedRequest && in_array($hostedRequest->status, ['open', 'hosted', 'awaiting_deposit', 'confirmed'], true)));
+                $focusIsUpcoming = (bool) $nextBooking;
               @endphp
               <div class="w-12 h-12 rounded-full bg-[#191615] text-white grid place-items-center text-sm font-bold ring-2 ring-brand-red/20">{{ $focusInitials }}</div>
               <div>

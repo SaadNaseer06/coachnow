@@ -217,7 +217,8 @@ class PageController extends Controller
 
         $hostedRequest = SessionRequest::query()
             ->where('requester_id', $user->id)
-            ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
+            ->whereIn('status', ['hosted', 'awaiting_deposit', 'confirmed'])
+            ->whereNotNull('host_coach_id')
             ->with(['hostCoach', 'requestedCoach', 'location'])
             ->orderByDesc('created_at')
             ->first();
@@ -287,9 +288,16 @@ class PageController extends Controller
                 ->first();
         }
 
+        $coaches = Coach::query()
+            ->with('location')
+            ->where('status', 'active')
+            ->orderBy('display_name')
+            ->get(['id', 'display_name', 'location_id', 'rate', 'ages', 'specialty']);
+
         return view('pages.request-session', [
             'locations' => $locations,
             'requestedCoach' => $requestedCoach,
+            'coaches' => $coaches,
             'preferredLocationSlug' => $requestedCoach?->location?->slug,
         ]);
     }

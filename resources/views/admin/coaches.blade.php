@@ -116,7 +116,7 @@
               @else
                 <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-admin-modal-open="editCoachModal-{{ $coach->id }}">Edit</button>
                 @if ($coach->status === 'active')
-                  <form method="POST" action="{{ route('admin.coaches.status', $coach) }}" class="inline" data-pause-form @if(($coach->upcoming_bookings_count ?? 0) > 0) data-upcoming="{{ $coach->upcoming_bookings_count }}" @endif>
+                  <form method="POST" action="{{ route('admin.coaches.status', $coach) }}" class="inline" data-pause-form @if(($coach->upcoming_commitments_count ?? $coach->upcoming_bookings_count ?? 0) > 0) data-upcoming="{{ $coach->upcoming_commitments_count ?? $coach->upcoming_bookings_count }}" @endif>
                     @csrf
                     @method('PATCH')
                     <input type="hidden" name="status" value="paused">
@@ -304,21 +304,31 @@
 @push('scripts')
 <script>
   document.querySelectorAll('[data-pause-form]').forEach((form) => {
-    form.addEventListener('submit', (event) => {
+    form.addEventListener('submit', async (event) => {
+      if (form.dataset.pauseConfirmed === '1') return;
+      event.preventDefault();
+
       const upcoming = Number(form.dataset.upcoming || 0);
       const forceInput = form.querySelector('input[name="force"]');
-      if (upcoming <= 0) {
-        if (forceInput) forceInput.value = '1';
-        return;
+      let ok = true;
+
+      if (upcoming > 0) {
+        if (!window.CoachNowDialog?.confirm) {
+          return;
+        }
+
+        ok = await window.CoachNowDialog.confirm({
+          title: 'Pause this coach?',
+          message: `This coach has ${upcoming} upcoming session${upcoming === 1 ? '' : 's'}. Pausing hides them from Find a Coach and suspends those sessions.`,
+          confirmLabel: 'Pause and suspend',
+          cancelLabel: 'Keep active',
+        });
       }
-      const ok = window.confirm(
-        `This coach has ${upcoming} upcoming session${upcoming === 1 ? '' : 's'}. Pause anyway? They will be hidden from Find a Coach, but bookings stay on the calendar until you reschedule or cancel them.`
-      );
-      if (!ok) {
-        event.preventDefault();
-        return;
-      }
+
+      if (!ok) return;
       if (forceInput) forceInput.value = '1';
+      form.dataset.pauseConfirmed = '1';
+      form.submit();
     });
   });
 </script>

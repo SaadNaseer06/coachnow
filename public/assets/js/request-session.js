@@ -217,6 +217,21 @@
       els.locationEmpty.hidden = visible !== 0;
     }
 
+    if (visible === 0 && q) {
+      cards.forEach((card) => {
+        card.hidden = false;
+        visible += 1;
+      });
+      if (els.locationEmpty) els.locationEmpty.hidden = true;
+      if (els.locationCount) {
+        els.locationCount.textContent = `${visible} parks shown — no exact match, showing all`;
+      }
+      if (els.locationStepLead) {
+        els.locationStepLead.textContent = `No parks matched “${query.trim()}”. Showing all parks so you can pick one.`;
+      }
+      return visible;
+    }
+
     if (els.locationStepLead) {
       if (q) {
         els.locationStepLead.textContent = `Showing parks matching “${query.trim()}”. Pick one to continue.`;
@@ -383,6 +398,66 @@
     countdownTimer = setInterval(tick, 1000);
   }
 
+  function selectedCoachMeta() {
+    const el = document.getElementById('reqRequestedCoachId');
+    if (!el) return {};
+    if (el.tagName === 'SELECT') {
+      const opt = el.selectedOptions?.[0];
+      return {
+        rate: Number(opt?.dataset.coachRate || 0),
+        ages: opt?.dataset.coachAges || '',
+        specialty: opt?.dataset.coachSpecialty || '',
+        parkId: opt?.dataset.parkId || '',
+      };
+    }
+    return {
+      rate: Number(el.dataset.coachRate || 0),
+      ages: el.dataset.coachAges || '',
+      specialty: el.dataset.coachSpecialty || '',
+      parkId: document.getElementById('reqStage')?.dataset.preferredLocation || '',
+    };
+  }
+
+  function budgetFromRate(rate) {
+    if (!rate) return '';
+    if (rate <= 25) return 'Up to $25 / player';
+    if (rate <= 50) return '$25 – $50 / player';
+    if (rate <= 100) return '$50 – $100 / player';
+    if (rate <= 150) return '$100 – $150 / player';
+    return '$150+ / player';
+  }
+
+  function ageFromCoachAges(ages) {
+    const map = {
+      'Ages 5-10': 'U10 (9–10 years)',
+      'Ages 6-12': 'U12 (11–12 years)',
+      'Ages 8-14': 'U14 (13–14 years)',
+      'Ages 10-16': 'U16 (15–16 years)',
+      'Ages 12-18': 'U18 (17–18 years)',
+    };
+    if (!ages || ages === 'All ages') return '';
+    return map[ages] || '';
+  }
+
+  function applyDetailsFromPreviousSteps() {
+    const meta = selectedCoachMeta();
+    const ageEl = document.getElementById('reqAgeRange');
+    const priceEl = document.getElementById('reqPriceRange');
+    const typeEl = document.getElementById('reqSessionType');
+
+    if (ageEl && !ageEl.value) {
+      const mapped = ageFromCoachAges(meta.ages);
+      if (mapped) ageEl.value = mapped;
+    }
+    if (priceEl && !priceEl.value) {
+      const mapped = budgetFromRate(meta.rate);
+      if (mapped) priceEl.value = mapped;
+    }
+    if (typeEl && !typeEl.value && /1-on-1|private/i.test(meta.specialty || '')) {
+      typeEl.value = 'Private 1-on-1 Session';
+    }
+  }
+
   function playersLabel() {
     if (state.minPlayers && state.maxPlayers) return `${state.minPlayers}–${state.maxPlayers}`;
     if (state.minPlayers) return `${state.minPlayers}+`;
@@ -545,6 +620,12 @@
         return;
       }
 
+      const coachEl = document.getElementById('reqRequestedCoachId');
+      const selectedCoachId = coachEl?.value || '';
+      state.requestedCoachId = String(selectedCoachId || '');
+      const coachMeta = selectedCoachMeta();
+      if (coachMeta.parkId) state.preferredLocationId = coachMeta.parkId;
+
       const base = state.date ? new Date(`${state.date}T12:00:00`) : new Date();
       buildDateStrip(base);
       filterTimeGroups();
@@ -569,10 +650,7 @@
       state.sortByNearest = true;
       if (els.locationInput) els.locationInput.value = '';
       state.location = '';
-      notify(
-        'We’ll show parks sorted by nearest distance on the next step. Choose a sport, date, and time window, then tap Find locations.',
-        'Nearest parks'
-      );
+      els.useLocationBtn.classList.add('is-active');
     });
   }
 
@@ -624,6 +702,7 @@
     els.toDetailsBtn.addEventListener('click', () => {
       if (!state.selectedTime) return;
       updateSummary();
+      applyDetailsFromPreviousSteps();
       syncKnowByBounds();
       goToStep(4);
     });
@@ -758,8 +837,16 @@
       if (els.requestId) els.requestId.textContent = `#${request.id}`;
 
       renderLiveSummary();
+      const successLead = document.getElementById('reqSuccessLead');
+      if (successLead) {
+        successLead.textContent = request.requested_coach
+          ? `${request.requested_coach} has been notified. You’ll get an update as soon as they accept.`
+          : 'Nearby coaches have been notified. The first coach to accept hosts this session.';
+      }
       if (els.countdownHint && state.knowByAt) {
-        els.countdownHint.textContent = `Coaches can accept until ${formatKnowBy(state.knowByAt)}`;
+        els.countdownHint.textContent = request.requested_coach
+          ? `${request.requested_coach} can accept until ${formatKnowBy(state.knowByAt)}`
+          : `Coaches can accept until ${formatKnowBy(state.knowByAt)}`;
         startCutoffCountdown(state.knowByAt.getTime());
       }
       showDepositState('open', request);

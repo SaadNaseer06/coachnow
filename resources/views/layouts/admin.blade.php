@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="icon" href="{{ asset('assets/favicon.ico') }}" sizes="any">
   <link rel="icon" type="image/svg+xml" href="{{ asset('assets/favicon.svg') }}">
   <title>@yield('title', 'Admin') · CoachNow</title>
@@ -27,8 +28,10 @@
     }
   </script>
   <link rel="stylesheet" href="{{ asset('assets/css/admin.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/dialog.css') }}?v={{ @filemtime(public_path('assets/css/dialog.css')) ?: time() }}">
   <link rel="stylesheet" href="{{ asset('assets/css/scroll-progress.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/form-busy.css') }}?v={{ @filemtime(public_path('assets/css/form-busy.css')) ?: time() }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/coach-portal.css') }}?v={{ @filemtime(public_path('assets/css/coach-portal.css')) ?: time() }}">
   @stack('styles')
 </head>
 <body class="admin-body font-sans antialiased">
@@ -50,6 +53,21 @@
           </div>
         </div>
         <div class="admin-topbar-actions">
+          @php $openSessionRequestCount = collect($sessionRequests ?? [])->where('status', 'open')->count(); @endphp
+          <button
+            type="button"
+            id="coachSessionRequestsBell"
+            class="coach-req-bell"
+            aria-label="Open session requests"
+            aria-expanded="false"
+            aria-controls="coachSessionRequestsModal"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+            </svg>
+            <span class="coach-req-bell__badge" id="coachSessionRequestsBadge" @if ($openSessionRequestCount === 0) hidden @endif>{{ $openSessionRequestCount }}</span>
+          </button>
           @yield('topbar_actions')
         </div>
       </header>
@@ -71,9 +89,21 @@
     </div>
   </div>
 
+  @include('partials.coach.session-requests-modal', [
+    'sessionRequests' => $sessionRequests ?? [],
+    'currentCoachId' => $currentCoachId ?? null,
+    'sessionRequestsIsAdmin' => $sessionRequestsIsAdmin ?? true,
+  ])
+
+  <script>
+    window.CoachNowCoachId = @json($currentCoachId ?? null);
+    window.CoachNowIsAdmin = true;
+  </script>
+  <script src="{{ asset('assets/js/dialog.js') }}?v={{ @filemtime(public_path('assets/js/dialog.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/form-busy.js') }}?v={{ @filemtime(public_path('assets/js/form-busy.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/admin.js') }}?v={{ @filemtime(public_path('assets/js/admin.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/scroll-progress.js') }}"></script>
+  <script src="{{ asset('assets/js/coach-session-requests.js') }}?v={{ @filemtime(public_path('assets/js/coach-session-requests.js')) ?: time() }}"></script>
   @stack('scripts')
 </body>
 </html>

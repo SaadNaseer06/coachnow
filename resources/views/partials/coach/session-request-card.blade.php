@@ -30,6 +30,20 @@
 
   $priceRaw = (string) ($request['price_range'] ?? '');
   $estCount = $joined > 0 ? $joined : (int) ($maxPlayers !== '' ? $maxPlayers : ($minPlayers !== '' ? $minPlayers : 0));
+  $preferredCoach = trim((string) ($request['requested_coach'] ?? ''));
+  $isTargeted = $preferredCoach !== '' || ($request['requested_coach_id'] ?? null) !== null;
+  $requestedForYou = $isTargeted
+      && isset($currentCoachId)
+      && $currentCoachId !== null
+      && (int) ($request['requested_coach_id'] ?? 0) === (int) $currentCoachId;
+  $viewerCanAccept = $isOpen
+      && empty($sessionRequestsIsAdmin ?? false)
+      && isset($currentCoachId)
+      && $currentCoachId !== null
+      && (
+          empty($request['requested_coach_id'])
+          || (int) $request['requested_coach_id'] === (int) $currentCoachId
+      );
   $estPayout = '';
   $estLabel = $joined > 0 ? 'Est. payout' : 'Est. if filled';
   if ($estCount > 0 && $priceRaw !== '') {
@@ -54,6 +68,7 @@
   data-looking-for="{{ $lookingFor }}"
   data-coach-note="{{ $request['coach_note'] ?? '' }}"
   data-session-type="{{ $request['session_type'] ?? '' }}"
+  data-requested-coach-id="{{ $request['requested_coach_id'] ?? '' }}"
   data-players='@json($players)'
   @if (! empty($request['accept_seconds']) && $isOpen)
     data-accept-seconds="{{ $request['accept_seconds'] }}"
@@ -76,6 +91,21 @@
     @endif
   </div>
 
+  <p class="coach-req-card__target {{ $isTargeted ? '' : 'coach-req-card__target--open' }}">
+    @if ($isTargeted)
+      @if ($requestedForYou)
+        Requested for you
+        @if ($preferredCoach !== '')
+          · {{ $preferredCoach }}
+        @endif
+      @else
+        Preferred coach · {{ $preferredCoach !== '' ? $preferredCoach : 'Selected coach' }}
+      @endif
+    @else
+      Open to any coach
+    @endif
+  </p>
+
   <div class="coach-req-card__grid">
     <div>
       <dt>When</dt>
@@ -88,6 +118,10 @@
     <div>
       <dt>Session type</dt>
       <dd data-field="session_type">{{ $request['session_type'] ?? '—' }}</dd>
+    </div>
+    <div>
+      <dt>Preferred coach</dt>
+      <dd>{{ $isTargeted ? ($preferredCoach !== '' ? $preferredCoach : 'Selected coach') : 'Any coach' }}</dd>
     </div>
     <div>
       <dt>Age range</dt>
@@ -134,11 +168,15 @@
       <span class="coach-req-card__timer-label">Accept by</span>
       <span class="coach-req-countdown" data-countdown>—</span>
     </div>
-    <div class="coach-req-card__actions">
-      <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request>Accept &amp; host</button>
-      <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request>Decline</button>
-    </div>
-    <p class="coach-req-card__hint">If you accept, the $10 deposit is charged to the parent’s card on file. You don’t handle payment — you just see who’s confirmed and paid.</p>
+    @if ($viewerCanAccept)
+      <div class="coach-req-card__actions">
+        <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request>Accept &amp; host</button>
+        <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request>Decline</button>
+      </div>
+      <p class="coach-req-card__hint">If you accept, the $10 deposit is charged to the parent’s card on file. You don’t handle payment — you just see who’s confirmed and paid.</p>
+    @else
+      <p class="coach-req-card__hint">View only — this request is waiting for {{ $isTargeted && $preferredCoach !== '' ? $preferredCoach : 'a coach' }} to accept.</p>
+    @endif
   @elseif ($isHosted)
     <div class="coach-req-card__hosted">
       <div class="coach-req-card__hosted-meta">
@@ -180,10 +218,14 @@
       @if (! empty($request['coach_note']))
         <p class="coach-req-card__coach-note">{{ $request['coach_note'] }}</p>
       @endif
-      <div class="coach-req-card__actions">
-        <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-adjust-details>View &amp; adjust details</button>
-      </div>
-      <p class="coach-req-card__hint">Deposits are handled by parents/players. You only see who’s confirmed and paid.</p>
+      @if (empty($sessionRequestsIsAdmin ?? false))
+        <div class="coach-req-card__actions">
+          <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-adjust-details>View &amp; adjust details</button>
+        </div>
+        <p class="coach-req-card__hint">Deposits are handled by parents/players. You only see who’s confirmed and paid.</p>
+      @else
+        <p class="coach-req-card__hint">View only — the hosting coach can adjust this session.</p>
+      @endif
     </div>
   @endif
 </article>

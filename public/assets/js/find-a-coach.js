@@ -372,6 +372,7 @@
         location: ''
       };
       let priceTimer = null;
+      let sortByNearest = false;
 
       filterTitles.forEach((title, index) => {
         const section = title.parentElement;
@@ -532,13 +533,14 @@
           const cardLocation = String(card.dataset.location || '').toLowerCase();
           const price = Number(card.dataset.price || 0);
           const rating = Number(card.dataset.rating || 0);
-          const distance = Number(card.dataset.distance || Infinity);
+          const distanceRaw = card.dataset.distance;
+          const distance = distanceRaw === '' || distanceRaw == null ? null : Number(distanceRaw);
 
           const matches =
             price >= min &&
             price <= max &&
             rating >= selectedRating &&
-            distance <= maxDistance &&
+            (distance == null || !Number.isFinite(distance) || distance <= maxDistance) &&
             cardHasAny(card, 'experience', experience) &&
             cardHasAny(card, 'age', age) &&
             cardHasAny(card, 'session', session) &&
@@ -554,6 +556,17 @@
         });
 
         if (noResults) noResults.classList.toggle('hidden', visibleCount !== 0);
+
+        if (sortByNearest) {
+          const parent = cards[0]?.parentElement;
+          if (parent) {
+            cards.slice().sort((a, b) => {
+              const da = a.dataset.distance === '' ? Number.POSITIVE_INFINITY : Number(a.dataset.distance);
+              const db = b.dataset.distance === '' ? Number.POSITIVE_INFINITY : Number(b.dataset.distance);
+              return da - db;
+            }).forEach((card) => parent.appendChild(card));
+          }
+        }
       }
 
       function schedulePriceApply() {
@@ -569,14 +582,14 @@
         if (minPrice) minPrice.value = '';
         if (maxPrice) maxPrice.value = '';
         if (ratingButtons[0]) selectRating(ratingButtons[0]);
-        if (distanceRange) distanceRange.value = '50';
+        if (distanceRange) distanceRange.value = '100';
         updateDistanceDisplay();
         if (locationInput) locationInput.value = '';
         if (sportSelect) sportSelect.value = 'soccer';
         if (sessionTypeSelect) sessionTypeSelect.value = 'all';
-        if (whenSelect) whenSelect.value = 'today';
-
+        if (whenSelect) whenSelect.value = '';
         searchFilters = { sport: '', session: '', when: '', location: '' };
+        sortByNearest = false;
         applyFilters();
       }
 
@@ -637,21 +650,31 @@
 
       useLocationButton?.addEventListener('click', () => {
         if (!navigator.geolocation) {
-          if (locationInput) locationInput.placeholder = 'Location is unavailable';
+          sortByNearest = true;
+          if (locationInput) locationInput.value = '';
+          searchFilters.location = '';
+          applyFilters();
           return;
         }
 
         useLocationButton.disabled = true;
         navigator.geolocation.getCurrentPosition(
           () => {
-            if (locationInput) locationInput.value = 'Current location';
-            searchFilters.location = 'current location';
+            sortByNearest = true;
+            if (locationInput) locationInput.value = '';
+            searchFilters.location = '';
             useLocationButton.disabled = false;
             applyFilters();
           },
           () => {
-            if (locationInput) locationInput.placeholder = 'Allow location access and try again';
+            sortByNearest = true;
+            if (locationInput) {
+              locationInput.value = '';
+              locationInput.placeholder = 'Sorted by nearest listed parks';
+            }
+            searchFilters.location = '';
             useLocationButton.disabled = false;
+            applyFilters();
           },
           { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
         );

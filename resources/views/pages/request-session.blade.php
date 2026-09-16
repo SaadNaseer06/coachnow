@@ -18,7 +18,7 @@
     <div class="max-w-[1220px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-16 w-full relative z-10">
       <div class="hero-fade-target inline-flex items-center px-4 py-2 rounded-full bg-brand-red text-white text-[11px] sm:text-xs font-semibold tracking-[0.08em] uppercase mb-4 shadow-[0_4px_14px_rgba(218,2,12,0.3)]" style="--hero-delay:40ms">Request Session</div>
       <h1 class="hero-fade-target max-w-[820px] text-4xl sm:text-5xl md:text-[3.1rem] lg:text-[3.4rem] font-medium tracking-[-0.01em] text-white leading-[1.04] mb-4" style="--hero-delay:110ms">No coach available?<br>Request a session.</h1>
-      <p class="hero-fade-target text-[13px] sm:text-[14px] lg:text-[15px] text-zinc-200/90 max-w-[600px] leading-[1.7] font-light" style="--hero-delay:180ms">Post the session you want and nearby coaches get notified. The first coach to accept hosts it — and other players can join until 30 minutes before it starts.</p>
+      <p class="hero-fade-target text-[13px] sm:text-[14px] lg:text-[15px] text-zinc-200/90 max-w-[600px] leading-[1.7] font-light" style="--hero-delay:180ms">Request a specific coach, or leave it open so any nearby coach can accept. After someone hosts, other players can join until 30 minutes before it starts.</p>
     </div>
   </section>
 
@@ -52,9 +52,25 @@
                   <h2 id="reqStep1Title" class="req-title">What session do you need?</h2>
                   @if (! empty($requestedCoach))
                     <p class="req-lead">Requesting <strong>{{ $requestedCoach->display_name }}</strong>. Only this coach can accept — other coaches will not see it.</p>
-                    <input type="hidden" id="reqRequestedCoachId" value="{{ $requestedCoach->id }}">
+                    <input type="hidden" id="reqRequestedCoachId" value="{{ $requestedCoach->id }}" data-coach-rate="{{ $requestedCoach->rate }}" data-coach-ages="{{ $requestedCoach->ages }}" data-coach-specialty="{{ $requestedCoach->specialty }}">
                   @else
-                    <p class="req-lead">Start with the basics. Leave the request open so any nearby coach can accept it, or book from a coach profile to target one coach.</p>
+                    <p class="req-lead">Choose a coach, or leave it open so any nearby coach can accept.</p>
+                    <div class="req-field">
+                      <label for="reqRequestedCoachId">Coach <span class="req-optional">(optional)</span></label>
+                      <select id="reqRequestedCoachId" name="requested_coach_id">
+                        <option value="" selected>Any available coach</option>
+                        @foreach ($coaches ?? [] as $coachOption)
+                          <option
+                            value="{{ $coachOption->id }}"
+                            data-coach-rate="{{ $coachOption->rate }}"
+                            data-coach-ages="{{ $coachOption->ages }}"
+                            data-coach-specialty="{{ $coachOption->specialty }}"
+                            data-park-id="{{ $coachOption->location?->slug }}"
+                          >{{ $coachOption->display_name }}@if($coachOption->location) · {{ $coachOption->location->name }}@endif</option>
+                        @endforeach
+                      </select>
+                      <p class="req-field-hint">Any available coach: every active coach can see it and accept. Pick a name to send it to that coach only.</p>
+                    </div>
                   @endif
                 </header>
 
@@ -67,8 +83,8 @@
                         type="text"
                         id="reqLocation"
                         name="location"
-                        placeholder="{{ !empty($requestedCoach?->location) ? 'e.g. '.$requestedCoach->location->name : 'Park, city, or ZIP' }}"
-                        autocomplete="address-level2"
+                        placeholder="{{ !empty($requestedCoach?->location) ? 'e.g. '.$requestedCoach->location->name : 'Optional — or pick a park on the next step' }}"
+                        autocomplete="off"
                       >
                     </div>
                     @if (! empty($requestedCoach?->location))
@@ -84,6 +100,7 @@
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
                       Sort by nearest parks
                     </button>
+                    <p class="req-field-hint">Park is optional here. You’ll pick one on the next step.</p>
                   </div>
 
                   <div class="req-field-row">
@@ -120,7 +137,7 @@
                   </div>
 
                   <div class="req-actions">
-                    <button type="submit" class="req-btn req-btn--primary">Find locations</button>
+                    <button type="submit" class="req-btn req-btn--primary">Continue to parks</button>
                   </div>
                 </form>
               </div>
@@ -135,7 +152,7 @@
                   </button>
                   <div>
                     <h2 id="reqStep2Title" class="req-title req-title--sm">Choose a location</h2>
-                    <p class="req-lead req-lead--sm" id="reqLocationStepLead">Parks matching what you entered — pick one to continue.</p>
+                    <p class="req-lead req-lead--sm" id="reqLocationStepLead">Pick a park to continue. Search is optional.</p>
                   </div>
                 </header>
 
@@ -241,7 +258,7 @@
                 <form id="reqFormStep4" class="req-form" novalidate>
                   <div class="req-field">
                     <label for="reqAgeRange">Age range</label>
-                    <select id="reqAgeRange" name="age_range" required>
+                      <select id="reqAgeRange" name="age_range" required autocomplete="off">
                       <option value="" disabled selected>Select age range</option>
                       <option value="U8 (7–8 years)">U8 (7–8 years)</option>
                       <option value="U10 (9–10 years)">U10 (9–10 years)</option>
@@ -256,7 +273,7 @@
                   <div class="req-field">
                     <label for="reqPriceRange">Budget per player</label>
                     <p class="req-help">This is what you’re willing to pay <strong>per player</strong> — not a total for the whole group.</p>
-                    <select id="reqPriceRange" name="price_range" required>
+                      <select id="reqPriceRange" name="price_range" required autocomplete="off">
                       <option value="" disabled selected>Select budget per player</option>
                       <option value="Up to $25 / player">Up to $25 / player</option>
                       <option value="$25 – $50 / player">$25 – $50 / player</option>
@@ -268,7 +285,7 @@
 
                   <div class="req-field">
                     <label for="reqSessionType">Session type</label>
-                    <select id="reqSessionType" name="session_type" required>
+                      <select id="reqSessionType" name="session_type" required autocomplete="off">
                       <option value="" disabled selected>Select session type</option>
                       <option value="Speed Agility Quickness (SAQ) — Group Session">Speed Agility Quickness (SAQ) — Group Session</option>
                       <option value="Skills Training — Group Session">Skills Training — Group Session</option>
@@ -339,11 +356,11 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
                 </div>
                 <h2 id="reqSuccessTitle" class="req-title">Your request is live</h2>
-                <p class="req-lead req-lead--center">
+                <p class="req-lead req-lead--center" id="reqSuccessLead">
                   @if (! empty($requestedCoach))
                     {{ $requestedCoach->display_name }} has been notified. You’ll get an update as soon as they accept.
                   @else
-                    Nearby coaches have been notified. You will get a text as soon as someone accepts.
+                    Nearby coaches have been notified. The first coach to accept hosts this session.
                   @endif
                 </p>
 
@@ -356,7 +373,13 @@
                   <div class="req-countdown" id="reqAcceptCountdown" aria-live="polite">
                     <p class="req-countdown__label">Need to know by</p>
                     <p class="req-countdown__time" id="reqCountdownDisplay">—</p>
-                    <p class="req-countdown__hint" id="reqCountdownHint">First coach to accept hosts this session</p>
+                    <p class="req-countdown__hint" id="reqCountdownHint">
+                      @if (! empty($requestedCoach))
+                        {{ $requestedCoach->display_name }} can accept this session
+                      @else
+                        First coach to accept hosts this session
+                      @endif
+                    </p>
                   </div>
 
                   <dl class="req-live-summary" id="reqLiveSummary"></dl>

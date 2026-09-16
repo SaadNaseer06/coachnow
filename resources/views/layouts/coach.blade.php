@@ -89,7 +89,11 @@
     </div>
   </div>
 
-  @include('partials.coach.session-requests-modal', ['sessionRequests' => $sessionRequests ?? []])
+  @include('partials.coach.session-requests-modal', [
+    'sessionRequests' => $sessionRequests ?? [],
+    'currentCoachId' => $currentCoachId ?? null,
+    'sessionRequestsIsAdmin' => $sessionRequestsIsAdmin ?? false,
+  ])
 
   @php
     $pusherKey = config('broadcasting.connections.pusher.key');
@@ -131,7 +135,14 @@
           key: window.CoachNowRealtime.key,
           cluster: window.CoachNowRealtime.cluster,
           forceTLS: true,
-          enabledTransports: ['ws', 'wss']
+          enabledTransports: ['ws', 'wss'],
+          authEndpoint: '/broadcasting/auth',
+          auth: {
+            headers: {
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          }
         });
       })();
     </script>
@@ -146,6 +157,7 @@
 
   <script>
     window.CoachNowCoachId = @json($currentCoachId ?? null);
+    window.CoachNowIsAdmin = @json((bool) ($sessionRequestsIsAdmin ?? false));
   </script>
   <script src="{{ asset('assets/js/form-busy.js') }}?v={{ @filemtime(public_path('assets/js/form-busy.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/dialog.js') }}?v={{ @filemtime(public_path('assets/js/dialog.js')) ?: time() }}"></script>

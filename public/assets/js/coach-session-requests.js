@@ -46,8 +46,11 @@
   let cachedRequests = [];
   const currentCoachId = window.CoachNowCoachId != null ? Number(window.CoachNowCoachId) : null;
 
+  const isAdminViewer = Boolean(window.CoachNowIsAdmin);
+
   function requestVisibleToCurrentCoach(req) {
     if (!req) return false;
+    if (isAdminViewer) return true;
     if (currentCoachId == null) return false;
 
     const hostId = req.host_coach_id != null ? Number(req.host_coach_id) : null;
@@ -56,7 +59,7 @@
 
     if (hostId === currentCoachId) return true;
     if (status !== 'open') return false;
-    if (requestedId == null) return true; // open marketplace
+    if (requestedId == null) return true;
     return requestedId === currentCoachId;
   }
 
@@ -304,10 +307,12 @@
       </div>
       <div class="coach-req-roster" data-roster>${rosterHtml(roster)}</div>
       ${coachNote ? `<p class="coach-req-card__coach-note">${escapeHtml(coachNote)}</p>` : ''}
+      ${isAdminViewer ? '<p class="coach-req-card__hint">View only — the hosting coach can adjust this session.</p>' : `
       <div class="coach-req-card__actions">
         <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-adjust-details>View &amp; adjust details</button>
       </div>
       <p class="coach-req-card__hint">Deposits are handled by parents/players. You only see who’s confirmed and paid.</p>
+      `}
     `;
 
     hosted.querySelector('[data-adjust-details]')?.addEventListener('click', () => openAdjustOverlay(card));
@@ -455,6 +460,15 @@
     card.querySelector('[data-adjust-details]')?.addEventListener('click', () => openAdjustOverlay(card));
   }
 
+  function canAcceptRequest(req) {
+    if (isAdminViewer) return false;
+    if (currentCoachId == null) return false;
+    const requestedId = req.requested_coach_id != null ? Number(req.requested_coach_id) : null;
+    const status = req.status || 'open';
+    if (status !== 'open') return false;
+    if (requestedId == null) return true;
+    return requestedId === currentCoachId;
+  }
   function extraFieldsHtml(req) {
     const parts = [];
     const label = playersLabel(req.min_players, req.max_players);
@@ -466,6 +480,33 @@
     if (req.player_level) parts.push(`<div><dt>Level</dt><dd>${escapeHtml(req.player_level)}</dd></div>`);
     if (req.know_by) parts.push(`<div><dt>Need to know by</dt><dd>${escapeHtml(req.know_by)}</dd></div>`);
     return parts.join('');
+  }
+
+  function preferredCoachName(req) {
+    return String(req?.requested_coach || '').trim();
+  }
+
+  function isTargetedRequest(req) {
+    if (!req) return false;
+    return preferredCoachName(req) !== '' || req.requested_coach_id != null;
+  }
+
+  function requestedCoachBannerHtml(req) {
+    if (!isTargetedRequest(req)) {
+      return '<p class="coach-req-card__target coach-req-card__target--open">Open to any coach</p>';
+    }
+    const name = preferredCoachName(req) || 'Selected coach';
+    const requestedId = req.requested_coach_id != null ? Number(req.requested_coach_id) : null;
+    const forYou = requestedId != null && currentCoachId != null && requestedId === currentCoachId;
+    const label = forYou ? 'Requested for you' : 'Preferred coach';
+    return `<p class="coach-req-card__target">${escapeHtml(label)} · ${escapeHtml(name)}</p>`;
+  }
+
+  function preferredCoachFieldHtml(req) {
+    const name = isTargetedRequest(req)
+      ? (preferredCoachName(req) || 'Selected coach')
+      : 'Any coach';
+    return `<div><dt>Preferred coach</dt><dd>${escapeHtml(name)}</dd></div>`;
   }
 
   function buildCard(req) {
@@ -480,6 +521,7 @@
     card.dataset.lookingFor = req.looking_for ?? '';
     card.dataset.coachNote = req.coach_note || '';
     card.dataset.sessionType = req.session_type || '';
+    card.dataset.requestedCoachId = req.requested_coach_id != null ? String(req.requested_coach_id) : '';
     card.dataset.acceptSeconds = String(req.accept_seconds || 900);
     card.dataset.countdownStarted = String(Date.now());
     setPlayers(card, players);
@@ -497,10 +539,12 @@
           </div>
           <span class="coach-req-status coach-req-status--hosted"><span class="coach-req-pulse coach-req-pulse--green"></span> Open to join</span>
         </div>
+        ${requestedCoachBannerHtml(req)}
         <div class="coach-req-card__grid">
           <div><dt>When</dt><dd>${escapeHtml(req.when || '—')}</dd></div>
           <div><dt>Location</dt><dd>${escapeHtml(req.location || '—')}<span>${escapeHtml(req.city || '')}</span></dd></div>
           <div><dt>Session type</dt><dd data-field="session_type">${escapeHtml(req.session_type || '—')}</dd></div>
+          ${preferredCoachFieldHtml(req)}
           <div><dt>Age range</dt><dd>${escapeHtml(req.age_range || '—')}</dd></div>
           <div><dt>Budget / player</dt><dd>${escapeHtml(req.price_range || '—')}</dd></div>
           ${payoutFieldHtml(req, players.length || Number(card.dataset.playersJoined || 0))}
@@ -531,10 +575,12 @@
         </div>
         <span class="coach-req-status coach-req-status--open"><span class="coach-req-pulse"></span> Needs host</span>
       </div>
+      ${requestedCoachBannerHtml(req)}
       <div class="coach-req-card__grid">
         <div><dt>When</dt><dd>${escapeHtml(req.when || '—')}</dd></div>
         <div><dt>Location</dt><dd>${escapeHtml(req.location || '—')}<span>${escapeHtml(req.city || '')}</span></dd></div>
         <div><dt>Session type</dt><dd data-field="session_type">${escapeHtml(req.session_type || '—')}</dd></div>
+        ${preferredCoachFieldHtml(req)}
         <div><dt>Age range</dt><dd>${escapeHtml(req.age_range || '—')}</dd></div>
         <div><dt>Budget / player</dt><dd>${escapeHtml(req.price_range || '—')}</dd></div>
         ${payoutFieldHtml(req, 0)}
@@ -546,11 +592,13 @@
         <span class="coach-req-card__timer-label">Accept by</span>
         <span class="coach-req-countdown" data-countdown>—</span>
       </div>
+      ${canAcceptRequest(req) ? `
       <div class="coach-req-card__actions">
         <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request data-loading-text="Accepting…">Accept &amp; host</button>
         <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request data-loading-text="Declining…">Decline</button>
       </div>
       <p class="coach-req-card__hint">If you accept, the $10 deposit is charged to the parent’s card on file. You just host — and can see who’s paid.</p>
+      ` : `<p class="coach-req-card__hint">View only — this request is waiting for ${escapeHtml(preferredCoachName(req) || 'a coach')} to accept.</p>`}
     `;
 
     bindCardActions(card);
@@ -742,22 +790,31 @@
   }, 1500);
 
   const realtimeEnabled = Boolean(window.CoachNowRealtime?.enabled && window.Echo);
+  function onSessionRequestChanged(payload) {
+    const action = payload?.action || 'updated';
+    const incoming = payload?.request || payload;
+    loadLiveRequests().then(() => {
+      if (action === 'created' && requestVisibleToCurrentCoach(incoming)) {
+        openModal();
+        bell?.classList.add('coach-req-bell--pulse');
+        window.setTimeout(() => bell?.classList.remove('coach-req-bell--pulse'), 2400);
+      }
+    });
+  }
+
   if (realtimeEnabled) {
     window.Echo.channel('coaches.session-requests')
-      .listen('.session-request.changed', (payload) => {
-        const action = payload?.action || 'updated';
-        loadLiveRequests().then(() => {
-          if (action === 'created') {
-            openModal();
-            bell?.classList.add('coach-req-bell--pulse');
-            window.setTimeout(() => bell?.classList.remove('coach-req-bell--pulse'), 2400);
-          }
-        });
-      })
+      .listen('.session-request.changed', onSessionRequestChanged)
       .error((err) => {
         console.warn('Pusher channel error', err);
       });
-    // Slow safety net if a websocket event is missed
+    if (currentCoachId != null) {
+      window.Echo.private(`coach.session-requests.${currentCoachId}`)
+        .listen('.session-request.changed', onSessionRequestChanged)
+        .error((err) => {
+          console.warn('Pusher private channel error', err);
+        });
+    }
     setInterval(loadLiveRequests, 60000);
   } else {
     if (window.CoachNowRealtime?.reason) {

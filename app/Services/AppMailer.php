@@ -19,7 +19,7 @@ class AppMailer
 {
     public function sendWelcome(User $user): void
     {
-        $this->safe(fn () => Mail::to($user->email)->send(new WelcomeUserMail($user)));
+        $this->deliver($user->email, new WelcomeUserMail($user));
     }
 
     public function notifyAdminsOfPendingCoach(Coach $coach): void
@@ -31,7 +31,7 @@ class AppMailer
             return;
         }
 
-        $this->safe(fn () => Mail::to($admin)->send(new CoachPendingReviewMail($coach)));
+        $this->deliver($admin, new CoachPendingReviewMail($coach));
     }
 
     public function notifyCoachStatusChanged(Coach $coach, string $status): void
@@ -43,7 +43,7 @@ class AppMailer
             return;
         }
 
-        $this->safe(fn () => Mail::to($email)->send(new CoachStatusChangedMail($coach, $status)));
+        $this->deliver($email, new CoachStatusChangedMail($coach, $status));
     }
 
     public function sendSessionRequestConfirmation(SessionRequest $session): void
@@ -55,7 +55,7 @@ class AppMailer
             return;
         }
 
-        $this->safe(fn () => Mail::to($email)->send(new SessionRequestConfirmationMail($session)));
+        $this->deliver($email, new SessionRequestConfirmationMail($session));
     }
 
     public function sendSessionRequestAccepted(SessionRequest $session): void
@@ -67,7 +67,7 @@ class AppMailer
             return;
         }
 
-        $this->safe(fn () => Mail::to($email)->send(new SessionRequestAcceptedMail($session)));
+        $this->deliver($email, new SessionRequestAcceptedMail($session));
     }
 
     /**
@@ -81,23 +81,22 @@ class AppMailer
             return;
         }
 
-        $this->safe(fn () => Mail::to($admin)->send(new ContactMessageMail($payload)));
+        $this->deliver($admin, new ContactMessageMail($payload));
     }
 
-    private function safe(callable $callback): void
+    private function deliver(string $email, object $mailable): void
     {
         try {
-            $callback();
+            Mail::to($email)->send($mailable);
         } catch (Throwable $e) {
-            $message = $e->getMessage();
-
-            if (str_contains($message, 'did not match expected CN') || str_contains($message, 'smtp.gmail.com')) {
-                $message .= ' | Host is blocking remote SMTP. Switch to MAIL_MAILER=resend with RESEND_API_KEY (HTTPS, no SMTP needed).';
-            }
-
-            Log::warning('Mail send failed: '.$message, [
-                'exception' => $e::class,
-            ]);
+            $this->logFailure($e);
         }
+    }
+
+    private function logFailure(Throwable $e): void
+    {
+        Log::warning('Mail send failed: '.$e->getMessage(), [
+            'exception' => $e::class,
+        ]);
     }
 }

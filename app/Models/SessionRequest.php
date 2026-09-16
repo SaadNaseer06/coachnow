@@ -88,13 +88,11 @@ class SessionRequest extends Model
             return $this->host_coach_id === $coach->id;
         }
 
-        // Targeted request: only the chosen coach.
-        if ($this->requested_coach_id !== null) {
-            return (int) $this->requested_coach_id === (int) $coach->id;
+        if ($this->requested_coach_id === null) {
+            return $coach->status === 'active';
         }
 
-        // Open marketplace request: any active coach.
-        return $coach->status === 'active';
+        return (int) $this->requested_coach_id === (int) $coach->id;
     }
 
     /**
@@ -114,8 +112,35 @@ class SessionRequest extends Model
         });
     }
 
+    public static function defaultDurationMinutes(): int
+    {
+        return 60;
+    }
+
     /**
-     * Conflict if the athlete or target coach already has an active slot at this date/time.
+     * True when two start times overlap given each session's length.
+     */
+    public static function timesOverlap(?string $startA, int $durationA, ?string $startB, int $durationB): bool
+    {
+        if (! $startA || ! $startB) {
+            return false;
+        }
+
+        try {
+            $a0 = Carbon::parse($startA);
+            $b0 = Carbon::parse($startB);
+        } catch (\Throwable) {
+            return false;
+        }
+
+        $a1 = $a0->copy()->addMinutes(max(1, $durationA));
+        $b1 = $b0->copy()->addMinutes(max(1, $durationB));
+
+        return $a0->lt($b1) && $b0->lt($a1);
+    }
+
+    /**
+     * Conflict if the athlete or target coach already has an overlapping active slot.
      */
     public static function hasSchedulingConflict(
         int $athleteId,
@@ -123,61 +148,83 @@ class SessionRequest extends Model
         ?string $sessionTime,
         ?int $coachId = null,
         ?int $ignoreRequestId = null,
+        int $durationMinutes = 60,
     ): bool {
         if ($sessionTime === null || $sessionTime === '') {
             return false;
         }
 
+        $durationMinutes = $durationMinutes > 0 ? $durationMinutes : static::defaultDurationMinutes();
         $activeStatuses = ['open', 'hosted', 'awaiting_deposit', 'confirmed'];
 
-        $athleteBusy = static::query()
+        $athleteRequests = static::query()
             ->where('requester_id', $athleteId)
             ->whereDate('session_date', $sessionDate)
-            ->where('session_time', $sessionTime)
             ->whereIn('status', $activeStatuses)
             ->when($ignoreRequestId, fn ($q) => $q->where('id', '!=', $ignoreRequestId))
-            ->exists();
+            ->get(['session_time']);
 
-        if ($athleteBusy) {
-            return true;
+        foreach ($athleteRequests as $existing) {
+            if (static::timesOverlap($sessionTime, $durationMinutes, $existing->session_time, static::defaultDurationMinutes())) {
+                return true;
+            }
         }
 
-        $athleteBookingBusy = Booking::query()
+        $athleteBookings = Booking::query()
             ->where('athlete_id', $athleteId)
             ->whereDate('session_date', $sessionDate)
-            ->where('session_time', $sessionTime)
             ->where('status', '!=', 'cancelled')
-            ->exists();
+            ->get(['session_time', 'duration_minutes']);
 
-        if ($athleteBookingBusy) {
-            return true;
+        foreach ($athleteBookings as $booking) {
+            if (static::timesOverlap(
+                $sessionTime,
+                $durationMinutes,
+                $booking->session_time,
+                (int) ($booking->duration_minutes ?: static::defaultDurationMinutes())
+            )) {
+                return true;
+            }
         }
 
         if (! $coachId) {
             return false;
         }
 
-        $coachRequestBusy = static::query()
+        $coachRequests = static::query()
             ->where(function ($q) use ($coachId) {
                 $q->where('requested_coach_id', $coachId)
                     ->orWhere('host_coach_id', $coachId);
             })
             ->whereDate('session_date', $sessionDate)
-            ->where('session_time', $sessionTime)
             ->whereIn('status', $activeStatuses)
             ->when($ignoreRequestId, fn ($q) => $q->where('id', '!=', $ignoreRequestId))
-            ->exists();
+            ->get(['session_time']);
 
-        if ($coachRequestBusy) {
-            return true;
+        foreach ($coachRequests as $existing) {
+            if (static::timesOverlap($sessionTime, $durationMinutes, $existing->session_time, static::defaultDurationMinutes())) {
+                return true;
+            }
         }
 
-        return Booking::query()
+        $coachBookings = Booking::query()
             ->where('coach_id', $coachId)
             ->whereDate('session_date', $sessionDate)
-            ->where('session_time', $sessionTime)
             ->where('status', '!=', 'cancelled')
-            ->exists();
+            ->get(['session_time', 'duration_minutes']);
+
+        foreach ($coachBookings as $booking) {
+            if (static::timesOverlap(
+                $sessionTime,
+                $durationMinutes,
+                $booking->session_time,
+                (int) ($booking->duration_minutes ?: static::defaultDurationMinutes())
+            )) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function bookings(): HasMany
@@ -254,6 +301,32 @@ class SessionRequest extends Model
         }
 
         return $this->status === 'open';
+    }
+
+    public function canBeViewedBy(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ((int) $this->requester_id === (int) $user->id) {
+            return true;
+        }
+
+        $this->loadMissing('players');
+        if ($this->players->contains(fn ($player) => (int) $player->user_id === (int) $user->id)) {
+            return true;
+        }
+
+        if ($user->isCoach() && $user->coach) {
+            return $this->isVisibleToCoach($user->coach);
+        }
+
+        return false;
     }
 
     /**
