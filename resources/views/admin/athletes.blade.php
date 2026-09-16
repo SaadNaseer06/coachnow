@@ -52,7 +52,7 @@
               </div>
             </td>
             <td>{{ $athlete->email }}</td>
-            <td>{{ $athlete->sport ?: '—' }}</td>
+            <td>{{ $athlete->displaySport() ?: '—' }}</td>
             <td>{{ $athlete->sessions_count ?? 0 }}</td>
             <td>{{ $lastLabel }}</td>
             <td>{{ $athlete->preferred_park ?? '—' }}</td>

@@ -88,16 +88,32 @@ class User extends Authenticatable
 
     public function isAthlete(): bool
     {
-        return $this->role === self::ROLE_ATHLETE;
+        return in_array($this->role, [self::ROLE_ATHLETE, 'player'], true);
+    }
+
+    public function displaySport(): ?string
+    {
+        if (! array_key_exists('sport', $this->getAttributes())) {
+            return null;
+        }
+
+        $sport = trim((string) $this->getAttributes()['sport']);
+
+        return $sport !== '' ? $sport : null;
     }
 
     public function dashboardPath(): string
     {
-        return match ($this->role) {
+        return match ($this->normalizedRole()) {
             self::ROLE_ADMIN => route('admin.dashboard'),
             self::ROLE_COACH => route('coach.dashboard'),
             default => route('player-dashboard'),
         };
+    }
+
+    public function normalizedRole(): string
+    {
+        return $this->role === 'player' ? self::ROLE_ATHLETE : (string) $this->role;
     }
 
     public function coach(): HasOne

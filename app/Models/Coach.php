@@ -114,7 +114,9 @@ class Coach extends Model
         $specialty = trim((string) $this->specialty);
 
         if ($specialty === '') {
-            $sport = trim((string) $this->sport);
+            $sport = array_key_exists('sport', $this->getAttributes())
+                ? trim((string) $this->getAttributes()['sport'])
+                : '';
 
             return $sport !== '' ? $sport.' Coach' : 'Coach';
         }
@@ -273,16 +275,17 @@ class Coach extends Model
             return [];
         }
 
-        $from = now()->toDateString();
-        $to = now()->addDays(21)->toDateString();
-        $rows = [];
+        try {
+            $from = now()->toDateString();
+            $to = now()->addDays(21)->toDateString();
+            $rows = [];
 
-        $bookings = Booking::query()
-            ->whereIn('coach_id', $ids)
-            ->where('status', '!=', 'cancelled')
-            ->whereDate('session_date', '>=', $from)
-            ->whereDate('session_date', '<=', $to)
-            ->get(['coach_id', 'session_date', 'session_time', 'duration_minutes']);
+            $bookings = Booking::query()
+                ->whereIn('coach_id', $ids)
+                ->where('status', '!=', 'cancelled')
+                ->whereDate('session_date', '>=', $from)
+                ->whereDate('session_date', '<=', $to)
+                ->get(['coach_id', 'session_date', 'session_time', 'duration_minutes']);
 
         foreach ($bookings as $booking) {
             $rows[$booking->coach_id][] = [
@@ -315,7 +318,10 @@ class Coach extends Model
             ];
         }
 
-        return $rows;
+            return $rows;
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     public function deleteStoredPhoto(): void

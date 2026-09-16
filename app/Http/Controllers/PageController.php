@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -253,16 +254,21 @@ class PageController extends Controller
         $focusBooking = $nextBooking ?? $latestPast;
         $focusLabel = $focusBooking?->session_type ?: 'Training';
 
+        $sessionWith = ['hostCoach.user', 'location', 'players'];
+        if (Schema::hasColumn('session_requests', 'requested_coach_id')) {
+            $sessionWith[] = 'requestedCoach.user';
+        }
+
         $hostedRequest = SessionRequest::query()
             ->where('requester_id', $user->id)
             ->whereIn('status', ['hosted', 'awaiting_deposit', 'confirmed'])
             ->whereNotNull('host_coach_id')
-            ->with(['hostCoach', 'requestedCoach', 'location'])
+            ->with($sessionWith)
             ->orderByDesc('created_at')
             ->first();
 
         $sessionRequests = SessionRequest::query()
-            ->with(['hostCoach.user', 'requestedCoach.user', 'location', 'players'])
+            ->with($sessionWith)
             ->where(function ($q) use ($user) {
                 $q->where('requester_id', $user->id)
                     ->orWhereHas('players', fn ($p) => $p->where('user_id', $user->id));

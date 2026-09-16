@@ -23,13 +23,23 @@ class EnsureUserRole
             return redirect()->guest(route('login'));
         }
 
-        if (! empty($roles) && ! in_array($user->role, $roles, true)) {
+        if (! empty($roles) && ! in_array($user->normalizedRole(), $roles, true)) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'That action is not available for this account.'], 403);
             }
 
+            $target = $user->dashboardPath();
+            $targetPath = rtrim((string) (parse_url($target, PHP_URL_PATH) ?: ''), '/') ?: '/';
+            $currentPath = rtrim($request->getPathInfo(), '/') ?: '/';
+
+            if ($currentPath === $targetPath) {
+                return redirect()
+                    ->route('home')
+                    ->with('error', 'That page is for a different account type.');
+            }
+
             return redirect()
-                ->to($user->dashboardPath())
+                ->to($target)
                 ->with('error', 'That page is for a different account type. You were sent back to your dashboard.');
         }
 
