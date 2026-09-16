@@ -1,14 +1,12 @@
 (() => {
+  const STORAGE_KEY = 'coachnow_payment_methods';
+
   const TEST_CARDS = {
     '4242424242424242': { brand: 'Visa', result: 'success' },
     '4000000000000002': { brand: 'Visa', result: 'declined' },
     '5555555555554444': { brand: 'Mastercard', result: 'success' },
     '378282246310005': { brand: 'American Express', result: 'success' },
   };
-
-  const userKey = document.querySelector('meta[name="app-user-email"]')?.content || 'guest';
-  const STORAGE_KEY = `coachnow_payment_methods_${userKey}`;
-  const cardholderName = document.querySelector('meta[name="app-user-name"]')?.content || '';
 
   function escapeHtml(str) {
     return String(str ?? '')
@@ -140,7 +138,7 @@
       const pan = digits(numberInput?.value);
       const exp = formatExp(expInput?.value).replace(/\s/g, '');
       const cvc = digits(cvcInput?.value);
-      const name = nameInput?.value.trim() || cardholderName || 'Cardholder';
+      const name = nameInput?.value.trim() || 'Jamie Underwood';
       const amex = /^3[47]/.test(pan);
       const validLen = amex ? pan.length === 15 : pan.length === 16;
       const validCvc = amex ? cvc.length === 4 : cvc.length === 3;

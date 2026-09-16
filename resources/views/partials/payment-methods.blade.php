@@ -20,7 +20,7 @@
 
     <div class="pay-methods__field">
       <label for="{{ $payPrefix }}CardName">Name on card</label>
-      <input type="text" id="{{ $payPrefix }}CardName" data-card-name autocomplete="cc-name" placeholder="Name on card" value="{{ auth()->user()?->name }}">
+      <input type="text" id="{{ $payPrefix }}CardName" data-card-name autocomplete="cc-name" placeholder="Name on card">
     </div>
 
     <div class="pay-methods__field">

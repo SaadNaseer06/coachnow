@@ -4,10 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  @auth
-    <meta name="app-user-name" content="{{ auth()->user()->name }}">
-    <meta name="app-user-email" content="{{ auth()->user()->email }}">
-  @endauth
   <link rel="icon" href="{{ asset('assets/favicon.ico') }}" sizes="any">
   <link rel="icon" type="image/svg+xml" href="{{ asset('assets/favicon.svg') }}">
   <link rel="icon" type="image/png" href="{{ asset('assets/favicon-32.png') }}" sizes="32x32">
