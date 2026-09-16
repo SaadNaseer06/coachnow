@@ -150,11 +150,95 @@ class SessionRequest extends Model
         ?int $ignoreRequestId = null,
         int $durationMinutes = 60,
     ): bool {
+        return static::schedulingConflictMessage(
+            $athleteId,
+            $sessionDate,
+            $sessionTime,
+            $coachId,
+            $ignoreRequestId,
+            $durationMinutes,
+        ) !== null;
+    }
+
+    public static function schedulingConflictMessage(
+        int $athleteId,
+        string $sessionDate,
+        ?string $sessionTime,
+        ?int $coachId = null,
+        ?int $ignoreRequestId = null,
+        int $durationMinutes = 60,
+        string $audience = 'athlete',
+    ): ?string {
         if ($sessionTime === null || $sessionTime === '') {
-            return false;
+            return null;
         }
 
         $durationMinutes = $durationMinutes > 0 ? $durationMinutes : static::defaultDurationMinutes();
+        $slotHint = 'Sessions last 60 minutes — pick a slot after the other one ends.';
+
+        $athleteKind = static::athleteOverlapKind(
+            $athleteId,
+            $sessionDate,
+            $sessionTime,
+            $durationMinutes,
+            $ignoreRequestId
+        );
+
+        if ($coachId) {
+            if ($athleteKind === 'request') {
+                return $audience === 'coach'
+                    ? 'This player already has a request that overlaps that time. '.$slotHint
+                    : 'You already have a request that overlaps that time. Cancel it or pick a later slot. '.$slotHint;
+            }
+            if ($athleteKind === 'booking') {
+                return $audience === 'coach'
+                    ? 'This player already has a booked session that overlaps that time. '.$slotHint
+                    : 'You already have a booked session that overlaps that time. '.$slotHint;
+            }
+            if (static::coachIsBusyAt($coachId, $sessionDate, $sessionTime, $durationMinutes, $ignoreRequestId)) {
+                $name = Coach::query()->find($coachId)?->display_name ?: 'That coach';
+
+                return $audience === 'coach'
+                    ? 'You already have a session that overlaps that time. '.$slotHint
+                    : $name.' already has a session that overlaps that time. '.$slotHint;
+            }
+
+            return null;
+        }
+
+        $busyCoaches = static::busyActiveCoachNames(
+            $sessionDate,
+            $sessionTime,
+            $durationMinutes,
+            $ignoreRequestId
+        );
+        $activeCount = Coach::query()->where('status', 'active')->count();
+
+        if ($activeCount > 0 && count($busyCoaches) >= $activeCount) {
+            if (count($busyCoaches) === 1) {
+                return $busyCoaches[0].' is the only available coach and already has a session at that time. '.$slotHint;
+            }
+
+            return 'No coaches are free at that time. '.$slotHint;
+        }
+
+        if ($athleteKind === 'request') {
+            return 'You already have a request that overlaps that time. Cancel it or pick a later slot. '.$slotHint;
+        }
+        if ($athleteKind === 'booking') {
+            return 'You already have a booked session that overlaps that time. '.$slotHint;
+        }
+
+        return null;
+    }
+
+    private static function athleteOverlapKind(
+        int $athleteId,
+        string $sessionDate,
+        string $sessionTime,
+        int $durationMinutes,
+        ?int $ignoreRequestId,
+    ): ?string {
         $activeStatuses = ['open', 'hosted', 'awaiting_deposit', 'confirmed'];
 
         $athleteRequests = static::query()
@@ -162,12 +246,14 @@ class SessionRequest extends Model
             ->whereDate('session_date', $sessionDate)
             ->whereIn('status', $activeStatuses)
             ->when($ignoreRequestId, fn ($q) => $q->where('id', '!=', $ignoreRequestId))
-            ->get(['session_time']);
+            ->get(['session_time', 'host_coach_id']);
 
         foreach ($athleteRequests as $existing) {
-            if (static::timesOverlap($sessionTime, $durationMinutes, $existing->session_time, static::defaultDurationMinutes())) {
-                return true;
+            if (! static::timesOverlap($sessionTime, $durationMinutes, $existing->session_time, static::defaultDurationMinutes())) {
+                continue;
             }
+
+            return $existing->host_coach_id ? 'booking' : 'request';
         }
 
         $athleteBookings = Booking::query()
@@ -183,13 +269,21 @@ class SessionRequest extends Model
                 $booking->session_time,
                 (int) ($booking->duration_minutes ?: static::defaultDurationMinutes())
             )) {
-                return true;
+                return 'booking';
             }
         }
 
-        if (! $coachId) {
-            return false;
-        }
+        return null;
+    }
+
+    private static function coachIsBusyAt(
+        int $coachId,
+        string $sessionDate,
+        string $sessionTime,
+        int $durationMinutes,
+        ?int $ignoreRequestId,
+    ): bool {
+        $activeStatuses = ['open', 'hosted', 'awaiting_deposit', 'confirmed'];
 
         $coachRequests = static::query()
             ->where(function ($q) use ($coachId) {
@@ -225,6 +319,31 @@ class SessionRequest extends Model
         }
 
         return false;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function busyActiveCoachNames(
+        string $sessionDate,
+        string $sessionTime,
+        int $durationMinutes,
+        ?int $ignoreRequestId,
+    ): array {
+        $names = [];
+
+        $coaches = Coach::query()
+            ->where('status', 'active')
+            ->orderBy('display_name')
+            ->get(['id', 'display_name']);
+
+        foreach ($coaches as $coach) {
+            if (static::coachIsBusyAt((int) $coach->id, $sessionDate, $sessionTime, $durationMinutes, $ignoreRequestId)) {
+                $names[] = $coach->display_name;
+            }
+        }
+
+        return $names;
     }
 
     public function bookings(): HasMany

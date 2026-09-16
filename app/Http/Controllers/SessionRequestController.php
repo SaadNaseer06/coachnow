@@ -120,19 +120,14 @@ class SessionRequestController extends Controller
             }
         }
 
-        if (SessionRequest::hasSchedulingConflict(
+        $conflict = SessionRequest::schedulingConflictMessage(
             $user->id,
             $data['session_date'],
             $time,
             $requestedCoach?->id
-        )) {
-            $who = $requestedCoach
-                ? $requestedCoach->display_name.' already has'
-                : 'You already have';
-
-            return response()->json([
-                'message' => $who.' a session that overlaps that time. Sessions last 60 minutes — pick a slot after the other session ends.',
-            ], 422);
+        );
+        if ($conflict) {
+            return response()->json(['message' => $conflict], 422);
         }
 
         $session = DB::transaction(function () use ($data, $user, $location, $time, $requestedCoach) {
@@ -215,16 +210,19 @@ class SessionRequestController extends Controller
             ? Carbon::parse($session->session_time)->format('H:i:s')
             : null;
 
-        if ($session->session_date && SessionRequest::hasSchedulingConflict(
-            (int) $session->requester_id,
-            $session->session_date->toDateString(),
-            $time,
-            $coach->id,
-            $session->id
-        )) {
-            return response()->json([
-                'message' => 'You already have a session that overlaps that time. Sessions last 60 minutes — pick a different slot.',
-            ], 422);
+        if ($session->session_date) {
+            $conflict = SessionRequest::schedulingConflictMessage(
+                (int) $session->requester_id,
+                $session->session_date->toDateString(),
+                $time,
+                $coach->id,
+                $session->id,
+                SessionRequest::defaultDurationMinutes(),
+                'coach'
+            );
+            if ($conflict) {
+                return response()->json(['message' => $conflict], 422);
+            }
         }
 
         DB::transaction(function () use ($session, $coach) {
