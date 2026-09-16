@@ -37,33 +37,41 @@ class AppServiceProvider extends ServiceProvider
             $coach = $user?->coach;
             $isAdmin = (bool) $user?->isAdmin();
 
-            $query = SessionRequest::query()
-                ->with(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location'])
-                ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
-                ->orderByDesc('created_at');
+            try {
+                $query = SessionRequest::query()
+                    ->with(['players', 'requester', 'hostCoach.user', 'location'])
+                    ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
+                    ->orderByDesc('created_at');
 
-            if ($isAdmin) {
-                // Admins can view every request, including private/targeted ones.
-            } elseif ($coach) {
-                $query->visibleToCoach($coach);
-            } else {
-                $query->whereRaw('1 = 0');
+                if ($isAdmin) {
+                    // Admins can view every request, including private/targeted ones.
+                } elseif ($coach) {
+                    $query->visibleToCoach($coach);
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+
+                $sessionRequests = $query
+                    ->limit(40)
+                    ->get()
+                    ->map->toPortalArray()
+                    ->values()
+                    ->all();
+
+                $unreadContactCount = $isAdmin && Schema::hasTable('contact_messages')
+                    ? ContactMessage::query()->whereNull('read_at')->count()
+                    : 0;
+            } catch (\Throwable $e) {
+                report($e);
+                $sessionRequests = [];
+                $unreadContactCount = 0;
             }
-
-            $sessionRequests = $query
-                ->limit(40)
-                ->get()
-                ->map->toPortalArray()
-                ->values()
-                ->all();
 
             $view->with([
                 'sessionRequests' => $sessionRequests,
                 'currentCoachId' => $coach?->id,
                 'sessionRequestsIsAdmin' => $isAdmin,
-                'unreadContactCount' => $isAdmin && Schema::hasTable('contact_messages')
-                    ? ContactMessage::query()->whereNull('read_at')->count()
-                    : 0,
+                'unreadContactCount' => $unreadContactCount,
             ]);
         });
 

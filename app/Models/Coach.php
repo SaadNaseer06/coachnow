@@ -285,7 +285,7 @@ class Coach extends Model
                 ->where('status', '!=', 'cancelled')
                 ->whereDate('session_date', '>=', $from)
                 ->whereDate('session_date', '<=', $to)
-                ->get(['coach_id', 'session_date', 'session_time', 'duration_minutes']);
+                ->get();
 
         foreach ($bookings as $booking) {
             $rows[$booking->coach_id][] = [
@@ -303,7 +303,7 @@ class Coach extends Model
                 $query->whereIn('host_coach_id', $ids)
                     ->orWhereIn('requested_coach_id', $ids);
             })
-            ->get(['host_coach_id', 'requested_coach_id', 'session_date', 'session_time']);
+            ->get();
 
         foreach ($requests as $request) {
             $coachId = $request->host_coach_id ?: $request->requested_coach_id;
