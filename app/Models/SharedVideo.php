@@ -52,7 +52,7 @@ class SharedVideo extends Model
             $q->where('athlete_id', $athlete->id)
                 ->orWhere(function (Builder $inner) use ($athlete) {
                     $inner->whereNull('athlete_id')
-                        ->whereRaw('LOWER(athlete_name) = ?', [strtolower(trim($athlete->name))]);
+                        ->whereRaw('LOWER(athlete_name) = ?', [mb_strtolower(trim($athlete->name))]);
                 });
         });
     }
@@ -67,7 +67,7 @@ class SharedVideo extends Model
             if (! empty($profile['name'])) {
                 $q->orWhere(function (Builder $inner) use ($profile) {
                     $inner->whereNull('athlete_id')
-                        ->whereRaw('LOWER(athlete_name) = ?', [strtolower(trim((string) $profile['name']))]);
+                        ->whereRaw('LOWER(athlete_name) = ?', [mb_strtolower(trim((string) $profile['name']))]);
                 });
             }
         });

@@ -180,15 +180,9 @@ class Booking extends Model
     public function whenLabel(): string
     {
         $date = $this->session_date?->format('D, M j') ?? '';
-        $time = '';
-
-        if ($this->session_time) {
-            try {
-                $time = Carbon::parse($this->session_time)->format('g:i A');
-            } catch (\Throwable) {
-                $time = substr((string) $this->session_time, 0, 8);
-            }
-        }
+        $time = $this->session_time
+            ? Carbon::parse($this->session_time)->format('g:i A')
+            : '';
 
         return collect([$date, $time])->filter()->implode(' · ');
     }

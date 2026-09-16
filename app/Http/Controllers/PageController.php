@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -220,33 +221,33 @@ class PageController extends Controller
     {
         $user = auth()->user();
 
-        $upcoming = $this->playerDashboardCollect(fn () => Booking::query()
+        $upcoming = Booking::query()
             ->forAthlete($user->id)
             ->upcoming()
             ->with(['coach.user', 'location'])
             ->limit(8)
-            ->get());
+            ->get();
 
-        $past = $this->playerDashboardCollect(fn () => Booking::query()
+        $past = Booking::query()
             ->forAthlete($user->id)
             ->past()
             ->with(['coach.user', 'location'])
             ->limit(8)
-            ->get());
+            ->get();
 
-        $completedCount = $this->playerDashboardValue(fn () => Booking::query()
+        $completedCount = Booking::query()
             ->forAthlete($user->id)
             ->where('status', '!=', 'cancelled')
             ->whereDate('session_date', '<', now()->toDateString())
-            ->count(), 0);
+            ->count();
 
-        $completedThisMonth = $this->playerDashboardValue(fn () => Booking::query()
+        $completedThisMonth = Booking::query()
             ->forAthlete($user->id)
             ->where('status', '!=', 'cancelled')
             ->whereDate('session_date', '<', now()->toDateString())
             ->whereMonth('session_date', now()->month)
             ->whereYear('session_date', now()->year)
-            ->count(), 0);
+            ->count();
 
         $nextBooking = $upcoming->first();
         $latestPast = $past->first();
@@ -254,42 +255,43 @@ class PageController extends Controller
         $focusLabel = $focusBooking?->session_type ?: 'Training';
 
         $sessionWith = ['hostCoach.user', 'location', 'players'];
+        if (Schema::hasColumn('session_requests', 'requested_coach_id')) {
+            $sessionWith[] = 'requestedCoach.user';
+        }
 
-        $hostedRequest = $this->playerDashboardValue(fn () => SessionRequest::query()
+        $hostedRequest = SessionRequest::query()
             ->where('requester_id', $user->id)
             ->whereIn('status', ['hosted', 'awaiting_deposit', 'confirmed'])
             ->whereNotNull('host_coach_id')
             ->with($sessionWith)
             ->orderByDesc('created_at')
-            ->first());
+            ->first();
 
-        $sessionRequests = $this->playerDashboardCollect(function () use ($user, $sessionWith) {
-            return SessionRequest::query()
-                ->with($sessionWith)
-                ->where(function ($q) use ($user) {
-                    $q->where('requester_id', $user->id)
-                        ->orWhereHas('players', fn ($p) => $p->where('user_id', $user->id));
-                })
-                ->orderByDesc('created_at')
-                ->limit(20)
-                ->get()
-                ->map(fn (SessionRequest $session) => $session->toPlayerDashboardArray($user))
-                ->values();
-        });
+        $sessionRequests = SessionRequest::query()
+            ->with($sessionWith)
+            ->where(function ($q) use ($user) {
+                $q->where('requester_id', $user->id)
+                    ->orWhereHas('players', fn ($p) => $p->where('user_id', $user->id));
+            })
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn (SessionRequest $session) => $session->toPlayerDashboardArray($user))
+            ->values();
 
         $activeRequestCount = $sessionRequests
             ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
             ->count();
         $openRequestCount = $sessionRequests->where('status', 'open')->count();
 
-        $sharedVideos = $this->playerDashboardCollect(fn () => SharedVideo::query()
+        $sharedVideos = SharedVideo::query()
             ->with('coach.user')
             ->forAthlete($user)
             ->orderByDesc('created_at')
             ->limit(8)
             ->get()
             ->map->toDisplayArray()
-            ->values());
+            ->values();
 
         $parts = preg_split('/\s+/', trim($user->name)) ?: [];
         $initials = collect($parts)->map(fn ($p) => strtoupper(substr($p, 0, 1)))->take(2)->implode('') ?: 'PL';
@@ -310,33 +312,6 @@ class PageController extends Controller
             'openRequestCount' => $openRequestCount,
             'sharedVideos' => $sharedVideos,
         ]);
-    }
-
-    /**
-     * @template T
-     * @param  callable(): T  $callback
-     * @param  T  $fallback
-     * @return T
-     */
-    private function playerDashboardValue(callable $callback, mixed $fallback = null): mixed
-    {
-        try {
-            return $callback();
-        } catch (\Throwable $e) {
-            report($e);
-
-            return $fallback;
-        }
-    }
-
-    /**
-     * @param  callable(): mixed  $callback
-     */
-    private function playerDashboardCollect(callable $callback): \Illuminate\Support\Collection
-    {
-        $result = $this->playerDashboardValue($callback, collect());
-
-        return $result instanceof \Illuminate\Support\Collection ? $result : collect($result);
     }
 
     public function requestSession(Request $request): View

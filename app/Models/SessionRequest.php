@@ -363,15 +363,9 @@ class SessionRequest extends Model
     public function whenLabel(): string
     {
         $date = $this->session_date?->format('D, M j') ?? '';
-        $time = '';
-
-        if ($this->session_time) {
-            try {
-                $time = Carbon::parse($this->session_time)->format('g:i A');
-            } catch (\Throwable) {
-                $time = substr((string) $this->session_time, 0, 8);
-            }
-        }
+        $time = $this->session_time
+            ? Carbon::parse($this->session_time)->format('g:i A')
+            : '';
 
         return collect([$date, $time])->filter()->implode(' · ');
     }
@@ -489,9 +483,7 @@ class SessionRequest extends Model
      */
     public function toPlayerDashboardArray(?User $viewer = null): array
     {
-        $this->loadMissing(['hostCoach.user', 'location', 'players']);
-        $requestedCoach = $this->relatedCoach('requestedCoach');
-        $hostCoach = $this->hostCoach;
+        $this->loadMissing(['hostCoach.user', 'requestedCoach.user', 'location', 'players']);
 
         $role = 'requester';
         if ($viewer) {
@@ -502,8 +494,8 @@ class SessionRequest extends Model
             }
         }
 
-        $coachName = $hostCoach?->display_name
-            ?? $requestedCoach?->display_name;
+        $coachName = $this->hostCoach?->display_name
+            ?? $this->requestedCoach?->display_name;
 
         return [
             'reference' => $this->reference,
@@ -515,13 +507,13 @@ class SessionRequest extends Model
             'status_label' => $this->statusLabel(),
             'status_tone' => $this->statusTone(),
             'coach' => $coachName,
-            'requested_coach' => $requestedCoach?->display_name,
+            'requested_coach' => $this->requestedCoach?->display_name,
             'role' => $role,
             'role_label' => $role === 'requester' ? 'You requested' : 'You joined',
-            'waiting_label' => $hostCoach
-                ? 'Hosted by '.$hostCoach->display_name
-                : ($requestedCoach
-                    ? 'Waiting for '.$requestedCoach->display_name
+            'waiting_label' => $this->hostCoach
+                ? 'Hosted by '.$this->hostCoach->display_name
+                : ($this->requestedCoach
+                    ? 'Waiting for '.$this->requestedCoach->display_name
                     : 'Waiting for a coach'),
             'can_cancel' => $this->canBeCancelledBy($viewer),
             'players_count' => $this->players->count(),
@@ -536,8 +528,7 @@ class SessionRequest extends Model
      */
     public function toPortalArray(): array
     {
-        $this->loadMissing(['players', 'requester', 'hostCoach.user']);
-        $requestedCoach = $this->relatedCoach('requestedCoach');
+        $this->loadMissing(['players', 'requester', 'hostCoach.user', 'requestedCoach.user']);
 
         $requesterPlayer = $this->players->firstWhere('role', 'requester');
         $name = $requesterPlayer?->name
@@ -586,7 +577,7 @@ class SessionRequest extends Model
             'accepted_by' => $this->hostCoach?->display_name,
             'host_coach_id' => $this->host_coach_id,
             'requested_coach_id' => $this->requested_coach_id,
-            'requested_coach' => $requestedCoach?->display_name,
+            'requested_coach' => $this->requestedCoach?->display_name,
             'players_joined' => count($players),
             'looking_for' => $looking ?? '',
             'coach_note' => $this->coach_note,
@@ -594,22 +585,5 @@ class SessionRequest extends Model
             'deposit_paid' => collect($players)->contains(fn ($p) => ($p['role'] ?? '') === 'requester' && ! empty($p['paid'])),
             'createdAt' => $this->created_at ? ((int) $this->created_at->getTimestamp() * 1000) : null,
         ];
-    }
-
-    private function relatedCoach(string $relation): ?Coach
-    {
-        try {
-            if (! $this->relationLoaded($relation)) {
-                $this->load($relation);
-            }
-
-            $coach = $this->getRelation($relation);
-
-            return $coach instanceof Coach ? $coach : null;
-        } catch (\Throwable) {
-            $this->unsetRelation($relation);
-
-            return null;
-        }
     }
 }
