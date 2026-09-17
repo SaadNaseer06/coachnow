@@ -36,16 +36,24 @@ class VideoCompressionService
             $compressed = false;
 
             if ($ffmpeg) {
-                $result = Process::timeout(300)->run([
+                // Streaming-friendly encode: H.264 + faststart so playback can begin
+                // before the full file downloads. Cap resolution/bitrate for shared hosts.
+                $result = Process::timeout(480)->run([
                     $ffmpeg,
                     '-y',
                     '-i', $inputPath,
                     '-c:v', 'libx264',
-                    '-preset', 'medium',
+                    '-preset', 'veryfast',
+                    '-profile:v', 'main',
+                    '-level', '4.0',
+                    '-pix_fmt', 'yuv420p',
                     '-crf', '28',
+                    '-maxrate', '1800k',
+                    '-bufsize', '3600k',
                     '-vf', "scale='min(1280,iw)':-2",
                     '-c:a', 'aac',
                     '-b:a', '96k',
+                    '-ac', '2',
                     '-movflags', '+faststart',
                     $outputPath,
                 ]);
@@ -60,7 +68,18 @@ class VideoCompressionService
             $uuid = (string) Str::uuid();
             $relativePath = trim($directory, '/').'/'.$uuid.'.'.$extension;
 
-            Storage::disk($disk)->put($relativePath, file_get_contents($finalLocal));
+            // Stream to disk instead of loading the whole file into PHP memory.
+            $stream = fopen($finalLocal, 'rb');
+            if ($stream === false) {
+                throw new RuntimeException('Could not read the processed video for storage.');
+            }
+            try {
+                Storage::disk($disk)->put($relativePath, $stream);
+            } finally {
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+            }
 
             $thumbnailPath = null;
             if ($ffmpeg) {

@@ -48,6 +48,10 @@
     }
   };
 
+  const setBuffering = (on) => {
+    frameEl?.classList.toggle('is-buffering', Boolean(on));
+  };
+
   const closeVideoModal = () => {
     if (activeVideo) {
       activeVideo.pause();
@@ -55,6 +59,7 @@
       activeVideo.load();
     }
     activeVideo = null;
+    setBuffering(false);
     videoModal.hidden = true;
     videoModal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('player-video-modal-open');
@@ -66,6 +71,58 @@
     }
   };
 
+  const mountNativeVideo = (url) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'player-video-native';
+
+    const spinner = document.createElement('div');
+    spinner.className = 'player-video-buffer';
+    spinner.innerHTML = '<span></span><p>Loading video…</p>';
+
+    const video = document.createElement('video');
+    video.controls = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    video.setAttribute('playsinline', '');
+    video.setAttribute('controlslist', 'nodownload');
+
+    // Explicit source helps browsers pick the right demuxer sooner.
+    const source = document.createElement('source');
+    source.src = url;
+    if (/\.webm(\?|$)/i.test(url)) source.type = 'video/webm';
+    else if (/\.ogg(\?|$)/i.test(url)) source.type = 'video/ogg';
+    else source.type = 'video/mp4';
+    video.appendChild(source);
+
+    const onWaiting = () => setBuffering(true);
+    const onReady = () => setBuffering(false);
+
+    video.addEventListener('loadstart', onWaiting);
+    video.addEventListener('waiting', onWaiting);
+    video.addEventListener('stalled', onWaiting);
+    video.addEventListener('canplay', onReady);
+    video.addEventListener('playing', onReady);
+    video.addEventListener('error', () => {
+      setBuffering(false);
+      spinner.querySelector('p').textContent = 'Could not load this video. Try Open in new tab.';
+      spinner.classList.add('is-error');
+    });
+
+    wrap.appendChild(video);
+    wrap.appendChild(spinner);
+    frameEl.appendChild(wrap);
+
+    activeVideo = video;
+    video.playbackRate = 1;
+    setBuffering(true);
+    showNativeControls(true);
+    setSpeedActive(1);
+
+    // Kick playback; ignore autoplay blocks (user already clicked play).
+    video.play().catch(() => {});
+  };
+
   const openVideoModal = ({ title, url, meta, source }) => {
     if (!frameEl || !url) return;
 
@@ -73,6 +130,7 @@
     if (metaEl) metaEl.textContent = meta || '';
 
     frameEl.innerHTML = '';
+    setBuffering(false);
     showNativeControls(false);
     activeVideo = null;
 
@@ -81,20 +139,11 @@
     const isFile =
       source === 'upload' ||
       /\.(mp4|webm|ogg|mov)(\?|$)/i.test(url) ||
-      url.includes('/storage/shared-videos/');
+      url.includes('/storage/shared-videos/') ||
+      url.includes('/media/shared-videos/');
 
     if (isFile) {
-      const video = document.createElement('video');
-      video.controls = true;
-      video.autoplay = true;
-      video.playsInline = true;
-      video.preload = 'metadata';
-      video.src = url;
-      video.playbackRate = 1;
-      frameEl.appendChild(video);
-      activeVideo = video;
-      showNativeControls(true);
-      setSpeedActive(1);
+      mountNativeVideo(url);
     } else if (yt) {
       const iframe = document.createElement('iframe');
       iframe.src = `https://www.youtube.com/embed/${encodeURIComponent(yt)}?autoplay=1&rel=0`;

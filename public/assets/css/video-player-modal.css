@@ -91,6 +91,61 @@
   background: #000;
 }
 
+.player-video-native {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.player-video-native video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #000;
+}
+
+.player-video-buffer {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  text-align: center;
+  pointer-events: none;
+}
+
+.player-video-modal__frame.is-buffering .player-video-buffer,
+.player-video-buffer.is-error {
+  display: grid;
+}
+
+.player-video-buffer span {
+  width: 36px;
+  height: 36px;
+  margin: 0 auto;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
+  animation: player-video-spin 0.7s linear infinite;
+}
+
+.player-video-buffer.is-error span {
+  display: none;
+}
+
+.player-video-buffer p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@keyframes player-video-spin {
+  to { transform: rotate(360deg); }
+}
+
 .player-video-modal__controls {
   display: flex;
   flex-wrap: wrap;

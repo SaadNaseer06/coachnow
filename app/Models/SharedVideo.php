@@ -171,7 +171,12 @@ class SharedVideo extends Model
     {
         $path = ltrim(str_replace('\\', '/', $path), '/');
 
-        // Prefer Laravel media route so videos work when public/storage symlink is missing (common on cPanel).
+        // Direct static file is much faster than PHP streaming when the symlink exists.
+        $publicFile = public_path('storage/'.$path);
+        if (is_file($publicFile)) {
+            return asset('storage/'.$path);
+        }
+
         return route('media.show', ['path' => $path], absolute: true);
     }
 }
