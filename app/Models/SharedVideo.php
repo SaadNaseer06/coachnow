@@ -171,12 +171,8 @@ class SharedVideo extends Model
     {
         $path = ltrim(str_replace('\\', '/', $path), '/');
 
-        // Direct static file is much faster than PHP streaming when the symlink exists.
-        $publicFile = public_path('storage/'.$path);
-        if (is_file($publicFile)) {
-            return asset('storage/'.$path);
-        }
-
+        // Always serve through /media — shared hosts often 404 /storage even when
+        // the public disk symlink exists and PHP can see the file.
         return route('media.show', ['path' => $path], absolute: true);
     }
 }
