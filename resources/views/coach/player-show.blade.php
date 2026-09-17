@@ -520,6 +520,9 @@
           || document.querySelector('meta[name="csrf-token"]')?.content
           || '';
 
+        // FormData must be built before disabling fields — disabled inputs are omitted.
+        const body = new FormData(form);
+
         setBusy(true);
         resetProgress();
         if (source === 'upload') {
@@ -587,13 +590,16 @@
           setBusy(false);
           resetProgress();
 
-          const message =
-            payload?.message
-            || payload?.errors?.video?.[0]
-            || payload?.errors?.title?.[0]
-            || payload?.errors?.url?.[0]
-            || (xhr.status === 413 ? 'File is too large for the server.' : null)
-            || 'Could not share this video. Please try again.';
+          let message = payload?.message || '';
+          if (payload?.errors && typeof payload.errors === 'object') {
+            const details = Object.values(payload.errors).flat().filter(Boolean);
+            if (details.length) message = details.join('\n');
+          }
+          if (!message) {
+            message = xhr.status === 413
+              ? 'File is too large for the server.'
+              : 'Could not share this video. Please try again.';
+          }
 
           if (window.CoachNowDialog?.alert) {
             window.CoachNowDialog.alert({ title: 'Upload failed', message });
@@ -618,7 +624,7 @@
           resetProgress();
         });
 
-        xhr.send(new FormData(form));
+        xhr.send(body);
       });
     })();
 
