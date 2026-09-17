@@ -177,24 +177,54 @@
       </div>
     </div>
 
-    <div role="tabpanel" data-coach-panel="goals" data-coach-group="player" hidden>
+    <div role="tabpanel" data-coach-panel="goals" data-coach-group="player" @if(empty($openGoalsTab)) hidden @endif>
       <div class="admin-card">
         <div class="admin-card-header">
           <div>
-            <h2>Goals from Player</h2>
-            <p>What the player wants to work on</p>
+            <h2>Session Reports</h2>
+            <p>AI-assisted development reports for {{ $player['name'] }}</p>
           </div>
-          <a href="{{ route('coach.add-report', ['player' => $player['slug']]) }}" class="admin-btn admin-btn-ghost admin-btn-sm">Add feedback</a>
+          <a href="{{ route('coach.add-report', ['player' => $player['slug']]) }}" class="admin-btn admin-btn-ghost admin-btn-sm">Add report</a>
         </div>
         <div class="admin-card-body">
-          @foreach ($goals as $goal)
-            <div class="coach-goal">
-              <span class="coach-goal__box {{ $goal['done'] ? 'is-done' : '' }}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
-              </span>
-              <span class="coach-goal__text">{{ $goal['text'] }}</span>
+          @forelse (($reports ?? []) as $report)
+            <article class="coach-note" style="margin-bottom:14px">
+              <div class="coach-note__head">
+                <p class="coach-note__author">{{ $report['keywords'] ?: 'Session report' }}</p>
+                <span class="coach-note__date">
+                  {{ $report['created_at'] }}
+                  @if (!empty($report['shared']))
+                    · Shared
+                  @else
+                    · Private
+                  @endif
+                </span>
+              </div>
+              <p class="coach-note__text"><strong>Focus:</strong> {{ $report['focus'] }}</p>
+              <p class="coach-note__text" style="margin-top:8px"><strong>Went well:</strong> {{ $report['went_well'] }}</p>
+              <p class="coach-note__text" style="margin-top:8px"><strong>Needs work:</strong> {{ $report['needs_work'] }}</p>
+              <p class="coach-note__text" style="margin-top:8px"><strong>Home plan:</strong> {{ $report['home_plan'] }}</p>
+            </article>
+          @empty
+            <div class="coach-media-empty">
+              <p>No session reports yet.</p>
+              <a href="{{ route('coach.add-report', ['player' => $player['slug']]) }}" class="admin-btn admin-btn-primary admin-btn-sm">Write first report</a>
             </div>
-          @endforeach
+          @endforelse
+
+          @if (!empty($goals))
+            <div style="margin-top:18px">
+              <h3 style="font-size:14px;margin:0 0 10px">Player goals</h3>
+              @foreach ($goals as $goal)
+                <div class="coach-goal">
+                  <span class="coach-goal__box {{ $goal['done'] ? 'is-done' : '' }}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+                  </span>
+                  <span class="coach-goal__text">{{ $goal['text'] }}</span>
+                </div>
+              @endforeach
+            </div>
+          @endif
         </div>
       </div>
     </div>

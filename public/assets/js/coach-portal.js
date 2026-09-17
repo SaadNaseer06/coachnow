@@ -39,127 +39,66 @@
       next.focus();
       activate(next.dataset.coachTab);
     });
+
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && tabs.some((tab) => tab.dataset.coachTab === tabParam)) {
+      activate(tabParam);
+    }
   });
 
-  /* -------------------------------------------------- Training assistant */
+  /* -------------------------------------------------- Training assistant (Ollama) */
 
-  const library = {
-    scanning: {
-      title: 'Scanning',
-      summary: 'Jamie is building awareness before the ball arrives. The habit is there in drills but drops under game pressure.',
-      focus: 'Scan before receiving and open the body to play forward with the first touch.',
-      wentWell: 'Positive attitude, good passing weight, and better movement after releasing the ball.',
-      needsWork: 'Check both shoulders earlier. Receive on the back foot when space is available.',
-      home: 'Partner passing drill — call out a colour or number seen behind before every touch. 15 minutes, 3x per week.',
-      videos: [
-        { title: 'Scan before receiving', meta: '3-min technique guide' },
-        { title: 'Body shape to play forward', meta: '4-min guide' },
-      ],
-    },
-    'first touch': {
-      title: 'First touch',
-      summary: 'A reliable first touch, but it is still a safe touch rather than a touch that creates the next action.',
-      focus: 'Make the first touch set up the next action instead of stopping the ball at the feet.',
-      wentWell: 'Cushions the ball well and rarely loses control on simple receives.',
-      needsWork: 'Touch stays under the feet. Needs to push into space and away from pressure.',
-      home: 'Directional touch — receive and move the ball to a cone three yards away. Both feet, 20 reps each.',
-      videos: [
-        { title: 'Directional first touch', meta: '3-min technique guide' },
-        { title: 'First touch into space', meta: '4-min guide' },
-      ],
-    },
-    'back foot touch': {
-      title: 'Back foot touch',
-      summary: 'Receiving across the body is the fastest way to unlock forward play. This is the current priority.',
-      focus: 'Receive on the back foot and cushion the ball into the next action.',
-      wentWell: 'Willing to try the new technique and repeated it without prompting.',
-      needsWork: 'Still receives square to the passer, which closes off the forward pass.',
-      home: 'Wall drill — 20 reps each foot receiving across the body, then progress to one touch.',
-      videos: [
-        { title: 'Back-foot first touch', meta: '3-min technique guide' },
-        { title: 'Wall drill progression', meta: '5-min session' },
-      ],
-    },
-    passing: {
-      title: 'Passing',
-      summary: 'Passing weight is a genuine strength. The next step is speed of decision under pressure.',
-      focus: 'Play the pass early when the run is on. Weight matters more than power.',
-      wentWell: 'Excellent weight on medium-range passes and good vision to spot the switch.',
-      needsWork: 'Holds the ball a beat too long when pressed, which closes the passing window.',
-      home: 'Triangle passing — three cones, two-touch maximum, increase tempo each round.',
-      videos: [
-        { title: 'Passing under pressure', meta: '4-min guide' },
-        { title: 'Weight and timing', meta: '3-min technique guide' },
-      ],
-    },
-    finishing: {
-      title: 'Finishing',
-      summary: 'Good movement to find space in the box, but the final touch is rushed.',
-      focus: 'Choose the finish before the final touch and stay calm in the box.',
-      wentWell: 'Strong when shooting first time and consistently finds space between defenders.',
-      needsWork: 'Head lifts too early on placed finishes, which drags the shot wide.',
-      home: 'Setup touch drill — 10 reps each of placed, driven, and chipped finishes. Track the success rate.',
-      videos: [
-        { title: 'Composure in the box', meta: '4-min guide' },
-        { title: 'Finishing technique', meta: '3-min technique guide' },
-      ],
-    },
-    confidence: {
-      title: 'Confidence',
-      summary: 'Growing braver in sessions. Confidence now needs to transfer into match situations.',
-      focus: 'Take one brave action per training block and track the attempts, not just the outcomes.',
-      wentWell: 'More vocal on the field and attempting skills under pressure in training.',
-      needsWork: 'Still hesitant to take players on during games.',
-      home: '1v1 challenge — 10 attempts per session. Celebrate the attempt, not only the win.',
-      videos: [
-        { title: 'Building confidence', meta: '3-min guide' },
-        { title: '1v1 attacking moves', meta: '4-min technique guide' },
-      ],
-    },
-  };
-
+  const app = document.getElementById('coachReportApp');
   const form = document.getElementById('coachAiForm');
   const input = document.getElementById('coachAiInput');
   const output = document.getElementById('coachAiOutput');
   const chips = Array.from(document.querySelectorAll('[data-coach-prompt]'));
+  const reportForm = document.getElementById('sessionReportForm');
+  const reportGenerateBtn = document.getElementById('reportGenerateBtn');
+  const reportKeywords = document.getElementById('reportKeywords');
+  const playerSelect = document.getElementById('reportPlayerSelect');
 
   if (!form || !input || !output) return;
 
+  const generateUrl = app?.dataset.generateUrl || '';
+  const csrf =
+    document.querySelector('meta[name="csrf-token"]')?.content ||
+    reportForm?.querySelector('input[name="_token"]')?.value ||
+    '';
+
   const escape = (value) =>
-    String(value).replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    })[char]);
-
-  const normalizeKeyword = (value) =>
-    String(value)
-      .trim()
-      .toLowerCase()
-      .replace(/^(improve|work on|focus on|practice)\s+/, '')
-      .replace(/\s+/g, ' ');
-
-  const findMatch = (keyword) => {
-    const normalized = normalizeKeyword(keyword);
-    if (!normalized) return null;
-
-    return Object.keys(library).find((key) => normalized.includes(key) || key.includes(normalized));
-  };
-
-  const buildFallback = (keyword) => ({
-    title: keyword,
-    summary: `Session focused on ${keyword}. Review the technique and set a clear plan for practice at home.`,
-    focus: `Work on ${keyword} in training and repeat it at home this week.`,
-    wentWell: 'Positive effort and attitude throughout the session.',
-    needsWork: `Keep developing ${keyword} with focused repetition under light pressure.`,
-    home: `Practise ${keyword} for 15 minutes, 3x per week. Record one short clip to review together.`,
-    videos: [{ title: `${keyword} technique guide`, meta: '3-min guide' }],
-  });
+    String(value).replace(/[&<>"']/g, (char) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[char]
+    );
 
   let current = null;
   let lastKeyword = '';
+  let generating = false;
+
+  const playerSlug = () =>
+    playerSelect?.value ||
+    app?.dataset.playerSlug ||
+    reportForm?.querySelector('input[name="player"]')?.value ||
+    '';
+
+  const setGenerating = (on) => {
+    generating = on;
+    [reportGenerateBtn, form.querySelector('button[type="submit"]'), ...chips].forEach((el) => {
+      if (el) el.disabled = on;
+    });
+    if (reportGenerateBtn) {
+      reportGenerateBtn.textContent = on ? 'Generating…' : 'Generate with AI';
+    }
+    const asideSubmit = form.querySelector('.coach-ai__submit');
+    if (asideSubmit) asideSubmit.textContent = on ? 'Generating…' : 'Generate report';
+  };
 
   const applyToForm = (keyword = lastKeyword) => {
     if (!current) return;
@@ -167,80 +106,104 @@
     const fields = {
       reportKeywords: keyword || lastKeyword,
       reportFocus: current.focus,
-      reportWentWell: current.wentWell,
-      reportNeedsWork: current.needsWork,
+      reportWentWell: current.went_well || current.wentWell,
+      reportNeedsWork: current.needs_work || current.needsWork,
       reportHome: current.home,
+      reportSummary: current.summary || '',
+      reportAiSource: current.source || 'ollama',
+      reportVideosJson: JSON.stringify(current.videos || []),
     };
 
     Object.entries(fields).forEach(([id, value]) => {
       const field = document.getElementById(id);
       if (field) field.value = value;
     });
+  };
 
-    const apply = document.getElementById('coachAiApply');
-    if (apply) {
-      apply.textContent = 'Applied to report';
-      window.setTimeout(() => {
-        apply.textContent = 'Apply to report again';
-      }, 1800);
-    }
+  const render = (data, keyword, autoApply = true) => {
+    current = data;
+    lastKeyword = keyword;
 
-    const generateBtn = document.getElementById('reportGenerateBtn');
-    if (generateBtn) {
-      generateBtn.textContent = 'Report generated';
-      window.setTimeout(() => {
-        generateBtn.textContent = 'Generate with AI';
-      }, 1800);
+    if (input) input.value = keyword;
+    if (reportKeywords) reportKeywords.value = keyword;
+
+    const sourceNote =
+      data.source === 'ollama'
+        ? 'AI draft ready'
+        : 'Professional draft (AI offline)';
+
+    output.innerHTML = `
+      <h3>${escape(data.title || keyword)} — draft report</h3>
+      <p>${escape(data.summary || '')}</p>
+      <p class="coach-ai__source">${escape(sourceNote)}</p>
+      <ul class="coach-ai__list">
+        <li><strong>Focus of the week</strong>${escape(data.focus || '')}</li>
+        <li><strong>What went well</strong>${escape(data.went_well || data.wentWell || '')}</li>
+        <li><strong>Needs work</strong>${escape(data.needs_work || data.needsWork || '')}</li>
+        <li><strong>Home training</strong>${escape(data.home || '')}</li>
+      </ul>
+    `;
+
+    if (autoApply && document.getElementById('reportFocus')) {
+      applyToForm(keyword);
     }
   };
 
-  const render = (keyword, autoApply = true) => {
-    const cleaned = keyword.trim();
-    if (!cleaned) return;
+  const generate = async (keyword) => {
+    const cleaned = String(keyword || '').trim();
+    if (!cleaned || generating) {
+      if (!cleaned) reportKeywords?.focus();
+      return;
+    }
 
-    lastKeyword = cleaned;
-    const match = findMatch(cleaned);
-    const data = match ? library[match] : buildFallback(normalizeKeyword(cleaned) || cleaned);
-    current = data;
+    if (!generateUrl) {
+      output.innerHTML = '<h3>Setup needed</h3><p>Generate endpoint is missing. Refresh the page and try again.</p>';
+      return;
+    }
 
-    if (input) input.value = cleaned;
-    const reportKeywords = document.getElementById('reportKeywords');
-    if (reportKeywords) reportKeywords.value = cleaned;
+    setGenerating(true);
+    output.innerHTML =
+      '<h3>Writing your report…</h3><p>Drafting a professional session report. This usually takes a few seconds.</p>';
 
-    const videos = data.videos
-      .map(
-        (video) => `
-          <div class="coach-ai__video">
-            <span class="coach-ai__video-thumb"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
-            <span>
-              <span class="coach-ai__video-title">${escape(video.title)}</span>
-              <span class="coach-ai__video-meta">${escape(video.meta)}</span>
-            </span>
-          </div>`
-      )
-      .join('');
+    try {
+      const response = await fetch(generateUrl, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-TOKEN': csrf,
+        },
+        body: JSON.stringify({
+          keywords: cleaned,
+          player: playerSlug(),
+        }),
+      });
 
-    output.innerHTML = `
-      <h3>${escape(data.title)} — draft report</h3>
-      <p>${escape(data.summary)}</p>
-      <ul class="coach-ai__list">
-        <li><strong>Focus of the week</strong>${escape(data.focus)}</li>
-        <li><strong>What went well</strong>${escape(data.wentWell)}</li>
-        <li><strong>Needs work</strong>${escape(data.needsWork)}</li>
-        <li><strong>Home training</strong>${escape(data.home)}</li>
-      </ul>
-      <div class="coach-ai__videos">
-        <p class="coach-ai__videos-label">Recommended videos</p>
-        ${videos}
-      </div>
-      ${document.getElementById('reportFocus') ? '<button type="button" class="coach-ai__apply" id="coachAiApply">Apply to report again</button>' : ''}
-    `;
+      const payload = await response.json().catch(() => ({}));
 
-    const apply = document.getElementById('coachAiApply');
-    if (apply) apply.addEventListener('click', () => applyToForm());
+      if (!response.ok) {
+        throw new Error(payload.message || 'Could not generate the report.');
+      }
 
-    if (autoApply && document.getElementById('reportFocus')) {
-      applyToForm(cleaned);
+      render(payload.report || {}, cleaned, true);
+
+      if (payload.report?.warning && window.CoachNowDialog?.alert) {
+        // Soft notice only — draft still applied.
+      }
+    } catch (error) {
+      output.innerHTML = `
+        <h3>Generation failed</h3>
+        <p>${escape(error.message || 'Something went wrong. Please try again in a moment.')}</p>
+      `;
+      if (window.CoachNowDialog?.alert) {
+        window.CoachNowDialog.alert({
+          title: 'AI generate failed',
+          message: error.message || 'Could not generate the report.',
+        });
+      }
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -248,37 +211,61 @@
     chip.addEventListener('click', () => {
       chips.forEach((other) => other.classList.remove('is-active'));
       chip.classList.add('is-active');
-      render(chip.dataset.coachPrompt);
+      generate(chip.dataset.coachPrompt);
     });
   });
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
-    const value = input.value.trim();
-    if (!value) return;
     chips.forEach((chip) => chip.classList.remove('is-active'));
-    render(value);
+    generate(input.value);
   });
 
-  const reportGenerateBtn = document.getElementById('reportGenerateBtn');
-  const reportKeywords = document.getElementById('reportKeywords');
-
   if (reportGenerateBtn && reportKeywords) {
-    const runFromReport = () => {
-      const value = reportKeywords.value.trim();
-      if (!value) {
-        reportKeywords.focus();
-        return;
-      }
-      if (input) input.value = value;
-      render(value);
-    };
-
-    reportGenerateBtn.addEventListener('click', runFromReport);
+    reportGenerateBtn.addEventListener('click', () => generate(reportKeywords.value));
     reportKeywords.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        runFromReport();
+        generate(reportKeywords.value);
+      }
+    });
+  }
+
+  if (reportForm) {
+    const shareFlag = document.getElementById('reportShareFlag');
+    document.querySelectorAll('[data-share]').forEach((btn) => {
+      if (!reportForm.contains(btn) && btn.getAttribute('form') !== 'sessionReportForm') return;
+      btn.addEventListener('click', () => {
+        if (shareFlag) shareFlag.value = btn.getAttribute('data-share') || '0';
+      });
+    });
+
+    reportForm.addEventListener('submit', (event) => {
+      if (!playerSlug()) {
+        event.preventDefault();
+        if (window.CoachNowDialog?.alert) {
+          window.CoachNowDialog.alert({
+            title: 'Select a player',
+            message: 'Choose a player from your roster before saving the report.',
+          });
+        } else {
+          window.alert('Select a player before saving.');
+        }
+        return;
+      }
+
+      if (playerSelect) {
+        const hidden = reportForm.querySelector('input[name="player"]');
+        if (hidden && hidden.type === 'hidden') {
+          hidden.value = playerSelect.value;
+        }
+      }
+
+      if (window.CoachNowBusy?.setFormBusy) {
+        const share = shareFlag?.value === '1';
+        window.CoachNowBusy.setFormBusy(reportForm, {
+          label: share ? 'Sharing…' : 'Saving…',
+        });
       }
     });
   }

@@ -8,8 +8,10 @@ use App\Models\Coach;
 use App\Models\Location;
 use App\Models\SessionRequest;
 use App\Models\SharedVideo;
+use App\Models\SessionReport;
 use App\Models\User;
 use App\Services\SessionBookingService;
+use App\Services\OllamaReportService;
 use App\Services\VideoCompressionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -202,6 +204,21 @@ class CoachController extends Controller
             ->map->toDisplayArray()
             ->all();
 
+        $reports = SessionReport::query()
+            ->where('coach_id', $coach->id)
+            ->where(function ($q) use ($profile) {
+                if (! empty($profile['athlete_id'])) {
+                    $q->where('athlete_id', $profile['athlete_id']);
+                } else {
+                    $q->whereNull('athlete_id')->where('athlete_name', $profile['name'] ?? '');
+                }
+            })
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map->toDisplayArray()
+            ->all();
+
         return view('coach.player-show', [
             'player' => $profile,
             'skills' => [],
@@ -209,7 +226,9 @@ class CoachController extends Controller
             'goals' => [],
             'notes' => [],
             'videos' => $videos,
+            'reports' => $reports,
             'openVideosTab' => $request->query('tab') === 'videos' || session('open_videos_tab', false),
+            'openGoalsTab' => $request->query('tab') === 'goals' || session('open_goals_tab', false),
         ]);
     }
 
@@ -364,6 +383,8 @@ class CoachController extends Controller
             : null;
         $profile = $profile ?: $roster->first();
 
+        $ollama = app(OllamaReportService::class);
+
         return view('coach.add-report', [
             'player' => $profile ?: [
                 'slug' => null,
@@ -372,7 +393,122 @@ class CoachController extends Controller
                 'sport' => '—',
             ],
             'roster' => $roster->all(),
+            'ollamaReady' => $ollama->isReachable(),
+            'generateUrl' => route('coach.add-report.generate'),
+            'storeUrl' => route('coach.add-report.store'),
         ]);
+    }
+
+    public function generateReport(Request $request): JsonResponse
+    {
+        $coach = $this->currentCoach();
+
+        $data = $request->validate([
+            'keywords' => ['required', 'string', 'max:255'],
+            'player' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $profile = ! empty($data['player'])
+            ? $this->resolvePlayerProfile($coach, $data['player'])
+            : null;
+
+        try {
+            $draft = app(OllamaReportService::class)->generate($data['keywords'], [
+                'player_name' => $profile['name'] ?? 'the player',
+                'sport' => $profile['sport'] ?? 'soccer',
+                'age' => $profile['age'] ?? '',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => $e->getMessage() ?: 'Could not generate the report right now.',
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => ($draft['source'] ?? '') === 'ollama'
+                ? 'AI draft ready — review and edit before saving.'
+                : 'Draft ready — review and edit before saving.',
+            'report' => [
+                'title' => $draft['title'],
+                'summary' => $draft['summary'],
+                'focus' => $draft['focus'],
+                'went_well' => $draft['went_well'],
+                'needs_work' => $draft['needs_work'],
+                'home' => $draft['home'],
+                'videos' => $draft['videos'],
+                'source' => $draft['source'] ?? 'ollama',
+                'warning' => $draft['warning'] ?? null,
+            ],
+        ]);
+    }
+
+    public function storeReport(Request $request): RedirectResponse
+    {
+        $coach = $this->currentCoach();
+
+        $data = $request->validate([
+            'player' => ['required', 'string', 'max:120'],
+            'keywords' => ['nullable', 'string', 'max:255'],
+            'focus' => ['required', 'string', 'max:5000'],
+            'went_well' => ['required', 'string', 'max:5000'],
+            'needs_work' => ['required', 'string', 'max:5000'],
+            'home_plan' => ['required', 'string', 'max:5000'],
+            'summary' => ['nullable', 'string', 'max:1000'],
+            'recommended_videos' => ['nullable', 'string', 'max:4000'],
+            'ai_source' => ['nullable', 'string', 'max:40'],
+            'share' => ['nullable', 'boolean'],
+        ]);
+
+        $profile = $this->resolvePlayerProfile($coach, $data['player']);
+        if (! $profile) {
+            return redirect()
+                ->route('coach.add-report')
+                ->withInput()
+                ->withErrors(['player' => 'Select a player from your roster before saving.']);
+        }
+
+        $videos = [];
+        if (! empty($data['recommended_videos'])) {
+            $decoded = json_decode($data['recommended_videos'], true);
+            if (is_array($decoded)) {
+                $videos = collect($decoded)
+                    ->filter(fn ($row) => is_array($row) && filled($row['title'] ?? null))
+                    ->map(fn ($row) => [
+                        'title' => Str::limit((string) $row['title'], 80),
+                        'meta' => Str::limit((string) ($row['meta'] ?? 'Technique guide'), 40),
+                    ])
+                    ->take(3)
+                    ->values()
+                    ->all();
+            }
+        }
+
+        $share = $request->boolean('share');
+
+        $report = SessionReport::query()->create([
+            'coach_id' => $coach->id,
+            'athlete_id' => $profile['athlete_id'] ?? null,
+            'athlete_name' => $profile['name'] ?? null,
+            'keywords' => $data['keywords'] ?? null,
+            'focus' => $data['focus'],
+            'went_well' => $data['went_well'],
+            'needs_work' => $data['needs_work'],
+            'home_plan' => $data['home_plan'],
+            'summary' => $data['summary'] ?? null,
+            'recommended_videos' => $videos ?: null,
+            'shared_with_player' => $share,
+            'shared_at' => $share ? now() : null,
+            'ai_source' => $data['ai_source'] ?? null,
+        ]);
+
+        $status = $share
+            ? 'Report saved and shared with '.$profile['name'].'.'
+            : 'Report saved for '.$profile['name'].'.';
+
+        return redirect()
+            ->route('coach.players.show', ['player' => $profile['slug'], 'tab' => 'goals'])
+            ->with('status', $status)
+            ->with('open_goals_tab', true);
     }
 
     public function profile(): View

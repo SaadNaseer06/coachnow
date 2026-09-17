@@ -4,7 +4,7 @@
     <p class="coach-ai__label">CoachNow AI</p>
   </div>
   <h2 class="coach-ai__title">Training Assistant</h2>
-  <p class="coach-ai__intro">Type a few keywords — like <em>improve first touch</em> — and the assistant writes the full report for you. Edit anything before saving.</p>
+  <p class="coach-ai__intro">Type a few keywords — like <em>improve first touch</em> — and the assistant drafts a professional report. Edit anything before saving or sharing.</p>
 
   <div class="coach-chipset">
     @foreach (['Improve first touch', 'Scanning', 'Back foot touch', 'Passing', 'Finishing', 'Confidence'] as $prompt)
@@ -19,6 +19,6 @@
 
   <div class="coach-ai__out" id="coachAiOutput">
     <h3>Ready when you are</h3>
-    <p>Tap a keyword or type your own — like <strong>improve first touch</strong>. The assistant fills focus, what went well, needs work, home training, and video ideas.</p>
+    <p>Tap a keyword or type your own — like <strong>improve first touch</strong>. The assistant fills focus, what went well, needs work, and home training.</p>
   </div>
 </aside>

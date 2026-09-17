@@ -2,7 +2,7 @@
 
 @section('title', 'Add Report')
 @section('page_title', 'Add Session Report')
-@section('page_subtitle', 'Report for ' . $player['name'] . ' · ' . $player['age'] . ' · ' . $player['sport'])
+@section('page_subtitle', 'Report for ' . $player['name'] . ' · ' . ($player['age'] ?? '—') . ' · ' . ($player['sport'] ?? '—'))
 
 @section('topbar_actions')
   @if (! empty($player['slug']))
@@ -10,53 +10,94 @@
   @else
     <a href="{{ route('coach.player-overview') }}" class="admin-btn admin-btn-ghost">&larr; Back to players</a>
   @endif
-  <button type="button" class="admin-btn admin-btn-primary" data-loading-text="Saving…">Save Report</button>
+  <button type="submit" form="sessionReportForm" class="admin-btn admin-btn-primary" data-share="0" data-loading-text="Saving…">Save Report</button>
 @endsection
 
 @section('content')
-<div class="coach-layout-split coach-layout-split--wide">
+<div
+  class="coach-layout-split coach-layout-split--wide"
+  id="coachReportApp"
+  data-generate-url="{{ $generateUrl }}"
+  data-player-slug="{{ $player['slug'] ?? '' }}"
+  data-ollama-ready="{{ !empty($ollamaReady) ? '1' : '0' }}"
+>
   <div class="admin-card">
     <div class="admin-card-header">
       <div>
         <h2>Session Report</h2>
-        <p>Aug 4, 2026 · Private session · 60 min · Field A</p>
+        <p>{{ now()->format('M j, Y') }} · Private session · Development report</p>
       </div>
     </div>
     <div class="admin-card-body">
-      <div class="coach-form-block">
-        <label class="coach-field-label" for="reportKeywords">Session keywords</label>
-        <div class="coach-keyword-row">
-          <input id="reportKeywords" class="admin-input" type="text" placeholder="e.g. improve first touch, scanning, finishing">
-          <button type="button" class="admin-btn admin-btn-primary" id="reportGenerateBtn">Generate with AI</button>
+      @if ($errors->any())
+        <div class="admin-alert admin-alert--error" style="margin-bottom:16px">
+          {{ $errors->first() }}
         </div>
-        <p class="coach-field-hint">Type a few words and click generate — the assistant fills the report below. Edit anything before saving.</p>
-      </div>
+      @endif
 
-      <div class="coach-form-block">
-        <label class="coach-field-label" for="reportFocus">Focus of the week</label>
-        <textarea id="reportFocus" class="admin-input coach-textarea coach-textarea--sm" placeholder="What should the player focus on this week?"></textarea>
-      </div>
+      <form method="POST" action="{{ $storeUrl }}" id="sessionReportForm" data-no-busy>
+        @csrf
+        <input type="hidden" name="summary" id="reportSummary" value="{{ old('summary') }}">
+        <input type="hidden" name="recommended_videos" id="reportVideosJson" value="{{ old('recommended_videos', '[]') }}">
+        <input type="hidden" name="ai_source" id="reportAiSource" value="{{ old('ai_source') }}">
+        <input type="hidden" name="share" id="reportShareFlag" value="0">
 
-      <div class="coach-form-grid">
-        <div>
-          <label class="coach-field-label" for="reportWentWell">What went well</label>
-          <textarea id="reportWentWell" class="admin-input coach-textarea" placeholder="Positive observations…"></textarea>
+        @if (!empty($roster) && count($roster) > 1)
+          <div class="coach-form-block">
+            <label class="coach-field-label" for="reportPlayerSelect">Player</label>
+            <select id="reportPlayerSelect" class="admin-input" name="player">
+              @foreach ($roster as $option)
+                <option value="{{ $option['slug'] }}" @selected(($player['slug'] ?? '') === ($option['slug'] ?? ''))>
+                  {{ $option['name'] }}
+                </option>
+              @endforeach
+            </select>
+          </div>
+        @else
+          <input type="hidden" name="player" value="{{ $player['slug'] ?? '' }}">
+        @endif
+
+        <div class="coach-form-block">
+          <label class="coach-field-label" for="reportKeywords">Session keywords</label>
+          <div class="coach-keyword-row">
+            <input id="reportKeywords" class="admin-input" type="text" name="keywords" value="{{ old('keywords') }}" placeholder="e.g. improve first touch, scanning, finishing" maxlength="255">
+            <button type="button" class="admin-btn admin-btn-primary" id="reportGenerateBtn" data-loading-text="Generating…">Generate with AI</button>
+          </div>
+          <p class="coach-field-hint">
+            @if (!empty($ollamaReady))
+              AI draft connected — edit anything before saving.
+            @else
+              AI is offline right now — a professional draft still works. Edit anything before saving.
+            @endif
+          </p>
         </div>
-        <div>
-          <label class="coach-field-label" for="reportNeedsWork">Needs work</label>
-          <textarea id="reportNeedsWork" class="admin-input coach-textarea" placeholder="Areas to improve…"></textarea>
+
+        <div class="coach-form-block">
+          <label class="coach-field-label" for="reportFocus">Focus of the week</label>
+          <textarea id="reportFocus" name="focus" class="admin-input coach-textarea coach-textarea--sm" placeholder="What should the player focus on this week?" required>{{ old('focus') }}</textarea>
         </div>
-      </div>
 
-      <div class="coach-form-block">
-        <label class="coach-field-label" for="reportHome">Home training plan</label>
-        <textarea id="reportHome" class="admin-input coach-textarea coach-textarea--lg" placeholder="Drills the player can do at home…"></textarea>
-      </div>
+        <div class="coach-form-grid">
+          <div>
+            <label class="coach-field-label" for="reportWentWell">What went well</label>
+            <textarea id="reportWentWell" name="went_well" class="admin-input coach-textarea" placeholder="Positive observations…" required>{{ old('went_well') }}</textarea>
+          </div>
+          <div>
+            <label class="coach-field-label" for="reportNeedsWork">Needs work</label>
+            <textarea id="reportNeedsWork" name="needs_work" class="admin-input coach-textarea" placeholder="Areas to improve…" required>{{ old('needs_work') }}</textarea>
+          </div>
+        </div>
 
-      <div class="coach-form-actions">
-        <button type="button" class="admin-btn admin-btn-primary">Save report</button>
-        <button type="button" class="admin-btn admin-btn-ghost">Save &amp; share with player</button>
-      </div>
+        <div class="coach-form-block">
+          <label class="coach-field-label" for="reportHome">Home training plan</label>
+          <textarea id="reportHome" name="home_plan" class="admin-input coach-textarea coach-textarea--lg" placeholder="Drills the player can do at home…" required>{{ old('home_plan') }}</textarea>
+        </div>
+
+        <div class="coach-form-actions">
+          <button type="submit" class="admin-btn admin-btn-primary" data-share="0" data-loading-text="Saving…">Save report</button>
+          <button type="submit" class="admin-btn admin-btn-ghost" data-share="1" data-loading-text="Sharing…">Save &amp; share with player</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -66,10 +107,10 @@
 </div>
 
 @include('partials.coach.subscription-note', [
-  'subscriptionNote' => 'AI-assisted session reports and home training plans are included with Development Plus subscriptions.',
+  'subscriptionNote' => 'AI drafts stay private on your machine. Review every report before sharing with the player.',
 ])
 @endsection
 
 @push('scripts')
-  <script src="{{ asset('assets/js/coach-portal.js') }}"></script>
+  <script src="{{ asset('assets/js/coach-portal.js') }}?v={{ @filemtime(public_path('assets/js/coach-portal.js')) ?: time() }}"></script>
 @endpush

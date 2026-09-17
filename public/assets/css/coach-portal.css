@@ -876,6 +876,15 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+.coach-ai__source {
+  margin: 8px 0 0 !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 140, 140, 0.95) !important;
+}
+
 .coach-ai__list {
   margin: 12px 0 0;
   padding: 0;

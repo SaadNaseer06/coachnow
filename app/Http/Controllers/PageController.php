@@ -7,6 +7,7 @@ use App\Models\Coach;
 use App\Models\ContactMessage;
 use App\Models\Location;
 use App\Models\SessionRequest;
+use App\Models\SessionReport;
 use App\Models\SharedVideo;
 use App\Models\User;
 use App\Services\AppMailer;
@@ -287,6 +288,14 @@ class PageController extends Controller
             ->map->toDisplayArray()
             ->values();
 
+        $latestReport = SessionReport::query()
+            ->with('coach.user')
+            ->forAthlete($user)
+            ->shared()
+            ->orderByDesc('shared_at')
+            ->orderByDesc('created_at')
+            ->first();
+
         $parts = preg_split('/\s+/', trim($user->name)) ?: [];
         $initials = collect($parts)->map(fn ($p) => strtoupper(substr($p, 0, 1)))->take(2)->implode('') ?: 'PL';
 
@@ -305,6 +314,7 @@ class PageController extends Controller
             'activeRequestCount' => $activeRequestCount,
             'openRequestCount' => $openRequestCount,
             'sharedVideos' => $sharedVideos,
+            'latestReport' => $latestReport?->toDisplayArray(),
         ]);
     }
 

@@ -78,6 +78,8 @@ Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach'])->grou
     Route::post('/players/{player}/videos', [CoachController::class, 'storeVideo'])->name('players.videos.store');
     Route::delete('/players/{player}/videos/{video}', [CoachController::class, 'destroyVideo'])->name('players.videos.destroy');
     Route::get('/add-report', [CoachController::class, 'addReport'])->name('add-report');
+    Route::post('/add-report/generate', [CoachController::class, 'generateReport'])->name('add-report.generate');
+    Route::post('/add-report', [CoachController::class, 'storeReport'])->name('add-report.store');
 });
 
 /*

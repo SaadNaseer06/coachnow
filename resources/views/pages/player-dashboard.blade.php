@@ -366,11 +366,29 @@
         </article>
 
         {{-- Coach notes summary --}}
-        <article class="player-panel motion-item motion-soft-up" style="--motion-delay:80ms">
+        <article class="player-panel motion-item motion-soft-up" style="--motion-delay:80ms" id="coach-notes">
           <p class="player-section-kicker">From your coach</p>
           <h2 class="player-panel-title mb-2">Coach's Notes</h2>
-          <p class="text-[13px] text-zinc-600 leading-[1.65] font-light mb-4">Strong passing weight and positive attitude. Keep working on checking both shoulders earlier.</p>
-          <a href="#" class="text-[13px] font-semibold text-brand-red hover:underline">View Full Report</a>
+          @if (!empty($latestReport))
+            <p class="text-[12px] text-zinc-500 mb-2">
+              {{ $latestReport['coach'] ? 'From '.$latestReport['coach'] : 'Shared report' }}
+              @if (!empty($latestReport['created_at']))
+                · {{ $latestReport['created_at'] }}
+              @endif
+            </p>
+            <p class="text-[13px] text-zinc-600 leading-[1.65] font-light mb-3">{{ \Illuminate\Support\Str::limit($latestReport['summary'] ?: $latestReport['focus'], 220) }}</p>
+            <details class="player-report-details">
+              <summary class="text-[13px] font-semibold text-brand-red cursor-pointer">View full report</summary>
+              <div class="player-report-body">
+                <p><strong>Focus of the week</strong><br>{{ $latestReport['focus'] }}</p>
+                <p><strong>What went well</strong><br>{{ $latestReport['went_well'] }}</p>
+                <p><strong>Needs work</strong><br>{{ $latestReport['needs_work'] }}</p>
+                <p><strong>Home training plan</strong><br>{!! nl2br(e($latestReport['home_plan'])) !!}</p>
+              </div>
+            </details>
+          @else
+            <p class="text-[13px] text-zinc-600 leading-[1.65] font-light mb-4">When your coach shares a session report, the focus and home plan will show up here.</p>
+          @endif
         </article>
 
         {{-- Videos --}}
