@@ -335,6 +335,7 @@
       class="admin-modal__body"
       enctype="multipart/form-data"
       data-share-video-form
+      data-no-busy
     >
       @csrf
       <label class="admin-field">
@@ -379,9 +380,21 @@
         <span>Notes (optional)</span>
         <textarea class="admin-input admin-textarea" name="description" rows="3" maxlength="255" placeholder="Why this video helps">{{ old('description') }}</textarea>
       </label>
+
+      <div class="coach-upload-progress" data-upload-progress hidden>
+        <div class="coach-upload-progress__head">
+          <span data-upload-label>Uploading 0%</span>
+          <span data-upload-pct>0%</span>
+        </div>
+        <div class="coach-upload-progress__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-upload-track>
+          <div class="coach-upload-progress__bar" data-upload-bar></div>
+        </div>
+        <p class="coach-upload-progress__meta" data-upload-meta></p>
+      </div>
+
       <div class="admin-modal__footer">
-        <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-close>Cancel</button>
-        <button type="submit" class="admin-btn admin-btn-primary" data-loading-text="Sharing…">Share with player</button>
+        <button type="button" class="admin-btn admin-btn-ghost" data-upload-cancel>Cancel</button>
+        <button type="submit" class="admin-btn admin-btn-primary" data-upload-submit>Share with player</button>
       </div>
     </form>
   </div>
@@ -396,6 +409,64 @@
     (function () {
       const form = document.querySelector('[data-share-video-form]');
       if (!form) return;
+
+      const progress = form.querySelector('[data-upload-progress]');
+      const bar = form.querySelector('[data-upload-bar]');
+      const track = form.querySelector('[data-upload-track]');
+      const labelEl = form.querySelector('[data-upload-label]');
+      const pctEl = form.querySelector('[data-upload-pct]');
+      const metaEl = form.querySelector('[data-upload-meta]');
+      const submitBtn = form.querySelector('[data-upload-submit]');
+      const cancelBtn = form.querySelector('[data-upload-cancel]');
+      let xhr = null;
+      let busy = false;
+
+      const formatBytes = (bytes) => {
+        if (!Number.isFinite(bytes) || bytes < 0) return '0 B';
+        if (bytes < 1024) return `${Math.round(bytes)} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      };
+
+      const formatSpeed = (bytesPerSec) => {
+        if (!Number.isFinite(bytesPerSec) || bytesPerSec <= 0) return '';
+        return `${formatBytes(bytesPerSec)}/s`;
+      };
+
+      const setProgress = (pct, label, meta) => {
+        const value = Math.max(0, Math.min(100, Math.round(pct)));
+        if (progress) progress.hidden = false;
+        if (bar) bar.style.width = `${value}%`;
+        if (track) track.setAttribute('aria-valuenow', String(value));
+        if (pctEl) pctEl.textContent = `${value}%`;
+        if (labelEl) labelEl.textContent = label || `Uploading ${value}%`;
+        if (metaEl) metaEl.textContent = meta || '';
+        progress?.classList.toggle('is-indeterminate', value >= 100 && /compress|process|sav/i.test(label || ''));
+      };
+
+      const resetProgress = () => {
+        if (progress) progress.hidden = true;
+        if (bar) bar.style.width = '0%';
+        if (track) track.setAttribute('aria-valuenow', '0');
+        if (pctEl) pctEl.textContent = '0%';
+        if (labelEl) labelEl.textContent = 'Uploading 0%';
+        if (metaEl) metaEl.textContent = '';
+        progress?.classList.remove('is-indeterminate');
+      };
+
+      const setBusy = (on) => {
+        busy = on;
+        form.dataset.cnBusy = on ? '1' : '0';
+        form.querySelectorAll('input, textarea, button[type="submit"]').forEach((el) => {
+          if (el === cancelBtn) return;
+          el.disabled = on;
+        });
+        if (submitBtn) {
+          submitBtn.disabled = on;
+          submitBtn.textContent = on ? 'Sharing…' : 'Share with player';
+        }
+        if (cancelBtn) cancelBtn.textContent = on ? 'Cancel upload' : 'Cancel';
+      };
 
       const sync = () => {
         const selected = form.querySelector('[data-video-source]:checked')?.value || 'upload';
@@ -413,6 +484,142 @@
         input.addEventListener('change', sync);
       });
       sync();
+
+      cancelBtn?.addEventListener('click', () => {
+        if (busy && xhr) {
+          xhr.abort();
+          xhr = null;
+          setBusy(false);
+          resetProgress();
+          return;
+        }
+
+        const modal = form.closest('.admin-modal');
+        if (modal) {
+          modal.classList.remove('is-open');
+          modal.setAttribute('aria-hidden', 'true');
+          document.body.classList.remove('admin-modal-open');
+        }
+      });
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (busy) return;
+        if (!form.reportValidity()) return;
+
+        const source = form.querySelector('[data-video-source]:checked')?.value || 'upload';
+        const fileInput = form.querySelector('input[name="video"]');
+        const file = fileInput?.files?.[0] || null;
+
+        if (source === 'upload' && !file) {
+          fileInput?.focus();
+          return;
+        }
+
+        const token = form.querySelector('input[name="_token"]')?.value
+          || document.querySelector('meta[name="csrf-token"]')?.content
+          || '';
+
+        setBusy(true);
+        resetProgress();
+        if (source === 'upload') {
+          setProgress(0, 'Uploading 0%', file ? `${formatBytes(0)} of ${formatBytes(file.size)}` : '');
+        } else {
+          setProgress(10, 'Saving link…', '');
+        }
+
+        xhr = new XMLHttpRequest();
+        xhr.open('POST', form.action, true);
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        if (token) xhr.setRequestHeader('X-CSRF-TOKEN', token);
+
+        const startedAt = Date.now();
+        let lastLoaded = 0;
+        let lastAt = startedAt;
+
+        xhr.upload.addEventListener('progress', (e) => {
+          if (!e.lengthComputable) return;
+          const pct = (e.loaded / e.total) * 100;
+          const now = Date.now();
+          const dt = Math.max((now - lastAt) / 1000, 0.05);
+          const speed = (e.loaded - lastLoaded) / dt;
+          lastLoaded = e.loaded;
+          lastAt = now;
+
+          const etaSec = speed > 0 ? Math.max(0, (e.total - e.loaded) / speed) : 0;
+          const eta = etaSec > 0
+            ? (etaSec >= 60 ? `${Math.ceil(etaSec / 60)} min left` : `${Math.ceil(etaSec)}s left`)
+            : '';
+          const speedLabel = formatSpeed(speed);
+          const meta = [
+            `${formatBytes(e.loaded)} of ${formatBytes(e.total)}`,
+            speedLabel,
+            eta,
+          ].filter(Boolean).join(' · ');
+
+          setProgress(Math.min(pct, 99), `Uploading ${Math.min(Math.round(pct), 99)}%`, meta);
+        });
+
+        xhr.upload.addEventListener('load', () => {
+          if (source === 'upload') {
+            setProgress(100, 'Compressing on server…', 'Upload complete — optimizing video');
+          } else {
+            setProgress(70, 'Saving…', '');
+          }
+        });
+
+        xhr.addEventListener('load', () => {
+          let payload = null;
+          try {
+            payload = JSON.parse(xhr.responseText || '{}');
+          } catch (_) {
+            payload = null;
+          }
+
+          if (xhr.status >= 200 && xhr.status < 300) {
+            setProgress(100, 'Done', payload?.message || 'Video shared');
+            const redirect = payload?.redirect || window.location.href;
+            window.location.assign(redirect);
+            return;
+          }
+
+          setBusy(false);
+          resetProgress();
+
+          const message =
+            payload?.message
+            || payload?.errors?.video?.[0]
+            || payload?.errors?.title?.[0]
+            || payload?.errors?.url?.[0]
+            || (xhr.status === 413 ? 'File is too large for the server.' : null)
+            || 'Could not share this video. Please try again.';
+
+          if (window.CoachNowDialog?.alert) {
+            window.CoachNowDialog.alert({ title: 'Upload failed', message });
+          } else {
+            window.alert(message);
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          setBusy(false);
+          resetProgress();
+          const message = 'Network error while uploading. Check your connection and try again.';
+          if (window.CoachNowDialog?.alert) {
+            window.CoachNowDialog.alert({ title: 'Upload failed', message });
+          } else {
+            window.alert(message);
+          }
+        });
+
+        xhr.addEventListener('abort', () => {
+          setBusy(false);
+          resetProgress();
+        });
+
+        xhr.send(new FormData(form));
+      });
     })();
 
     document.querySelectorAll('[data-confirm-remove]').forEach((form) => {

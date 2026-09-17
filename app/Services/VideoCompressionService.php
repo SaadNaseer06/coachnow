@@ -68,18 +68,7 @@ class VideoCompressionService
             $uuid = (string) Str::uuid();
             $relativePath = trim($directory, '/').'/'.$uuid.'.'.$extension;
 
-            // Stream to disk instead of loading the whole file into PHP memory.
-            $stream = fopen($finalLocal, 'rb');
-            if ($stream === false) {
-                throw new RuntimeException('Could not read the processed video for storage.');
-            }
-            try {
-                Storage::disk($disk)->put($relativePath, $stream);
-            } finally {
-                if (is_resource($stream)) {
-                    fclose($stream);
-                }
-            }
+            $this->persistLocalFile($disk, $relativePath, $finalLocal);
 
             $thumbnailPath = null;
             if ($ffmpeg) {
@@ -96,15 +85,21 @@ class VideoCompressionService
 
                 if ($thumbResult->successful() && is_file($thumbTemp) && filesize($thumbTemp) > 0) {
                     $thumbnailPath = trim($directory, '/').'/thumbs/'.$uuid.'.jpg';
-                    Storage::disk($disk)->put($thumbnailPath, file_get_contents($thumbTemp));
+                    $this->persistLocalFile($disk, $thumbnailPath, $thumbTemp);
                 }
+            }
+
+            $storedBytes = (int) Storage::disk($disk)->size($relativePath);
+            if ($storedBytes < 1) {
+                Storage::disk($disk)->delete($relativePath);
+                throw new RuntimeException('Video file was not saved correctly. Please try again.');
             }
 
             return [
                 'path' => $relativePath,
                 'disk' => $disk,
                 'original_bytes' => $originalBytes,
-                'stored_bytes' => (int) Storage::disk($disk)->size($relativePath),
+                'stored_bytes' => $storedBytes,
                 'is_compressed' => $compressed,
                 'thumbnail_path' => $thumbnailPath,
             ];
@@ -170,6 +165,31 @@ class VideoCompressionService
         if (Storage::disk($diskName)->exists($path)) {
             Storage::disk($diskName)->delete($path);
         }
+    }
+
+    /**
+     * Copy a local file into the public disk and verify it landed on disk.
+     */
+    private function persistLocalFile(string $disk, string $relativePath, string $localPath): void
+    {
+        if (! is_file($localPath) || filesize($localPath) < 1) {
+            throw new RuntimeException('Processed video file is missing or empty.');
+        }
+
+        $absolute = Storage::disk($disk)->path($relativePath);
+        File::ensureDirectoryExists(dirname($absolute));
+
+        if (! @copy($localPath, $absolute)) {
+            throw new RuntimeException('Could not save the video to storage. Check disk permissions.');
+        }
+
+        clearstatcache(true, $absolute);
+
+        if (! is_file($absolute) || filesize($absolute) < 1) {
+            throw new RuntimeException('Video save verification failed. Please try again.');
+        }
+
+        @chmod($absolute, 0644);
     }
 
     public function isFfmpegAvailable(): bool

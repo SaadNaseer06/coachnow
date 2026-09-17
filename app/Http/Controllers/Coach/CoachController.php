@@ -14,6 +14,8 @@ use App\Services\VideoCompressionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -211,7 +213,7 @@ class CoachController extends Controller
         ]);
     }
 
-    public function storeVideo(Request $request, string $player): RedirectResponse
+    public function storeVideo(Request $request, string $player): RedirectResponse|JsonResponse
     {
         $coach = $this->currentCoach();
         $profile = $this->resolvePlayerProfile($coach, $player);
@@ -258,28 +260,62 @@ class CoachController extends Controller
 
         $status = 'Video shared with '.$profile['name'].'.';
 
-        if ($data['source_type'] === 'upload') {
-            $compressor = app(VideoCompressionService::class);
-            $stored = $compressor->storeCompressed($request->file('video'));
+        try {
+            if ($data['source_type'] === 'upload') {
+                $compressor = app(VideoCompressionService::class);
+                $stored = $compressor->storeCompressed($request->file('video'));
 
-            $payload['file_path'] = $stored['path'];
-            $payload['thumbnail_path'] = $stored['thumbnail_path'] ?? null;
-            $payload['disk'] = $stored['disk'];
-            $payload['original_bytes'] = $stored['original_bytes'];
-            $payload['stored_bytes'] = $stored['stored_bytes'];
-            $payload['is_compressed'] = $stored['is_compressed'];
+                if (! Storage::disk($stored['disk'])->exists($stored['path'])) {
+                    throw ValidationException::withMessages([
+                        'video' => 'Upload finished but the video file could not be found on the server. Please try again.',
+                    ]);
+                }
 
-            $status = $stored['is_compressed']
-                ? 'Video uploaded, compressed, and shared with '.$profile['name'].'.'
-                : 'Video uploaded and shared with '.$profile['name'].'. Compression skipped (FFmpeg not found).';
-        } else {
-            $payload['url'] = $data['url'];
+                $payload['file_path'] = $stored['path'];
+                $payload['thumbnail_path'] = $stored['thumbnail_path'] ?? null;
+                $payload['disk'] = $stored['disk'];
+                $payload['original_bytes'] = $stored['original_bytes'];
+                $payload['stored_bytes'] = $stored['stored_bytes'];
+                $payload['is_compressed'] = $stored['is_compressed'];
+
+                $status = $stored['is_compressed']
+                    ? 'Video uploaded, compressed, and shared with '.$profile['name'].'.'
+                    : 'Video uploaded and shared with '.$profile['name'].'. Compression skipped (FFmpeg not found).';
+            } else {
+                $payload['url'] = $data['url'];
+            }
+
+            $video = SharedVideo::query()->create($payload);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            report($e);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $e->getMessage() ?: 'Could not share this video. Please try again.',
+                ], 422);
+            }
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['video' => $e->getMessage() ?: 'Could not share this video. Please try again.'])
+                ->with('open_videos_tab', true);
         }
 
-        SharedVideo::query()->create($payload);
+        $redirect = route('coach.players.show', ['player' => $profile['slug'], 'tab' => 'videos']);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $status,
+                'redirect' => $redirect,
+                'video' => $video->fresh('coach.user')->toDisplayArray(),
+            ]);
+        }
 
         return redirect()
-            ->route('coach.players.show', ['player' => $profile['slug'], 'tab' => 'videos'])
+            ->to($redirect)
             ->with('status', $status)
             ->with('open_videos_tab', true);
     }
