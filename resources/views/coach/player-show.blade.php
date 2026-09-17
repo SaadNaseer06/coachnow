@@ -219,6 +219,7 @@
                 data-video-url="{{ $video['url'] }}"
                 data-video-meta="{{ $video['meta'] }}"
                 data-video-source="{{ !empty($video['is_upload']) ? 'upload' : 'url' }}"
+                @if (!empty($video['download_url'])) data-video-download="{{ $video['download_url'] }}" @endif
                 aria-label="Play {{ $video['title'] }}"
                 @if (!empty($video['thumbnail'])) style="background-image:url('{{ $video['thumbnail'] }}')" @endif
               >
@@ -233,6 +234,7 @@
                   data-video-url="{{ $video['url'] }}"
                   data-video-meta="{{ $video['meta'] }}"
                   data-video-source="{{ !empty($video['is_upload']) ? 'upload' : 'url' }}"
+                  @if (!empty($video['download_url'])) data-video-download="{{ $video['download_url'] }}" @endif
                 >{{ $video['title'] }}</button>
                 <p class="coach-media__meta">
                   {{ $video['meta'] }}
@@ -247,11 +249,20 @@
                   @endif
                 </p>
               </div>
-              <form method="POST" action="{{ route('coach.players.videos.destroy', ['player' => $player['slug'], 'video' => $video['id']]) }}" data-confirm-remove>
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm" data-loading-text="Removing…">Remove</button>
-              </form>
+              <div class="coach-media__actions">
+                @if (!empty($video['download_url']))
+                  <a
+                    href="{{ $video['download_url'] }}"
+                    class="admin-btn admin-btn-ghost admin-btn-sm"
+                    download
+                  >Download</a>
+                @endif
+                <form method="POST" action="{{ route('coach.players.videos.destroy', ['player' => $player['slug'], 'video' => $video['id']]) }}" data-confirm-remove>
+                  @csrf
+                  @method('DELETE')
+                  <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm" data-loading-text="Removing…">Remove</button>
+                </form>
+              </div>
             </div>
           @empty
             <div class="coach-media-empty">

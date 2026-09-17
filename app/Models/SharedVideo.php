@@ -87,6 +87,25 @@ class SharedVideo extends Model
         return (string) $this->url;
     }
 
+    public function downloadUrl(): ?string
+    {
+        if (! $this->file_path) {
+            return null;
+        }
+
+        $disk = $this->disk ?: 'public';
+        if (! Storage::disk($disk)->exists($this->file_path)) {
+            return null;
+        }
+
+        $path = ltrim(str_replace('\\', '/', $this->file_path), '/');
+
+        return route('media.download', [
+            'path' => $path,
+            'name' => \Illuminate\Support\Str::slug($this->title ?: 'training-video') ?: 'training-video',
+        ], absolute: true);
+    }
+
     public function thumbnailUrl(): ?string
     {
         $disk = $this->disk ?: 'public';
@@ -147,6 +166,7 @@ class SharedVideo extends Model
             'id' => $this->id,
             'title' => $this->title,
             'url' => $this->playbackUrl(),
+            'download_url' => $this->downloadUrl(),
             'thumbnail' => $this->thumbnailUrl(),
             'source' => $this->source ?: ($this->file_path ? 'upload' : 'url'),
             'is_upload' => $this->isUpload(),

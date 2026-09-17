@@ -238,6 +238,7 @@
 .player-video-modal__external {
   display: inline-flex;
   margin-top: 12px;
+  margin-right: 16px;
   font-size: 13px;
   font-weight: 700;
   color: #da020c;
@@ -246,6 +247,24 @@
 
 .player-video-modal__external:hover {
   text-decoration: underline;
+}
+
+.player-video-modal__download {
+  display: inline-flex;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #3f3f46;
+  text-decoration: none;
+}
+
+.player-video-modal__download:hover {
+  color: #da020c;
+  text-decoration: underline;
+}
+
+.player-video-modal__download[hidden] {
+  display: none;
 }
 
 body.player-video-modal-open {

@@ -6,6 +6,7 @@
   const metaEl = videoModal.querySelector('[data-video-modal-meta]');
   const frameEl = videoModal.querySelector('[data-video-modal-frame]');
   const externalEl = videoModal.querySelector('[data-video-modal-external]');
+  const downloadEl = videoModal.querySelector('[data-video-modal-download]');
   const controlsEl = videoModal.querySelector('[data-video-modal-controls]');
   const speeds = [0.75, 1, 1.25, 1.5, 1.75, 2];
 
@@ -69,6 +70,10 @@
       externalEl.hidden = true;
       externalEl.removeAttribute('href');
     }
+    if (downloadEl) {
+      downloadEl.hidden = true;
+      downloadEl.removeAttribute('href');
+    }
   };
 
   const mountNativeVideo = (url) => {
@@ -123,7 +128,7 @@
     video.play().catch(() => {});
   };
 
-  const openVideoModal = ({ title, url, meta, source }) => {
+  const openVideoModal = ({ title, url, meta, source, downloadUrl }) => {
     if (!frameEl || !url) return;
 
     if (titleEl) titleEl.textContent = title || 'Training video';
@@ -140,7 +145,8 @@
       source === 'upload' ||
       /\.(mp4|webm|ogg|mov)(\?|$)/i.test(url) ||
       url.includes('/storage/shared-videos/') ||
-      url.includes('/media/shared-videos/');
+      url.includes('/media/shared-videos/') ||
+      url.includes('/download/shared-videos/');
 
     if (isFile) {
       mountNativeVideo(url);
@@ -167,6 +173,16 @@
     if (externalEl) {
       externalEl.href = url;
       externalEl.hidden = false;
+    }
+
+    if (downloadEl) {
+      if (downloadUrl) {
+        downloadEl.href = downloadUrl;
+        downloadEl.hidden = false;
+      } else {
+        downloadEl.hidden = true;
+        downloadEl.removeAttribute('href');
+      }
     }
 
     videoModal.hidden = false;
@@ -209,6 +225,7 @@
         url: trigger.getAttribute('data-video-url') || '',
         meta: trigger.getAttribute('data-video-meta') || '',
         source: trigger.getAttribute('data-video-source') || 'url',
+        downloadUrl: trigger.getAttribute('data-video-download') || '',
       });
       return;
     }

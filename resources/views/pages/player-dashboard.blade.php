@@ -379,30 +379,41 @@
           <h2 class="player-panel-title mb-3">Videos for you</h2>
           <div class="space-y-3">
             @forelse ($sharedVideos as $video)
-              <button
-                type="button"
-                class="player-video-card"
-                data-play-video
-                data-video-title="{{ $video['title'] }}"
-                data-video-url="{{ $video['url'] }}"
-                data-video-meta="{{ $video['meta'] }}"
-                data-video-source="{{ !empty($video['is_upload']) ? 'upload' : 'url' }}"
-              >
-                <div
-                  class="player-video-thumb{{ !empty($video['thumbnail']) ? ' has-image' : '' }}"
-                  @if (!empty($video['thumbnail'])) style="background-image:url('{{ $video['thumbnail'] }}')" @endif
-                  aria-hidden="true"
+              <div class="player-video-card">
+                <button
+                  type="button"
+                  class="player-video-card__main"
+                  data-play-video
+                  data-video-title="{{ $video['title'] }}"
+                  data-video-url="{{ $video['url'] }}"
+                  data-video-meta="{{ $video['meta'] }}"
+                  data-video-source="{{ !empty($video['is_upload']) ? 'upload' : 'url' }}"
+                  @if (!empty($video['download_url'])) data-video-download="{{ $video['download_url'] }}" @endif
                 >
-                  <span class="player-video-thumb__play">
-                    <svg class="w-4 h-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                  </span>
-                </div>
-                <div class="player-video-copy">
-                  <p class="player-video-title" title="{{ $video['title'] }}">{{ \Illuminate\Support\Str::limit($video['title'], 72) }}</p>
-                  <p class="player-video-meta" title="{{ $video['meta'] }}">{{ \Illuminate\Support\Str::limit($video['meta'], 64) }}</p>
-                  <span class="player-video-play-label">Play video</span>
-                </div>
-              </button>
+                  <div
+                    class="player-video-thumb{{ !empty($video['thumbnail']) ? ' has-image' : '' }}"
+                    @if (!empty($video['thumbnail'])) style="background-image:url('{{ $video['thumbnail'] }}')" @endif
+                    aria-hidden="true"
+                  >
+                    <span class="player-video-thumb__play">
+                      <svg class="w-4 h-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </span>
+                  </div>
+                  <div class="player-video-copy">
+                    <p class="player-video-title" title="{{ $video['title'] }}">{{ \Illuminate\Support\Str::limit($video['title'], 72) }}</p>
+                    <p class="player-video-meta" title="{{ $video['meta'] }}">{{ \Illuminate\Support\Str::limit($video['meta'], 64) }}</p>
+                    <span class="player-video-play-label">Play video</span>
+                  </div>
+                </button>
+                @if (!empty($video['download_url']))
+                  <a
+                    href="{{ $video['download_url'] }}"
+                    class="player-video-download"
+                    download
+                    aria-label="Download {{ $video['title'] }}"
+                  >Download</a>
+                @endif
+              </div>
             @empty
               <div class="player-video-empty">
                 <p class="text-[13px] font-semibold text-[#191615]">No videos yet</p>

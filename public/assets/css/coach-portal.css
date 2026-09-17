@@ -458,6 +458,13 @@
   margin-top: 8px;
 }
 
+.coach-media__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
 .coach-media__thumb {
   width: 64px;
   height: 42px;

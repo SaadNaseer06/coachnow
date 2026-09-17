@@ -34,6 +34,9 @@
       <a class="player-video-modal__external" data-video-modal-external href="#" target="_blank" rel="noopener noreferrer" hidden>
         Open in new tab
       </a>
+      <a class="player-video-modal__download" data-video-modal-download href="#" download hidden>
+        Download video
+      </a>
     </div>
   </div>
 </div>
