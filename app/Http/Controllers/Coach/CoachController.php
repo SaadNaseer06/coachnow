@@ -393,7 +393,7 @@ class CoachController extends Controller
                 'sport' => '—',
             ],
             'roster' => $roster->all(),
-            'ollamaReady' => $ollama->isReachable(),
+            'ollamaReady' => $ollama->isReady(),
             'generateUrl' => route('coach.add-report.generate'),
             'storeUrl' => route('coach.add-report.store'),
         ]);
@@ -425,7 +425,7 @@ class CoachController extends Controller
         }
 
         return response()->json([
-            'message' => ($draft['source'] ?? '') === 'ollama'
+            'message' => in_array(($draft['source'] ?? ''), ['ollama', 'cloud'], true)
                 ? 'AI draft ready — review and edit before saving.'
                 : 'Draft ready — review and edit before saving.',
             'report' => [
@@ -436,7 +436,7 @@ class CoachController extends Controller
                 'needs_work' => $draft['needs_work'],
                 'home' => $draft['home'],
                 'videos' => $draft['videos'],
-                'source' => $draft['source'] ?? 'ollama',
+                'source' => $draft['source'] ?? 'fallback',
                 'warning' => $draft['warning'] ?? null,
             ],
         ]);

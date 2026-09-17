@@ -30,39 +30,74 @@ class OllamaReportService
             throw new RuntimeException('Enter a few session keywords first.');
         }
 
-        try {
-            return $this->generateWithOllama($keywords, $context);
-        } catch (\Throwable $e) {
-            if (! config('coachnow.ollama.fallback_enabled', true)) {
-                throw $e;
+        $errors = [];
+
+        // 1) Local/remote Ollama (best for local dev)
+        if ($this->isOllamaReachable()) {
+            try {
+                return $this->generateWithOllama($keywords, $context);
+            } catch (\Throwable $e) {
+                report($e);
+                $errors[] = $e->getMessage();
             }
+        }
 
-            report($e);
+        // 2) Groq cloud (works on live/shared hosting with a free API key)
+        if ($this->hasGroq()) {
+            try {
+                return $this->generateWithGroq($keywords, $context);
+            } catch (\Throwable $e) {
+                report($e);
+                $errors[] = $e->getMessage();
+            }
+        }
 
+        // 3) Professional template so coaches are never blocked
+        if (config('coachnow.ollama.fallback_enabled', true)) {
             $fallback = $this->professionalFallback($keywords, $context);
             $fallback['source'] = 'fallback';
-            $fallback['warning'] = $e->getMessage();
+            $fallback['warning'] = $errors[0] ?? 'AI providers unavailable';
 
             return $fallback;
+        }
+
+        throw new RuntimeException($errors[0] ?? 'AI is not available right now. Please try again later.');
+    }
+
+    public function isReady(): bool
+    {
+        return $this->isOllamaReachable() || $this->hasGroq();
+    }
+
+    public function isReachable(?string $baseUrl = null): bool
+    {
+        return $this->isOllamaReachable($baseUrl);
+    }
+
+    public function hasGroq(): bool
+    {
+        return filled(config('coachnow.groq.api_key'));
+    }
+
+    public function isOllamaReachable(?string $baseUrl = null): bool
+    {
+        $baseUrl = rtrim($baseUrl ?: (string) config('coachnow.ollama.base_url', 'http://127.0.0.1:11434'), '/');
+
+        try {
+            $response = Http::timeout(3)->get($baseUrl.'/api/tags');
+
+            return $response->successful();
+        } catch (\Throwable) {
+            return false;
         }
     }
 
     /**
      * @param  array{player_name?: string, sport?: string, age?: string}  $context
-     * @return array<string, mixed>
+     * @return array{0: string, 1: string}
      */
-    private function generateWithOllama(string $keywords, array $context): array
+    private function buildPrompt(string $keywords, array $context): array
     {
-        $baseUrl = rtrim((string) config('coachnow.ollama.base_url', 'http://127.0.0.1:11434'), '/');
-        $model = (string) config('coachnow.ollama.model', 'llama3.2:3b');
-        $timeout = (int) config('coachnow.ollama.timeout', 120);
-
-        if (! $this->isReachable($baseUrl)) {
-            throw new RuntimeException(
-                'AI is not available right now. Check that the local AI service is running, then try again.'
-            );
-        }
-
         $player = trim((string) ($context['player_name'] ?? 'the player'));
         $sport = trim((string) ($context['sport'] ?? 'soccer'));
         $age = trim((string) ($context['age'] ?? ''));
@@ -83,7 +118,21 @@ PROMPT;
 
         $user = "Player: {$player}\nSport: {$sport}".($age !== '' && $age !== '—' ? "\nAge/group: {$age}" : '')
             ."\nSession keywords: {$keywords}\n"
-            ."Write a professional private-session report tailored to these keywords.";
+            .'Write a professional private-session report tailored to these keywords.';
+
+        return [$system, $user];
+    }
+
+    /**
+     * @param  array{player_name?: string, sport?: string, age?: string}  $context
+     * @return array<string, mixed>
+     */
+    private function generateWithOllama(string $keywords, array $context): array
+    {
+        $baseUrl = rtrim((string) config('coachnow.ollama.base_url', 'http://127.0.0.1:11434'), '/');
+        $model = (string) config('coachnow.ollama.model', 'llama3.2:3b');
+        $timeout = (int) config('coachnow.ollama.timeout', 120);
+        [$system, $user] = $this->buildPrompt($keywords, $context);
 
         $response = Http::timeout($timeout)
             ->acceptJson()
@@ -101,16 +150,8 @@ PROMPT;
                 ],
             ]);
 
-        if ($response->status() === 404) {
-            throw new RuntimeException(
-                'AI model is not ready yet. Please try again in a moment.'
-            );
-        }
-
         if (! $response->successful()) {
-            throw new RuntimeException(
-                'AI request failed. Please try again in a moment.'
-            );
+            throw new RuntimeException('AI request failed. Please try again in a moment.');
         }
 
         $content = (string) data_get($response->json(), 'message.content', '');
@@ -123,17 +164,49 @@ PROMPT;
         return $this->normalizeReport($parsed, $keywords, 'ollama');
     }
 
-    public function isReachable(?string $baseUrl = null): bool
+    /**
+     * Cloud AI for production/shared hosting.
+     *
+     * @param  array{player_name?: string, sport?: string, age?: string}  $context
+     * @return array<string, mixed>
+     */
+    private function generateWithGroq(string $keywords, array $context): array
     {
-        $baseUrl = rtrim($baseUrl ?: (string) config('coachnow.ollama.base_url', 'http://127.0.0.1:11434'), '/');
+        $apiKey = (string) config('coachnow.groq.api_key');
+        $baseUrl = rtrim((string) config('coachnow.groq.base_url', 'https://api.groq.com/openai/v1'), '/');
+        $model = (string) config('coachnow.groq.model', 'llama-3.3-70b-versatile');
+        $timeout = (int) config('coachnow.groq.timeout', 90);
+        [$system, $user] = $this->buildPrompt($keywords, $context);
 
-        try {
-            $response = Http::timeout(3)->get($baseUrl.'/api/tags');
+        $response = Http::timeout($timeout)
+            ->withToken($apiKey)
+            ->acceptJson()
+            ->post($baseUrl.'/chat/completions', [
+                'model' => $model,
+                'temperature' => 0.35,
+                'response_format' => ['type' => 'json_object'],
+                'messages' => [
+                    ['role' => 'system', 'content' => $system],
+                    ['role' => 'user', 'content' => $user],
+                ],
+            ]);
 
-            return $response->successful();
-        } catch (\Throwable) {
-            return false;
+        if ($response->status() === 401) {
+            throw new RuntimeException('AI API key is invalid. Update the cloud AI key on the server.');
         }
+
+        if (! $response->successful()) {
+            throw new RuntimeException('AI request failed. Please try again in a moment.');
+        }
+
+        $content = (string) data_get($response->json(), 'choices.0.message.content', '');
+        $parsed = $this->parseJsonContent($content);
+
+        if (! $parsed) {
+            throw new RuntimeException('AI returned an incomplete draft. Please try again.');
+        }
+
+        return $this->normalizeReport($parsed, $keywords, 'cloud');
     }
 
     /**

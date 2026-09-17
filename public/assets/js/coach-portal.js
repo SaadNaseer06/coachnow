@@ -128,7 +128,7 @@
     if (reportKeywords) reportKeywords.value = keyword;
 
     const sourceNote =
-      data.source === 'ollama'
+      data.source === 'ollama' || data.source === 'cloud'
         ? 'AI draft ready'
         : 'Professional draft (AI offline)';
 
@@ -183,7 +183,14 @@
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(payload.message || 'Could not generate the report.');
+        const detail =
+          payload.message
+          || (response.status === 404
+            ? 'Generate endpoint not found on the server. Redeploy the latest code.'
+            : response.status === 419
+              ? 'Session expired. Refresh the page and try again.'
+              : 'Could not generate the report.');
+        throw new Error(detail);
       }
 
       render(payload.report || {}, cleaned, true);
