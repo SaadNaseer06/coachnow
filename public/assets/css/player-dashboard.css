@@ -458,6 +458,30 @@
   flex: 1;
 }
 
+.player-video-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #191615;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.player-video-meta {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #71717a;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .player-video-play-label {
   display: inline-flex;
   margin-top: 6px;

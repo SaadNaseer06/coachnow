@@ -398,8 +398,8 @@
                   </span>
                 </div>
                 <div class="player-video-copy">
-                  <p class="text-[13px] font-semibold text-[#191615]">{{ $video['title'] }}</p>
-                  <p class="text-[11px] text-zinc-500 mt-0.5">{{ $video['meta'] }}</p>
+                  <p class="player-video-title" title="{{ $video['title'] }}">{{ \Illuminate\Support\Str::limit($video['title'], 72) }}</p>
+                  <p class="player-video-meta" title="{{ $video['meta'] }}">{{ \Illuminate\Support\Str::limit($video['meta'], 64) }}</p>
                   <span class="player-video-play-label">Play video</span>
                 </div>
               </button>
