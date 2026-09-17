@@ -235,6 +235,7 @@ class CoachController extends Controller
                 'mimetypes:video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska',
                 'max:'.$maxKb,
             ],
+            'thumbnail' => ['nullable', 'file', 'image', 'max:4096'],
             'description' => ['nullable', 'string', 'max:255'],
             'duration_label' => ['nullable', 'string', 'max:40'],
             'skill_tag' => ['nullable', 'string', 'max:80'],
@@ -277,6 +278,10 @@ class CoachController extends Controller
                 $payload['original_bytes'] = $stored['original_bytes'];
                 $payload['stored_bytes'] = $stored['stored_bytes'];
                 $payload['is_compressed'] = $stored['is_compressed'];
+
+                if (! $payload['thumbnail_path'] && $request->hasFile('thumbnail')) {
+                    $payload['thumbnail_path'] = $compressor->storeThumbnailImage($request->file('thumbnail'));
+                }
 
                 $status = $stored['is_compressed']
                     ? 'Video uploaded, compressed, and shared with '.$profile['name'].'.'

@@ -71,22 +71,9 @@ class VideoCompressionService
             $this->persistLocalFile($disk, $relativePath, $finalLocal);
 
             $thumbnailPath = null;
-            if ($ffmpeg) {
-                $thumbResult = Process::timeout(60)->run([
-                    $ffmpeg,
-                    '-y',
-                    '-ss', '00:00:01',
-                    '-i', $finalLocal,
-                    '-frames:v', '1',
-                    '-q:v', '3',
-                    '-vf', "scale='min(640,iw)':-2",
-                    $thumbTemp,
-                ]);
-
-                if ($thumbResult->successful() && is_file($thumbTemp) && filesize($thumbTemp) > 0) {
-                    $thumbnailPath = trim($directory, '/').'/thumbs/'.$uuid.'.jpg';
-                    $this->persistLocalFile($disk, $thumbnailPath, $thumbTemp);
-                }
+            if ($ffmpeg && $this->extractThumbnailFrame($ffmpeg, $finalLocal, $thumbTemp)) {
+                $thumbnailPath = trim($directory, '/').'/thumbs/'.$uuid.'.jpg';
+                $this->persistLocalFile($disk, $thumbnailPath, $thumbTemp);
             }
 
             $storedBytes = (int) Storage::disk($disk)->size($relativePath);
@@ -111,6 +98,23 @@ class VideoCompressionService
     }
 
     /**
+     * Store a JPEG/PNG thumbnail uploaded from the browser (FFmpeg fallback).
+     */
+    public function storeThumbnailImage(UploadedFile $file, string $directory = 'shared-videos/thumbs'): string
+    {
+        $mime = (string) $file->getMimeType();
+        if (! in_array($mime, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'], true)) {
+            throw new RuntimeException('Thumbnail must be a JPEG or PNG image.');
+        }
+
+        $ext = $mime === 'image/png' ? 'png' : ($mime === 'image/webp' ? 'webp' : 'jpg');
+        $relativePath = trim($directory, '/').'/'.Str::uuid().'.'.$ext;
+        $this->persistLocalFile('public', $relativePath, $file->getRealPath());
+
+        return $relativePath;
+    }
+
+    /**
      * Generate a thumbnail for an already-stored video file.
      */
     public function generateThumbnailForStoredVideo(string $videoPath, ?string $disk = 'public'): ?string
@@ -124,35 +128,76 @@ class VideoCompressionService
         $tempDir = storage_path('app/tmp/videos');
         File::ensureDirectoryExists($tempDir);
 
-        $localVideo = $tempDir.DIRECTORY_SEPARATOR.Str::uuid().'-source'.pathinfo($videoPath, PATHINFO_EXTENSION);
+        $absoluteVideo = Storage::disk($diskName)->path($videoPath);
+        $localVideo = $absoluteVideo;
+        $copied = false;
         $thumbTemp = $tempDir.DIRECTORY_SEPARATOR.Str::uuid().'-thumb.jpg';
 
         try {
-            file_put_contents($localVideo, Storage::disk($diskName)->get($videoPath));
+            if (! is_file($absoluteVideo)) {
+                $ext = pathinfo($videoPath, PATHINFO_EXTENSION) ?: 'mp4';
+                $localVideo = $tempDir.DIRECTORY_SEPARATOR.Str::uuid().'-source.'.$ext;
+                file_put_contents($localVideo, Storage::disk($diskName)->get($videoPath));
+                $copied = true;
+            }
 
-            $thumbResult = Process::timeout(60)->run([
-                $ffmpeg,
-                '-y',
-                '-ss', '00:00:01',
-                '-i', $localVideo,
-                '-frames:v', '1',
-                '-q:v', '3',
-                '-vf', "scale='min(640,iw)':-2",
-                $thumbTemp,
-            ]);
-
-            if (! $thumbResult->successful() || ! is_file($thumbTemp) || filesize($thumbTemp) <= 0) {
+            if (! $this->extractThumbnailFrame($ffmpeg, $localVideo, $thumbTemp)) {
                 return null;
             }
 
             $thumbnailPath = 'shared-videos/thumbs/'.pathinfo($videoPath, PATHINFO_FILENAME).'.jpg';
-            Storage::disk($diskName)->put($thumbnailPath, file_get_contents($thumbTemp));
+            $this->persistLocalFile($diskName, $thumbnailPath, $thumbTemp);
 
             return $thumbnailPath;
+        } catch (\Throwable) {
+            return null;
         } finally {
-            @unlink($localVideo);
+            if ($copied) {
+                @unlink($localVideo);
+            }
             @unlink($thumbTemp);
         }
+    }
+
+    /**
+     * Grab a still frame from a local video using FFmpeg.
+     */
+    private function extractThumbnailFrame(string $ffmpeg, string $videoPath, string $thumbTemp): bool
+    {
+        $seeks = ['00:00:01', '00:00:00.5', '00:00:00'];
+
+        foreach ($seeks as $ss) {
+            @unlink($thumbTemp);
+
+            $result = Process::timeout(60)->run([
+                $ffmpeg,
+                '-y',
+                '-ss', $ss,
+                '-i', $videoPath,
+                '-frames:v', '1',
+                '-an',
+                '-q:v', '3',
+                '-vf', 'scale=640:-2',
+                $thumbTemp,
+            ]);
+
+            if ($result->successful() && is_file($thumbTemp) && filesize($thumbTemp) > 0) {
+                return true;
+            }
+        }
+
+        @unlink($thumbTemp);
+        $fallback = Process::timeout(60)->run([
+            $ffmpeg,
+            '-y',
+            '-i', $videoPath,
+            '-frames:v', '1',
+            '-an',
+            '-q:v', '3',
+            $thumbTemp,
+        ]);
+
+        return $fallback->successful() && is_file($thumbTemp) && filesize($thumbTemp) > 0;
     }
 
     public function deleteStored(?string $path, ?string $disk = 'public'): void

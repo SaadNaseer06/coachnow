@@ -89,13 +89,19 @@ class SharedVideo extends Model
 
     public function thumbnailUrl(): ?string
     {
+        $disk = $this->disk ?: 'public';
+
         if ($this->thumbnail_path) {
-            return $this->publicMediaUrl($this->thumbnail_path);
+            if (Storage::disk($disk)->exists($this->thumbnail_path)) {
+                return $this->publicMediaUrl($this->thumbnail_path);
+            }
+
+            $this->forceFill(['thumbnail_path' => null])->save();
         }
 
         if ($this->isUpload() && $this->file_path) {
             $generated = app(\App\Services\VideoCompressionService::class)
-                ->generateThumbnailForStoredVideo($this->file_path, $this->disk ?: 'public');
+                ->generateThumbnailForStoredVideo($this->file_path, $disk);
 
             if ($generated) {
                 $this->forceFill(['thumbnail_path' => $generated])->save();

@@ -502,7 +502,82 @@
         }
       });
 
-      form.addEventListener('submit', (event) => {
+      const captureThumbnail = (videoFile) => new Promise((resolve) => {
+        if (!videoFile || !videoFile.type.startsWith('video/')) {
+          resolve(null);
+          return;
+        }
+
+        const objectUrl = URL.createObjectURL(videoFile);
+        const video = document.createElement('video');
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = 'auto';
+        video.src = objectUrl;
+
+        const cleanup = () => {
+          URL.revokeObjectURL(objectUrl);
+          video.removeAttribute('src');
+          video.load();
+        };
+
+        const fail = () => {
+          cleanup();
+          resolve(null);
+        };
+
+        const timeout = window.setTimeout(fail, 8000);
+
+        video.addEventListener('error', () => {
+          window.clearTimeout(timeout);
+          fail();
+        }, { once: true });
+
+        video.addEventListener('loadeddata', () => {
+          const duration = Number.isFinite(video.duration) ? video.duration : 0;
+          const seekTo = duration > 1 ? Math.min(1, duration * 0.1) : 0;
+          const finish = () => {
+            try {
+              const width = video.videoWidth || 0;
+              const height = video.videoHeight || 0;
+              if (!width || !height) {
+                window.clearTimeout(timeout);
+                fail();
+                return;
+              }
+
+              const maxW = 640;
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.min(maxW, width);
+              canvas.height = Math.round((canvas.width / width) * height);
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              canvas.toBlob((blob) => {
+                window.clearTimeout(timeout);
+                cleanup();
+                resolve(blob);
+              }, 'image/jpeg', 0.82);
+            } catch (_) {
+              window.clearTimeout(timeout);
+              fail();
+            }
+          };
+
+          if (seekTo <= 0.05) {
+            finish();
+            return;
+          }
+
+          video.addEventListener('seeked', finish, { once: true });
+          try {
+            video.currentTime = seekTo;
+          } catch (_) {
+            finish();
+          }
+        }, { once: true });
+      });
+
+      form.addEventListener('submit', async (event) => {
         event.preventDefault();
         if (busy) return;
         if (!form.reportValidity()) return;
@@ -525,8 +600,14 @@
 
         setBusy(true);
         resetProgress();
-        if (source === 'upload') {
-          setProgress(0, 'Uploading 0%', file ? `${formatBytes(0)} of ${formatBytes(file.size)}` : '');
+
+        if (source === 'upload' && file) {
+          setProgress(0, 'Preparing thumbnail…', file.name || '');
+          const thumbBlob = await captureThumbnail(file);
+          if (thumbBlob) {
+            body.append('thumbnail', thumbBlob, 'thumbnail.jpg');
+          }
+          setProgress(0, 'Uploading 0%', `${formatBytes(0)} of ${formatBytes(file.size)}`);
         } else {
           setProgress(10, 'Saving link…', '');
         }
@@ -537,9 +618,8 @@
         xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
         if (token) xhr.setRequestHeader('X-CSRF-TOKEN', token);
 
-        const startedAt = Date.now();
         let lastLoaded = 0;
-        let lastAt = startedAt;
+        let lastAt = Date.now();
 
         xhr.upload.addEventListener('progress', (e) => {
           if (!e.lengthComputable) return;
