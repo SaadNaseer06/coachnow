@@ -89,14 +89,24 @@ class AppMailer
         try {
             Mail::to($email)->send($mailable);
         } catch (Throwable $e) {
-            $this->logFailure($e);
+            $this->logFailure($e, $email, $mailable::class);
         }
     }
 
-    private function logFailure(Throwable $e): void
+    private function logFailure(Throwable $e, string $email = '', string $mailable = ''): void
     {
-        Log::warning('Mail send failed: '.$e->getMessage(), [
+        $message = $e->getMessage();
+
+        if (str_contains($message, 'only send testing emails') || str_contains($message, 'verify a domain')) {
+            $message .= ' | Fix: verify a domain at https://resend.com/domains, then set MAIL_FROM_ADDRESS to an address on that domain (not onboarding@resend.dev).';
+        }
+
+        Log::warning('Mail send failed: '.$message, [
             'exception' => $e::class,
+            'to' => $email,
+            'mailable' => $mailable,
+            'mailer' => config('mail.default'),
+            'from' => config('mail.from.address'),
         ]);
     }
 }

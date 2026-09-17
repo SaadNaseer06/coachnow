@@ -81,7 +81,7 @@ class SharedVideo extends Model
     public function playbackUrl(): string
     {
         if ($this->file_path) {
-            return Storage::disk($this->disk ?: 'public')->url($this->file_path);
+            return $this->publicMediaUrl($this->file_path);
         }
 
         return (string) $this->url;
@@ -90,7 +90,7 @@ class SharedVideo extends Model
     public function thumbnailUrl(): ?string
     {
         if ($this->thumbnail_path) {
-            return Storage::disk($this->disk ?: 'public')->url($this->thumbnail_path);
+            return $this->publicMediaUrl($this->thumbnail_path);
         }
 
         if ($this->isUpload() && $this->file_path) {
@@ -100,7 +100,7 @@ class SharedVideo extends Model
             if ($generated) {
                 $this->forceFill(['thumbnail_path' => $generated])->save();
 
-                return Storage::disk($this->disk ?: 'public')->url($generated);
+                return $this->publicMediaUrl($generated);
             }
         }
 
@@ -165,5 +165,13 @@ class SharedVideo extends Model
         }
 
         return round($bytes / (1024 * 1024), 1).' MB';
+    }
+
+    private function publicMediaUrl(string $path): string
+    {
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+
+        // Prefer Laravel media route so videos work when public/storage symlink is missing (common on cPanel).
+        return route('media.show', ['path' => $path], absolute: true);
     }
 }

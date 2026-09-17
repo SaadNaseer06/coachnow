@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 Route::get('/', [PageController::class, 'home'])->name('home');
+Route::get('/media/{path}', [\App\Http\Controllers\MediaController::class, 'show'])
+    ->where('path', '.*')
+    ->name('media.show');
 Route::get('/find-a-coach', [PageController::class, 'findACoach'])->name('find-a-coach');
 Route::get('/become-a-coach', [PageController::class, 'becomeACoach'])->name('become-a-coach');
 Route::post('/become-a-coach', [PageController::class, 'submitBecomeACoach'])->name('become-a-coach.submit');

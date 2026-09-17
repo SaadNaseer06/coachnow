@@ -106,7 +106,7 @@ class Coach extends Model
             return asset($path);
         }
 
-        return asset('storage/'.$path);
+        return route('media.show', ['path' => ltrim(str_replace('\\', '/', $path), '/')], absolute: true);
     }
 
     public function roleLabel(): string

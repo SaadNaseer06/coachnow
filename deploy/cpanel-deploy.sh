@@ -63,8 +63,17 @@ log "Rebuilding caches..."
 $PHP artisan optimize --no-interaction
 
 log "Linking storage..."
-$PHP artisan storage:link --no-interaction 2>/dev/null || true
+# cPanel often blocks or breaks the public/storage symlink; recreate each deploy.
+if [ -L public/storage ] || [ -e public/storage ]; then
+  rm -rf public/storage 2>/dev/null || true
+fi
+if $PHP artisan storage:link --no-interaction; then
+  log "storage:link OK"
+else
+  log "WARNING: storage:link failed (common on cPanel). App serves uploads via /media/... instead."
+fi
 
+mkdir -p storage/app/public/shared-videos storage/app/public/shared-videos/thumbs storage/framework/{cache,sessions,views} bootstrap/cache
 chmod -R ug+rwx storage bootstrap/cache database 2>/dev/null || true
 
 log "Deploy complete."
