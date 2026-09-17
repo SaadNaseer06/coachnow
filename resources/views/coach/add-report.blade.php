@@ -65,9 +65,9 @@
           </div>
           <p class="coach-field-hint">
             @if (!empty($ollamaReady))
-              AI draft connected — edit anything before saving.
+              AI is ready — generate a draft, then edit before saving.
             @else
-              AI is offline right now — a professional draft still works. Edit anything before saving.
+              AI is not configured on this server — a professional template draft will be used instead.
             @endif
           </p>
         </div>

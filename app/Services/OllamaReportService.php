@@ -174,7 +174,7 @@ PROMPT;
     {
         $apiKey = (string) config('coachnow.groq.api_key');
         $baseUrl = rtrim((string) config('coachnow.groq.base_url', 'https://api.groq.com/openai/v1'), '/');
-        $model = (string) config('coachnow.groq.model', 'llama-3.3-70b-versatile');
+        $model = (string) config('coachnow.groq.model', 'openai/gpt-oss-20b');
         $timeout = (int) config('coachnow.groq.timeout', 90);
         [$system, $user] = $this->buildPrompt($keywords, $context);
 
@@ -195,8 +195,32 @@ PROMPT;
             throw new RuntimeException('AI API key is invalid. Update the cloud AI key on the server.');
         }
 
+        if ($response->status() === 404) {
+            // Retry once with a known free-tier model if the configured one is gone.
+            $fallbackModel = 'openai/gpt-oss-20b';
+            if ($model !== $fallbackModel) {
+                $response = Http::timeout($timeout)
+                    ->withToken($apiKey)
+                    ->acceptJson()
+                    ->post($baseUrl.'/chat/completions', [
+                        'model' => $fallbackModel,
+                        'temperature' => 0.35,
+                        'response_format' => ['type' => 'json_object'],
+                        'messages' => [
+                            ['role' => 'system', 'content' => $system],
+                            ['role' => 'user', 'content' => $user],
+                        ],
+                    ]);
+            }
+        }
+
         if (! $response->successful()) {
-            throw new RuntimeException('AI request failed. Please try again in a moment.');
+            $apiMessage = (string) data_get($response->json(), 'error.message', '');
+            throw new RuntimeException(
+                $apiMessage !== ''
+                    ? 'AI request failed: '.$apiMessage
+                    : 'AI request failed. Please try again in a moment.'
+            );
         }
 
         $content = (string) data_get($response->json(), 'choices.0.message.content', '');
