@@ -29,6 +29,11 @@
 
 @section('content')
 <main>
+  @if (!empty($isOwnerPreview))
+    <div class="bg-amber-50 border-b border-amber-200 text-amber-950 text-[13px] font-medium text-center px-4 py-2.5">
+      Preview only — your listing is not public until an admin approves it.
+    </div>
+  @endif
   <section id="hero"
     class="home-hero-bg relative min-h-[560px] lg:min-h-[610px] pt-[106px] pb-[72px] flex items-center bg-zinc-950 text-white overflow-hidden">
     <div class="max-w-[1506px] mx-auto px-5 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 w-full relative z-10">

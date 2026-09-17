@@ -5,7 +5,12 @@
 @section('page_subtitle', 'Set up the details that appear on Find a Coach')
 
 @section('topbar_actions')
-  <a href="{{ route('find-a-coach') }}" class="admin-btn admin-btn-ghost" target="_blank" rel="noopener">Preview listing</a>
+  <a
+    href="{{ $coach->id ? route('coach-profile', $coach) : route('find-a-coach') }}"
+    class="admin-btn admin-btn-ghost"
+    target="_blank"
+    rel="noopener"
+  >Preview listing</a>
 @endsection
 
 @section('content')
@@ -15,6 +20,7 @@
     'pending' => 'admin-badge-amber',
     default => 'admin-badge-zinc',
   };
+  $previewRate = $coach->rate !== null ? number_format((float) $coach->rate, 0) : '—';
 @endphp
 
 @if ($errors->any())
@@ -33,9 +39,21 @@
   </div>
 @endif
 
-<section class="admin-card coach-profile-banner">
+@if (session('status'))
+  <div class="admin-alert admin-alert--success" role="status">
+    <span class="admin-alert__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+    </span>
+    <div class="admin-alert__body">
+      <p class="admin-alert__label">Saved</p>
+      <p class="admin-alert__text">{{ session('status') }}</p>
+    </div>
+  </div>
+@endif
+
+<section class="admin-card coach-profile-banner" id="coachProfileBanner">
   <div class="coach-profile-banner__copy">
-    <div class="flex items-center gap-2 flex-wrap">
+    <div class="coach-profile-banner__title-row">
       <h2>Listing status</h2>
       <span
         class="admin-badge {{ $statusClass }}"
@@ -51,17 +69,18 @@
       <p>Complete the fields below so an admin can approve your listing. Still needed: {{ implode(', ', $missingFields) }}.</p>
     @endif
   </div>
-  <div class="coach-profile-preview">
+
+  <aside class="coach-profile-preview" aria-label="Listing card preview">
     <img id="coachPhotoPreview" src="{{ $coach->photoUrl() }}" alt="{{ $coach->display_name }}">
-    <div>
-      <strong>{{ $coach->display_name }}</strong>
-      <span>{{ $coach->roleLabel() }}</span>
-      <span>${{ $coach->rate !== null ? number_format((float) $coach->rate, 0) : '—' }} / session</span>
+    <div class="coach-profile-preview__meta">
+      <strong id="coachPreviewName">{{ $coach->display_name ?: 'Your name' }}</strong>
+      <span id="coachPreviewSpecialty">{{ $coach->roleLabel() }}</span>
+      <span id="coachPreviewRate">${{ $previewRate }} / session</span>
     </div>
-  </div>
+  </aside>
 </section>
 
-<form method="POST" action="{{ route('coach.profile.update') }}" enctype="multipart/form-data" class="admin-card">
+<form method="POST" action="{{ route('coach.profile.update') }}" enctype="multipart/form-data" class="admin-card coach-profile-card" id="coachProfileForm">
   @csrf
   @method('PUT')
 
@@ -80,7 +99,10 @@
           <input id="coachPhotoInput" type="file" name="photo" accept="image/jpeg,image/png,image/webp" hidden>
           Upload photo
         </label>
-        <p class="coach-photo-upload__hint">JPG, PNG, or WebP · max 4MB · square crop works best</p>
+        <div class="coach-photo-upload__copy">
+          <p class="coach-photo-upload__hint">JPG, PNG, or WebP · max 4MB · square crop works best</p>
+          <p class="coach-photo-upload__file" id="coachPhotoFileName" hidden></p>
+        </div>
         @if ($coach->photo_path && ! str_starts_with((string) $coach->photo_path, 'assets/Rectangle'))
           <label class="coach-photo-upload__remove">
             <input type="checkbox" name="remove_photo" value="1" @checked(old('remove_photo'))>
@@ -92,12 +114,21 @@
 
     <label class="admin-field">
       <span>Display name</span>
-      <input class="admin-input" type="text" name="display_name" value="{{ old('display_name', $coach->display_name) }}" required maxlength="120" placeholder="Coach Alex">
+      <input
+        class="admin-input"
+        type="text"
+        name="display_name"
+        id="coachFieldDisplayName"
+        value="{{ old('display_name', $coach->display_name) }}"
+        required
+        maxlength="120"
+        placeholder="Coach Alex"
+      >
     </label>
 
     <label class="admin-field">
       <span>Sport</span>
-      <select class="admin-select" name="sport" required>
+      <select class="admin-select" name="sport" id="coachFieldSport" required>
         <option value="">Select sport…</option>
         @foreach (\App\Models\User::SPORTS as $sport)
           <option value="{{ $sport }}" @selected(old('sport', $coach->sport) === $sport)>{{ $sport }}</option>
@@ -107,7 +138,7 @@
 
     <label class="admin-field">
       <span>Specialty</span>
-      <select class="admin-select" name="specialty" required>
+      <select class="admin-select" name="specialty" id="coachFieldSpecialty" required>
         <option value="">Select specialty…</option>
         @foreach ($specialties as $specialty)
           <option value="{{ $specialty }}" @selected(old('specialty', $coach->specialty) === $specialty)>{{ $specialty }}</option>
@@ -140,16 +171,33 @@
       <select class="admin-select" name="location_id" required>
         <option value="">Select park…</option>
         @foreach ($locations as $location)
-          <option value="{{ $location->id }}" @selected((string) old('location_id', $coach->location_id) === (string) $location->id)>
-            {{ $location->name }}{{ $location->area ? ' · '.$location->area : '' }}
-          </option>
+          @php
+            $parkLabel = trim($location->name.($location->area ? ' · '.$location->area : ''));
+            $parkShort = \Illuminate\Support\Str::limit($parkLabel, 56);
+          @endphp
+          <option
+            value="{{ $location->id }}"
+            title="{{ $parkLabel }}"
+            @selected((string) old('location_id', $coach->location_id) === (string) $location->id)
+          >{{ $parkShort }}</option>
         @endforeach
       </select>
     </label>
 
     <label class="admin-field">
       <span>Rate ($ / session)</span>
-      <input class="admin-input" type="number" name="rate" value="{{ old('rate', $coach->rate !== null ? (int) $coach->rate : '') }}" required min="0" max="9999" step="1" placeholder="60">
+      <input
+        class="admin-input"
+        type="number"
+        name="rate"
+        id="coachFieldRate"
+        value="{{ old('rate', $coach->rate !== null ? (int) $coach->rate : '') }}"
+        required
+        min="0"
+        max="9999"
+        step="1"
+        placeholder="60"
+      >
     </label>
 
     <label class="admin-field admin-field--full">
@@ -158,8 +206,8 @@
     </label>
   </div>
 
-  <div class="admin-modal__footer coach-profile-actions">
-    <p class="text-[12px] text-zinc-500">
+  <div class="coach-profile-actions">
+    <p class="coach-profile-actions__note">
       @if ($coach->status === 'pending')
         Saving does not publish you. An admin still needs to approve.
       @else
@@ -174,16 +222,62 @@
 @push('scripts')
 <script>
   (function () {
-    const input = document.getElementById('coachPhotoInput');
-    const preview = document.getElementById('coachPhotoPreview');
-    if (!input || !preview) return;
+    const photoInput = document.getElementById('coachPhotoInput');
+    const photoPreview = document.getElementById('coachPhotoPreview');
+    const fileNameEl = document.getElementById('coachPhotoFileName');
+    const nameInput = document.getElementById('coachFieldDisplayName');
+    const specialtySelect = document.getElementById('coachFieldSpecialty');
+    const sportSelect = document.getElementById('coachFieldSport');
+    const rateInput = document.getElementById('coachFieldRate');
+    const previewName = document.getElementById('coachPreviewName');
+    const previewSpecialty = document.getElementById('coachPreviewSpecialty');
+    const previewRate = document.getElementById('coachPreviewRate');
 
-    input.addEventListener('change', function () {
-      const file = input.files && input.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      preview.src = url;
+    const syncPreview = () => {
+      if (previewName && nameInput) {
+        previewName.textContent = nameInput.value.trim() || 'Your name';
+        if (photoPreview) photoPreview.alt = nameInput.value.trim() || 'Profile photo';
+      }
+
+      if (previewSpecialty && specialtySelect) {
+        const specialty = specialtySelect.value || '';
+        const sport = sportSelect?.value || '';
+        previewSpecialty.textContent = specialty || (sport ? sport + ' coach' : 'Specialty');
+      }
+
+      if (previewRate && rateInput) {
+        const raw = rateInput.value.trim();
+        const amount = raw === '' || Number.isNaN(Number(raw)) ? '—' : String(Math.round(Number(raw)));
+        previewRate.textContent = '$' + amount + ' / session';
+      }
+    };
+
+    [nameInput, specialtySelect, sportSelect, rateInput].forEach((el) => {
+      if (!el) return;
+      el.addEventListener('input', syncPreview);
+      el.addEventListener('change', syncPreview);
     });
+
+    if (photoInput && photoPreview) {
+      photoInput.addEventListener('change', () => {
+        const file = photoInput.files && photoInput.files[0];
+        if (!file) {
+          if (fileNameEl) {
+            fileNameEl.hidden = true;
+            fileNameEl.textContent = '';
+          }
+          return;
+        }
+
+        photoPreview.src = URL.createObjectURL(file);
+        if (fileNameEl) {
+          fileNameEl.hidden = false;
+          fileNameEl.textContent = file.name;
+        }
+      });
+    }
+
+    syncPreview();
   })();
 </script>
 @endpush

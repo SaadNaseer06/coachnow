@@ -208,12 +208,16 @@ class PageController extends Controller
 
     public function coachProfile(Coach $coach): View
     {
-        abort_unless($coach->status === 'active', 404);
+        $isOwner = auth()->check()
+            && auth()->user()?->coach?->id === $coach->id;
+
+        abort_unless($coach->status === 'active' || $isOwner, 404);
 
         $coach->loadMissing('location');
 
         return view('pages.coach-profile', [
             'coach' => $coach,
+            'isOwnerPreview' => $isOwner && $coach->status !== 'active',
         ]);
     }
 

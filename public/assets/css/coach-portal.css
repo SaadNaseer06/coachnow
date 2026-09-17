@@ -1682,8 +1682,15 @@ body.coach-req-modal-open {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  margin-bottom: 14px;
-  padding: 18px 20px;
+  margin-bottom: 16px;
+  padding: 20px 22px;
+}
+
+.coach-profile-banner__title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
 }
 
 .coach-profile-banner__copy h2 {
@@ -1695,8 +1702,9 @@ body.coach-req-modal-open {
 
 .coach-profile-banner__copy p {
   margin: 8px 0 0;
+  max-width: 52ch;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: #71717a;
 }
 
@@ -1704,32 +1712,56 @@ body.coach-req-modal-open {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 220px;
+  min-width: 240px;
+  max-width: 320px;
+  padding: 12px 14px;
+  border: 1px solid #ececee;
+  border-radius: 14px;
+  background: #fafafa;
 }
 
 .coach-profile-preview img {
   width: 64px;
   height: 64px;
-  border-radius: 14px;
+  border-radius: 12px;
   object-fit: cover;
-  background: #f4f4f5;
+  background: #e4e4e7;
+  flex-shrink: 0;
+}
+
+.coach-profile-preview__meta {
+  min-width: 0;
 }
 
 .coach-profile-preview strong {
   display: block;
   font-size: 14px;
+  font-weight: 700;
   color: #191615;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .coach-profile-preview span {
   display: block;
   font-size: 12px;
   color: #71717a;
-  margin-top: 2px;
+  margin-top: 3px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coach-profile-card .admin-card-header {
+  margin-bottom: 4px;
 }
 
 .coach-profile-form {
-  padding: 4px 0 8px;
+  padding: 8px 0 4px;
+  gap: 16px 18px;
 }
 
 .coach-photo-upload {
@@ -1737,6 +1769,10 @@ body.coach-req-modal-open {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 14px;
+  padding: 12px 14px;
+  border: 1px solid #ececee;
+  border-radius: 12px;
+  background: #fafafa;
 }
 
 .coach-photo-upload__btn {
@@ -1752,6 +1788,7 @@ body.coach-req-modal-open {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .coach-photo-upload__btn:hover {
@@ -1759,10 +1796,26 @@ body.coach-req-modal-open {
   color: #da020c;
 }
 
+.coach-photo-upload__copy {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
 .coach-photo-upload__hint {
   margin: 0;
   font-size: 12px;
   color: #a1a1aa;
+  line-height: 1.4;
+}
+
+.coach-photo-upload__file {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3f3f46;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .coach-photo-upload__remove {
@@ -1772,6 +1825,7 @@ body.coach-req-modal-open {
   font-size: 12px;
   color: #71717a;
   cursor: pointer;
+  width: 100%;
 }
 
 .coach-profile-actions {
@@ -1780,19 +1834,34 @@ body.coach-req-modal-open {
   justify-content: space-between;
   gap: 12px;
   margin-top: 8px;
-  padding-top: 16px;
+  padding: 16px 0 4px;
   border-top: 1px solid #f4f4f5;
+}
+
+.coach-profile-actions__note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #71717a;
 }
 
 @media (max-width: 720px) {
   .coach-profile-banner {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+  }
+
+  .coach-profile-preview {
+    max-width: none;
   }
 
   .coach-profile-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .coach-profile-actions .admin-btn {
+    width: 100%;
   }
 }
 
