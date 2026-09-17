@@ -10,13 +10,19 @@
 
 @section('content')
 @if (($coach->status ?? '') !== 'active' || ! $coach->isProfileComplete())
-  <div class="admin-alert {{ ($coach->status ?? '') === 'active' ? 'admin-alert--success' : 'admin-alert--error' }}" role="status" style="margin-bottom:14px;">
+  <div
+    class="admin-alert {{ ($coach->status ?? '') === 'active' ? 'admin-alert--success' : 'admin-alert--error' }}"
+    role="status"
+    style="margin-bottom:14px;"
+    data-coach-status-banner
+    data-status="{{ $coach->status }}"
+  >
     <span class="admin-alert__icon" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
     </span>
     <div class="admin-alert__body">
-      <p class="admin-alert__label">{{ ($coach->status ?? '') === 'active' ? 'Polish your listing' : 'Finish your Find a Coach profile' }}</p>
-      <p class="admin-alert__text">
+      <p class="admin-alert__label" data-coach-status-banner-label>{{ ($coach->status ?? '') === 'active' ? 'Polish your listing' : 'Finish your Find a Coach profile' }}</p>
+      <p class="admin-alert__text" data-coach-status-banner-text>
         @if (($coach->status ?? '') === 'pending')
           Complete your profile, then wait for admin approval to go live.
         @elseif (($coach->status ?? '') === 'paused')
@@ -24,6 +30,26 @@
         @else
           Add a photo and keep your rate/park current so athletes can find you.
         @endif
+        <a href="{{ route('coach.profile') }}" class="font-semibold underline" style="color:inherit;">Open My Profile</a>
+      </p>
+    </div>
+  </div>
+@else
+  <div
+    class="admin-alert admin-alert--success"
+    role="status"
+    style="margin-bottom:14px;"
+    data-coach-status-banner
+    data-status="{{ $coach->status }}"
+    hidden
+  >
+    <span class="admin-alert__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    </span>
+    <div class="admin-alert__body">
+      <p class="admin-alert__label" data-coach-status-banner-label>You’re live</p>
+      <p class="admin-alert__text" data-coach-status-banner-text>
+        Your listing is active on Find a Coach.
         <a href="{{ route('coach.profile') }}" class="font-semibold underline" style="color:inherit;">Open My Profile</a>
       </p>
     </div>

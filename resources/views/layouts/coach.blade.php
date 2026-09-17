@@ -165,6 +165,7 @@
 
   <script>
     window.CoachNowCoachId = @json($currentCoachId ?? null);
+    window.CoachNowCoachStatus = @json($currentCoachStatus ?? null);
     window.CoachNowIsAdmin = @json((bool) ($sessionRequestsIsAdmin ?? false));
   </script>
   <script src="{{ asset('assets/js/form-busy.js') }}?v={{ @filemtime(public_path('assets/js/form-busy.js')) ?: time() }}"></script>

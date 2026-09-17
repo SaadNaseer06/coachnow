@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\CoachStatusChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Coach;
@@ -188,8 +189,9 @@ class DashboardController extends Controller
         }
 
         if ($data['status'] !== $coach->fresh()->status) {
+            $previous = $coach->status;
             $coach->update(['status' => $data['status']]);
-            app(AppMailer::class)->notifyCoachStatusChanged($coach->fresh(['user']), $data['status']);
+            $this->notifyCoachOfStatusChange($coach->fresh(['user']), $previous, $data['status']);
         }
 
         return redirect()
@@ -230,9 +232,9 @@ class DashboardController extends Controller
             }
         }
 
+        $previous = $coach->status;
         $coach->update(['status' => $data['status']]);
-
-        app(AppMailer::class)->notifyCoachStatusChanged($coach->fresh(['user']), $data['status']);
+        $this->notifyCoachOfStatusChange($coach->fresh(['user']), $previous, $data['status']);
 
         $message = match ($data['status']) {
             'active' => $coach->display_name.' is now live on Find a Coach.',
@@ -575,5 +577,24 @@ class DashboardController extends Controller
         $gridSpan = max(1, (int) ceil($duration / 30));
 
         return ['start' => $gridStart, 'end' => $gridStart + $gridSpan];
+    }
+
+    private function notifyCoachOfStatusChange(Coach $coach, string $previousStatus, string $status): void
+    {
+        if ($previousStatus === $status) {
+            return;
+        }
+
+        app(AppMailer::class)->notifyCoachStatusChanged($coach, $status);
+
+        if (config('broadcasting.default') !== 'pusher' || ! config('broadcasting.connections.pusher.key')) {
+            return;
+        }
+
+        try {
+            CoachStatusChanged::dispatch($coach, $previousStatus, $status);
+        } catch (\Throwable) {
+            // Never fail the admin action if broadcasting is misconfigured.
+        }
     }
 }

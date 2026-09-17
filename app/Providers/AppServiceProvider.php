@@ -59,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with([
                 'sessionRequests' => $sessionRequests,
                 'currentCoachId' => $coach?->id,
+                'currentCoachStatus' => $coach?->status,
                 'sessionRequestsIsAdmin' => $isAdmin,
                 'unreadContactCount' => $isAdmin
                     ? ContactMessage::query()->whereNull('read_at')->count()

@@ -11,6 +11,7 @@ use App\Models\SharedVideo;
 use App\Models\User;
 use App\Services\SessionBookingService;
 use App\Services\VideoCompressionService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -345,6 +346,31 @@ class CoachController extends Controller
             'ageOptions' => Coach::AGE_OPTIONS,
             'missingFields' => $coach->missingProfileFields(),
             'isComplete' => $coach->isProfileComplete(),
+        ]);
+    }
+
+    public function status(): JsonResponse
+    {
+        $coach = $this->currentCoach()->fresh();
+
+        return response()->json([
+            'coach_id' => $coach->id,
+            'status' => $coach->status,
+            'label' => ucfirst((string) $coach->status),
+            'title' => match ($coach->status) {
+                'active' => 'You’re live on Find a Coach',
+                'paused' => 'Your listing was paused',
+                'pending' => 'Your listing is pending review',
+                default => 'Listing status updated',
+            },
+            'message' => match ($coach->status) {
+                'active' => 'An admin approved your profile. Athletes can now discover and book you.',
+                'paused' => 'An admin paused your profile. You’re hidden from Find a Coach until reactivated.',
+                'pending' => 'Complete your profile, then wait for admin approval to go live.',
+                default => 'Your CoachNow listing status is now '.$coach->status.'.',
+            },
+            'profile_url' => route('coach.profile'),
+            'is_complete' => $coach->isReadyForListing(),
         ]);
     }
 

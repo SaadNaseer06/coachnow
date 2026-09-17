@@ -37,7 +37,11 @@
   <div class="coach-profile-banner__copy">
     <div class="flex items-center gap-2 flex-wrap">
       <h2>Listing status</h2>
-      <span class="admin-badge {{ $statusClass }}">{{ ucfirst($coach->status) }}</span>
+      <span
+        class="admin-badge {{ $statusClass }}"
+        data-coach-status-badge
+        data-status="{{ $coach->status }}"
+      >{{ ucfirst($coach->status) }}</span>
     </div>
     @if ($coach->status === 'active')
       <p>You’re live on Find a Coach. Keep your photo, rate, and park up to date.</p>

@@ -1722,3 +1722,102 @@ body.coach-req-modal-open {
     align-items: stretch;
   }
 }
+
+/* Live listing-status toast */
+.coach-status-toast-host {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 13000;
+  display: grid;
+  gap: 10px;
+  width: min(100% - 24px, 380px);
+  pointer-events: none;
+}
+
+.coach-status-toast {
+  pointer-events: auto;
+  display: grid;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
+  animation: coach-status-toast-in 0.2s ease-out;
+}
+
+.coach-status-toast--active {
+  border-color: rgba(22, 163, 74, 0.35);
+}
+
+.coach-status-toast--paused,
+.coach-status-toast--pending {
+  border-color: rgba(218, 2, 12, 0.28);
+}
+
+.coach-status-toast__eyebrow {
+  margin: 0 0 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #da020c;
+}
+
+.coach-status-toast__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #191615;
+}
+
+.coach-status-toast__message {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #52525b;
+}
+
+.coach-status-toast__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.coach-status-toast__link {
+  font-size: 12px;
+  font-weight: 700;
+  color: #da020c;
+  text-decoration: none;
+}
+
+.coach-status-toast__link:hover {
+  text-decoration: underline;
+}
+
+.coach-status-toast__close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: #f4f4f5;
+  color: #52525b;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@keyframes coach-status-toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 640px) {
+  .coach-status-toast-host {
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+}

@@ -65,6 +65,7 @@ Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach'])->grou
     Route::get('/schedule', [CoachController::class, 'schedule'])->name('schedule');
     Route::get('/dashboard', [CoachController::class, 'dashboard'])->name('dashboard');
     Route::get('/profile', [CoachController::class, 'profile'])->name('profile');
+    Route::get('/api/status', [CoachController::class, 'status'])->name('status');
     Route::put('/profile', [CoachController::class, 'updateProfile'])->name('profile.update');
     Route::get('/player-overview', [CoachController::class, 'playerOverview'])->name('player-overview');
     Route::get('/players/{player}', [CoachController::class, 'playerShow'])->name('players.show');
