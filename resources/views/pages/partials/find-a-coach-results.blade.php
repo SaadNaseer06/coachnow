@@ -18,7 +18,10 @@
         Coaches near {{ $searchOrigin['label'] }}
       </h2>
       <p class="mt-1.5 text-sm text-zinc-400">
-        @if (!empty($beyondRadius))
+        @if (!empty($missingCoords))
+          We couldn’t match coaches to this location yet
+          <span class="text-brand-red">· park coordinates are still being set up</span>
+        @elseif (!empty($beyondRadius))
           No coaches within 100 miles
           @if ($nearestDistance)
             <span class="text-brand-red">· nearest is {{ number_format((float) $nearestDistance, 0) }} mi away</span>
@@ -153,6 +156,10 @@
       <h2 class="text-lg font-semibold text-white">
         @if (!empty($geocodeFailed))
           No coaches for that search
+        @elseif (!empty($missingCoords))
+          Nearby search isn’t ready for these parks yet
+        @elseif (!empty($beyondRadius))
+          No coaches within 100 miles
         @elseif (!empty($searchOrigin) || $hasActiveFilters)
           No coaches match this search
         @else
@@ -160,7 +167,11 @@
         @endif
       </h2>
       <p class="mt-2 text-sm text-zinc-400">
-        @if ($hasActiveFilters)
+        @if (!empty($missingCoords))
+          Try searching by city or ZIP (for example Temecula, CA). Near me will work once park coordinates are set.
+        @elseif (!empty($beyondRadius) && !empty($nearestDistance))
+          Nearest coach is about {{ number_format((float) $nearestDistance, 0) }} miles away — try a different city or clear filters.
+        @elseif ($hasActiveFilters)
           Try a different city, clear the sport filter, or reset your search.
         @else
           Check back soon or apply to join as a coach.

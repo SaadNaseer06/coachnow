@@ -101,6 +101,10 @@ class PageController extends Controller
             ->where('status', 'active')
             ->get();
 
+        if ($searchOrigin) {
+            $this->ensureCoachLocationCoordinates($coaches, $geocoder);
+        }
+
         if ($sportFilter !== '') {
             $coaches = $coaches->filter(function (Coach $coach) use ($sportFilter) {
                 return $this->coachSportSlug($coach) === strtolower($sportFilter);
@@ -152,45 +156,51 @@ class PageController extends Controller
 
         $beyondRadius = false;
         $nearestDistance = null;
+        $missingCoords = false;
 
         if ($searchOrigin) {
-            $radii = [25, 50, 100];
-            $within = collect();
-            foreach ($radii as $radius) {
-                $within = $ranked->filter(function (Coach $coach) use ($radius) {
-                    $distance = $coach->computed_distance_miles;
+            $withDistance = $ranked
+                ->filter(fn (Coach $c) => $c->computed_distance_miles !== null)
+                ->values();
 
-                    return $distance !== null && $distance <= $radius;
-                })->values();
-
-                if ($within->isNotEmpty()) {
-                    $effectiveRadius = $radius;
-                    $radiusExpanded = $radius > 25;
-                    break;
-                }
-            }
-
-            if ($within->isEmpty()) {
-                // Nothing within 100 mi — show a short list of nearest with honest messaging
-                $within = $ranked
-                    ->filter(fn (Coach $c) => $c->computed_distance_miles !== null)
-                    ->sortBy('computed_distance_miles')
-                    ->take(8)
-                    ->values();
-                $beyondRadius = $within->isNotEmpty();
-                $nearestDistance = $within->first()?->computed_distance_miles;
+            if ($withDistance->isEmpty()) {
+                // Parks have no coordinates — cannot honestly run a near-me search
+                $missingCoords = true;
+                $coaches = collect();
                 $effectiveRadius = null;
                 $radiusExpanded = false;
             } else {
-                $within = $within->sortBy('computed_distance_miles')->values();
-            }
+                $radii = [25, 50, 100];
+                $within = collect();
+                foreach ($radii as $radius) {
+                    $within = $withDistance->filter(function (Coach $coach) use ($radius) {
+                        return $coach->computed_distance_miles <= $radius;
+                    })->values();
 
-            // Only include coaches without coords when we are not doing a distance search fallback
-            $coaches = $beyondRadius
-                ? $within->values()
-                : $within->concat(
-                    $ranked->filter(fn (Coach $c) => $c->computed_distance_miles === null)->sortByDesc('rating')->values()
-                )->values();
+                    if ($within->isNotEmpty()) {
+                        $effectiveRadius = $radius;
+                        $radiusExpanded = $radius > 25;
+                        break;
+                    }
+                }
+
+                if ($within->isEmpty()) {
+                    // Nothing within 100 mi — show nearest options with honest messaging
+                    $within = $withDistance
+                        ->sortBy('computed_distance_miles')
+                        ->take(8)
+                        ->values();
+                    $beyondRadius = true;
+                    $nearestDistance = $within->first()?->computed_distance_miles;
+                    $effectiveRadius = null;
+                    $radiusExpanded = false;
+                } else {
+                    $within = $within->sortBy('computed_distance_miles')->values();
+                }
+
+                // Never dump "no coords" coaches into a near-me result set
+                $coaches = $within->values();
+            }
         } else {
             $coaches = $ranked
                 ->sortBy([
@@ -227,6 +237,7 @@ class PageController extends Controller
             'radiusExpanded' => $radiusExpanded,
             'beyondRadius' => $beyondRadius,
             'nearestDistance' => $nearestDistance,
+            'missingCoords' => $missingCoords,
             'geocodeFailed' => $geocodeFailed,
             'needsLocation' => (bool) (preg_match('/^(near me|current location)$/i', $locationQuery) && ! $searchOrigin),
             'filters' => [
@@ -266,6 +277,34 @@ class PageController extends Controller
         }
 
         return $fallback !== '' ? $fallback : $displayName;
+    }
+
+    /**
+     * Geocode and persist missing park coordinates so Near me can compute distance.
+     * Limited + cached to stay within Nominatim fair-use on live.
+     *
+     * @param  \Illuminate\Support\Collection<int, Coach>  $coaches
+     */
+    private function ensureCoachLocationCoordinates($coaches, NominatimGeocoder $geocoder): void
+    {
+        $missing = $coaches
+            ->map(fn (Coach $c) => $c->location)
+            ->filter(fn ($location) => $location && ! $location->hasCoordinates())
+            ->unique('id')
+            ->take(8)
+            ->values();
+
+        foreach ($missing as $location) {
+            $coords = $geocoder->geocodePark((string) $location->name, (string) $location->area);
+            if (! $coords) {
+                continue;
+            }
+
+            $location->forceFill([
+                'latitude' => $coords['lat'],
+                'longitude' => $coords['lng'],
+            ])->save();
+        }
     }
 
     private function coachSportSlug(Coach $coach): string
