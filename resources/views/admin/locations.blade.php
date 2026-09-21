@@ -50,7 +50,7 @@
         <tr>
           <th>Park</th>
           <th>Area</th>
-          <th>Distance</th>
+          <th>Coords</th>
           <th>Coaches</th>
           <th>Status</th>
           <th>Actions</th>
@@ -61,7 +61,13 @@
           <tr>
             <td><strong>{{ $location->name }}</strong></td>
             <td>{{ $location->area }}</td>
-            <td>{{ number_format((float) $location->distance_miles, 1) }} mi</td>
+            <td>
+              @if ($location->hasCoordinates())
+                <span class="text-xs text-zinc-500">{{ number_format((float) $location->latitude, 4) }}, {{ number_format((float) $location->longitude, 4) }}</span>
+              @else
+                <span class="admin-badge admin-badge-amber">Missing</span>
+              @endif
+            </td>
             <td>
               @if ($location->coaches->isEmpty())
                 —

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class Coach extends Model
 {
@@ -44,6 +45,7 @@ class Coach extends Model
         'user_id',
         'location_id',
         'display_name',
+        'slug',
         'specialty',
         'sport',
         'experience',
@@ -62,6 +64,91 @@ class Coach extends Model
             'rate' => 'decimal:2',
             'rating' => 'decimal:1',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Coach $coach) {
+            if (! filled($coach->slug) && filled($coach->display_name)) {
+                $coach->slug = static::uniqueSlugFromName($coach->display_name);
+            }
+        });
+
+        static::updating(function (Coach $coach) {
+            if ($coach->isDirty('display_name') && filled($coach->display_name)) {
+                $coach->slug = static::uniqueSlugFromName($coach->display_name, $coach->id);
+            }
+        });
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field ??= $this->getRouteKeyName();
+
+        if ($field === 'id' || ctype_digit((string) $value)) {
+            return $this->whereKey($value)->firstOrFail();
+        }
+
+        return $this->where($field, $value)->firstOrFail();
+    }
+
+    public static function uniqueSlugFromName(string $name, ?int $ignoreId = null): string
+    {
+        $base = Str::slug(trim(preg_replace('/^coach\s+/i', '', $name) ?: $name));
+        if ($base === '' || ctype_digit($base)) {
+            $base = 'coach'.($base !== '' ? '-'.$base : '');
+        }
+
+        $slug = $base;
+        $suffix = 2;
+
+        while (
+            static::query()
+                ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+                ->where('slug', $slug)
+                ->exists()
+        ) {
+            $slug = $base.'-'.$suffix;
+            $suffix++;
+        }
+
+        return $slug;
+    }
+
+    /**
+     * Resolve a coach from a public URL token: slug, short id, or legacy numeric id.
+     */
+    public static function resolveFromPublicToken(?string $token): ?self
+    {
+        $token = trim((string) $token);
+        if ($token === '') {
+            return null;
+        }
+
+        if (ctype_digit($token)) {
+            return static::query()->whereKey((int) $token)->first();
+        }
+
+        $bySlug = static::query()->where('slug', $token)->first();
+        if ($bySlug) {
+            return $bySlug;
+        }
+
+        $id = \App\Support\ShortId::decode($token, 'coach');
+
+        return $id ? static::query()->whereKey($id)->first() : null;
+    }
+
+    public function publicToken(): string
+    {
+        return filled($this->slug)
+            ? (string) $this->slug
+            : \App\Support\ShortId::encode((int) $this->id, 'coach');
     }
 
     public function user(): BelongsTo

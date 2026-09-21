@@ -45,6 +45,7 @@
     requestedCoachId: String(coachFromPage || coachFromQuery || ''),
     preferredLocationId: document.getElementById('reqStage')?.dataset.preferredLocation || '',
     sortByNearest: false,
+    origin: null,
     minPlayers: '',
     maxPlayers: '',
     playerLevel: '',
@@ -173,19 +174,72 @@
     return Promise.resolve(true);
   }
 
+  function haversineMiles(lat1, lng1, lat2, lng2) {
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const earth = 3958.7613;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return Math.round(earth * 2 * Math.asin(Math.min(1, Math.sqrt(a))) * 10) / 10;
+  }
+
+  function parkMatchesQuery(card, query) {
+    const q = String(query || '').trim().toLowerCase();
+    if (!q || q === 'near me' || q === 'current location') return true;
+    const name = (card.dataset.locationName || '').toLowerCase();
+    const city = (card.dataset.locationCity || '').toLowerCase();
+    const id = card.dataset.locationId || '';
+    return `${name} ${city} ${id}`.includes(q);
+  }
+
+  function refreshLiveDistances() {
+    const origin = state.origin;
+    const cards = [...els.locationCards];
+    cards.forEach((card) => {
+      const lat = Number(card.dataset.lat);
+      const lng = Number(card.dataset.lng);
+      const label = card.querySelector('[data-distance-label]');
+      if (origin && Number.isFinite(lat) && Number.isFinite(lng)) {
+        const miles = haversineMiles(origin.lat, origin.lng, lat, lng);
+        card.dataset.liveDistance = String(miles);
+        if (label) label.textContent = `${miles} mi`;
+      } else {
+        delete card.dataset.liveDistance;
+        if (label) {
+          const fallback = card.dataset.distance;
+          label.textContent = fallback !== '' && fallback != null
+            ? `${Number(fallback).toFixed(1)} mi`
+            : '—';
+        }
+      }
+    });
+  }
+
+  function cardDistance(card) {
+    if (card.dataset.liveDistance != null && card.dataset.liveDistance !== '') {
+      return Number(card.dataset.liveDistance);
+    }
+    if (card.dataset.distance !== '' && card.dataset.distance != null) {
+      return Number(card.dataset.distance);
+    }
+    return Number.POSITIVE_INFINITY;
+  }
+
   function filterLocations(query, { sortNearest = false } = {}) {
     const q = String(query || '').trim().toLowerCase();
     const preferred = state.preferredLocationId;
     const cards = [...els.locationCards];
     let visible = 0;
+    const useNearest = Boolean(sortNearest || state.sortByNearest || state.origin);
+
+    refreshLiveDistances();
 
     cards.forEach((card) => {
-      const name = (card.dataset.locationName || '').toLowerCase();
-      const city = (card.dataset.locationCity || '').toLowerCase();
       const id = card.dataset.locationId || '';
-      const hay = `${name} ${city} ${id}`;
       const isPreferred = preferred && id === preferred;
-      const matches = !q || hay.includes(q);
+      const matches = parkMatchesQuery(card, q);
       card.hidden = !matches;
       card.classList.toggle('is-recommended', Boolean(isPreferred && matches));
       const badge = card.querySelector('.req-loc-card__badge');
@@ -198,9 +252,7 @@
         const aPref = preferred && a.dataset.locationId === preferred ? 0 : 1;
         const bPref = preferred && b.dataset.locationId === preferred ? 0 : 1;
         if (aPref !== bPref) return aPref - bPref;
-        if (sortNearest || state.sortByNearest) {
-          return Number(a.dataset.distance || 999) - Number(b.dataset.distance || 999);
-        }
+        if (useNearest) return cardDistance(a) - cardDistance(b);
         return 0;
       });
       sorted.forEach((card) => els.locationList.appendChild(card));
@@ -217,6 +269,7 @@
       els.locationEmpty.hidden = visible !== 0;
     }
 
+    // No substring match — show all parks sorted nearest (don't echo junk queries)
     if (visible === 0 && q) {
       cards.forEach((card) => {
         card.hidden = false;
@@ -224,18 +277,26 @@
       });
       if (els.locationEmpty) els.locationEmpty.hidden = true;
       if (els.locationCount) {
-        els.locationCount.textContent = `${visible} parks shown — no exact match, showing all`;
+        els.locationCount.textContent = `${visible} parks shown — sorted by nearest`;
       }
       if (els.locationStepLead) {
-        els.locationStepLead.textContent = `No parks matched “${query.trim()}”. Showing all parks so you can pick one.`;
+        els.locationStepLead.textContent = state.origin
+          ? 'No exact park name match — showing nearest parks to your search.'
+          : 'No exact park name match — showing all parks so you can pick one.';
+      }
+      if (els.locationList) {
+        cards
+          .slice()
+          .sort((a, b) => cardDistance(a) - cardDistance(b))
+          .forEach((card) => els.locationList.appendChild(card));
       }
       return visible;
     }
 
     if (els.locationStepLead) {
-      if (q) {
+      if (q && visible > 0) {
         els.locationStepLead.textContent = `Showing parks matching “${query.trim()}”. Pick one to continue.`;
-      } else if (sortNearest || state.sortByNearest) {
+      } else if (useNearest) {
         els.locationStepLead.textContent = 'Parks sorted by nearest distance. Pick one to continue.';
       } else if (preferred) {
         els.locationStepLead.textContent = 'Recommended park is marked — or pick another location.';
@@ -476,6 +537,8 @@
     const sport = query.get('sport') || draft.sport || draft.sportSlug || '';
     const session = query.get('session') || draft.session || '';
     const location = query.get('location') || draft.location || '';
+    const lat = Number(query.get('lat') || draft.lat);
+    const lng = Number(query.get('lng') || draft.lng);
 
     if (date && els.dateInput) {
       els.dateInput.value = date;
@@ -492,9 +555,27 @@
       matchSelectValue(sportEl, sport) || matchSelectValue(sportEl, String(sport).replace(/-/g, ' '));
     }
 
-    if (location && els.locationInput && !els.locationInput.value.trim()) {
-      els.locationInput.value = location;
-      state.location = location;
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      state.origin = { lat, lng };
+      state.sortByNearest = true;
+    }
+
+    const normalizedLocation = String(location || '').trim();
+    const isNearMe = /^(near me|current location)$/i.test(normalizedLocation);
+    const matchesPark = normalizedLocation
+      && !isNearMe
+      && [...els.locationCards].some((card) => parkMatchesQuery(card, normalizedLocation));
+
+    // Only prefill the free-text field when it matches a known park/city —
+    // otherwise keep coords for nearest sort and leave the input clean.
+    if (matchesPark && els.locationInput && !els.locationInput.value.trim()) {
+      els.locationInput.value = normalizedLocation;
+      state.location = normalizedLocation;
+    } else if (isNearMe || (state.origin && normalizedLocation)) {
+      state.location = '';
+      if (els.locationInput && /^(near me|current location)$/i.test(els.locationInput.value.trim())) {
+        els.locationInput.value = '';
+      }
     }
 
     const typeEl = document.getElementById('reqSessionType');
@@ -505,10 +586,6 @@
         camp: 'Small-Sided Games — Group Session',
       }[session] || session;
       matchSelectValue(typeEl, mapped);
-    }
-
-    if (draft.lat && draft.lng) {
-      state.sortByNearest = true;
     }
   }
 
@@ -683,8 +760,12 @@
       const base = state.date ? new Date(`${state.date}T12:00:00`) : new Date();
       buildDateStrip(base);
       filterTimeGroups();
-      syncLocationRefine(state.location);
-      filterLocations(state.location, { sortNearest: state.sortByNearest });
+      const parkQuery = state.location;
+      const matchesPark = parkQuery
+        && ![...els.locationCards].every((card) => !parkMatchesQuery(card, parkQuery));
+      const refineValue = matchesPark ? parkQuery : '';
+      syncLocationRefine(refineValue);
+      filterLocations(refineValue, { sortNearest: state.sortByNearest || Boolean(state.origin) });
       goToStep(2);
     });
   }
@@ -701,10 +782,35 @@
 
   if (els.useLocationBtn) {
     els.useLocationBtn.addEventListener('click', () => {
-      state.sortByNearest = true;
-      if (els.locationInput) els.locationInput.value = '';
-      state.location = '';
-      els.useLocationBtn.classList.add('is-active');
+      if (!navigator.geolocation) {
+        notify('Location is unavailable in this browser. Enter a city or pick a park instead.', 'Location unavailable');
+        return;
+      }
+
+      els.useLocationBtn.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          state.origin = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          };
+          state.sortByNearest = true;
+          if (els.locationInput) els.locationInput.value = '';
+          state.location = '';
+          els.useLocationBtn.classList.add('is-active');
+          els.useLocationBtn.disabled = false;
+          window.CoachNowSearch?.write({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            location: 'Near me',
+          });
+        },
+        () => {
+          els.useLocationBtn.disabled = false;
+          notify('Could not read your location. Enter a city or pick a park instead.', 'Location unavailable');
+        },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+      );
     });
   }
 

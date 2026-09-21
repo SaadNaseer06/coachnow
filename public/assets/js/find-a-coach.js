@@ -342,448 +342,282 @@
     })();
 
 (() => {
-      const clearButton = document.getElementById('clearFilters');
-      const resetButton = document.getElementById('resetFilters');
-      const emptyResetButton = document.getElementById('emptyResetFilters');
-      const applyButton = document.getElementById('applyFilters');
-      const searchForm = document.getElementById('coachSearchForm');
-      const resultsSection = document.getElementById('resultsSection');
-      const noResults = document.getElementById('noCoachResults');
-      const ratingButtons = Array.from(document.querySelectorAll('.rating-filter'));
-      const checkboxes = Array.from(document.querySelectorAll('#filtersPanel input[type="checkbox"]'));
-      const cards = Array.from(document.querySelectorAll('.coach-result'));
-      const minPrice = document.getElementById('minPrice');
-      const maxPrice = document.getElementById('maxPrice');
-      const distanceRange = document.getElementById('distanceRange');
-      const distanceValue = document.getElementById('distanceValue');
-      const sportSelect = document.getElementById('sportSelect');
-      const sessionTypeSelect = document.getElementById('sessionTypeSelect');
-      const whenSelect = document.getElementById('whenSelect');
-      const whenDate = document.getElementById('whenDate');
-      const chooseDateBtn = document.getElementById('chooseDateBtn');
-      const locationInput = document.getElementById('locationInput');
-      const useLocationButton = document.getElementById('useLocationBtn');
-      const filterTitles = Array.from(document.querySelectorAll('#filtersPanel .filter-title'));
+  const searchForm = document.getElementById('coachSearchForm');
+  const locationInput = document.getElementById('locationInput');
+  const sportSelect = document.getElementById('sportSelect');
+  const searchLat = document.getElementById('searchLat');
+  const searchLng = document.getElementById('searchLng');
+  const useLocationButton = document.getElementById('useLocationBtn');
+  const morePanel = document.getElementById('moreFiltersPanel');
+  const resultsSection = document.getElementById('resultsSection');
+  const resultsMount = document.getElementById('resultsMount');
+  const resultsLoader = document.getElementById('resultsLoader');
+  const heroSearchBtn = document.getElementById('heroSearchBtn');
+  let searchAbort = null;
+  let moreFiltersOpen = morePanel && !morePanel.classList.contains('hidden');
 
-      if (!cards.length) return;
+  function persistDraft() {
+    const sportOption = sportSelect?.selectedOptions?.[0];
+    window.CoachNowSearch?.write({
+      location: (locationInput?.value || '').trim(),
+      sport: sportOption?.text?.trim() && sportSelect?.value ? sportOption.text.trim() : '',
+      sportSlug: sportSelect?.value || '',
+      lat: searchLat?.value || '',
+      lng: searchLng?.value || '',
+    });
+  }
 
-      let searchFilters = {
-        sport: '',
-        session: '',
-        when: '',
-        location: ''
-      };
-      let priceTimer = null;
-      let sortByNearest = false;
+  function clearCoords() {
+    if (searchLat) searchLat.value = '';
+    if (searchLng) searchLng.value = '';
+  }
 
-      filterTitles.forEach((title, index) => {
-        const section = title.parentElement;
-        if (!section) return;
+  function checkedValues(selector) {
+    return [...document.querySelectorAll(selector)]
+      .filter((el) => el.checked)
+      .map((el) => el.value);
+  }
 
-        const content = Array.from(section.children).filter((item) => item !== title);
-        const arrow = title.lastElementChild;
-        const controlsId = `filter-section-${index + 1}`;
-        const contentRegion = document.createElement('div');
-        const expandedMargin = getComputedStyle(title).marginBottom;
+  function buildParams(extra = {}) {
+    const params = new URLSearchParams();
+    const location = (locationInput?.value || '').trim();
+    const sport = sportSelect?.value || '';
+    const lat = searchLat?.value || '';
+    const lng = searchLng?.value || '';
+    const minPrice = document.getElementById('filterMinPrice')?.value || '';
+    const maxPrice = document.getElementById('filterMaxPrice')?.value || '';
+    const rating = document.getElementById('filterRating')?.value || '0';
+    const session = document.getElementById('filterSession')?.value || '';
 
-        content.forEach((item, contentIndex) => {
-          item.id = `${controlsId}-content-${contentIndex + 1}`;
-          contentRegion.appendChild(item);
-        });
-        title.after(contentRegion);
+    if (location) params.set('location', location);
+    if (sport) params.set('sport', sport);
+    if (lat) params.set('lat', lat);
+    if (lng) params.set('lng', lng);
+    if (minPrice) params.set('min_price', minPrice);
+    if (maxPrice) params.set('max_price', maxPrice);
+    if (rating && rating !== '0') params.set('rating', rating);
+    if (session) params.set('session', session);
+    checkedValues('.filter-experience').forEach((v) => params.append('experience[]', v));
+    checkedValues('.filter-age').forEach((v) => params.append('age[]', v));
 
-        contentRegion.style.overflow = 'hidden';
-        contentRegion.style.maxHeight = 'none';
-        contentRegion.style.opacity = '1';
-        contentRegion.style.transform = 'translateY(0)';
-        contentRegion.style.transition = 'max-height 380ms cubic-bezier(.22,1,.36,1), opacity 240ms ease, transform 380ms cubic-bezier(.22,1,.36,1)';
+    Object.entries(extra).forEach(([key, value]) => {
+      if (value == null || value === '') params.delete(key);
+      else params.set(key, String(value));
+    });
 
-        title.setAttribute('role', 'button');
-        title.setAttribute('tabindex', '0');
-        title.setAttribute('aria-expanded', 'true');
-        title.setAttribute('aria-controls', content.map((item) => item.id).join(' '));
-        title.classList.add('cursor-pointer', 'select-none', 'rounded-md', 'focus:outline-none', 'focus:ring-2', 'focus:ring-brand-red/30');
+    return params;
+  }
 
-        if (arrow) {
-          arrow.innerHTML = '&#9662;';
-          arrow.setAttribute('aria-hidden', 'true');
-          arrow.classList.add('inline-block');
-          arrow.style.transition = 'transform 380ms cubic-bezier(.22,1,.36,1)';
-        }
+  function setLoading(isLoading) {
+    if (resultsLoader) {
+      resultsLoader.hidden = !isLoading;
+      resultsLoader.setAttribute('aria-hidden', String(!isLoading));
+    }
+    resultsSection?.classList.toggle('is-searching', isLoading);
+    if (heroSearchBtn) {
+      heroSearchBtn.disabled = isLoading;
+      heroSearchBtn.classList.toggle('is-busy', isLoading);
+    }
+    if (searchForm) {
+      searchForm.querySelectorAll('input, select, button').forEach((el) => {
+        if (el.id === 'useLocationBtn') return;
+        if (el.tagName === 'BUTTON' && el.type === 'button' && el.id !== 'heroSearchBtn') return;
+      });
+    }
+  }
 
-        title.style.transition = 'margin-bottom 380ms cubic-bezier(.22,1,.36,1)';
+  function syncMoreFiltersToggle() {
+    const toggle = document.getElementById('toggleMoreFilters');
+    const label = document.getElementById('toggleMoreFiltersLabel');
+    if (!toggle || !morePanel) return;
+    morePanel.classList.toggle('hidden', !moreFiltersOpen);
+    toggle.setAttribute('aria-expanded', String(moreFiltersOpen));
+    if (label) label.textContent = moreFiltersOpen ? 'Hide filters' : 'More filters';
+  }
 
-        const toggleSection = () => {
-          const expanded = title.getAttribute('aria-expanded') === 'true';
-          title.setAttribute('aria-expanded', String(!expanded));
+  async function runSearch({ scroll = true, replaceHistory = true, page } = {}) {
+    if (!resultsMount) return;
 
-          if (expanded) {
-            contentRegion.style.maxHeight = `${contentRegion.scrollHeight}px`;
-            requestAnimationFrame(() => {
-              contentRegion.style.maxHeight = '0px';
-              contentRegion.style.opacity = '0';
-              contentRegion.style.transform = 'translateY(-6px)';
-              title.style.marginBottom = '0px';
-            });
-          } else {
-            contentRegion.style.maxHeight = `${contentRegion.scrollHeight}px`;
-            contentRegion.style.opacity = '1';
-            contentRegion.style.transform = 'translateY(0)';
-            title.style.marginBottom = expandedMargin;
-          }
+    const extra = {};
+    if (page != null && page !== '' && Number(page) > 1) {
+      extra.page = String(page);
+    }
 
-          if (arrow) arrow.style.transform = expanded ? 'rotate(180deg)' : 'rotate(0deg)';
-        };
+    const params = buildParams(extra);
+    if (page == null || page === '' || Number(page) <= 1) {
+      params.delete('page');
+    }
+    params.set('ajax', '1');
+    persistDraft();
+    setLoading(true);
 
-        contentRegion.addEventListener('transitionend', (event) => {
-          if (event.propertyName === 'max-height' && title.getAttribute('aria-expanded') === 'true') {
-            contentRegion.style.maxHeight = 'none';
-          }
-        });
+    if (searchAbort) searchAbort.abort();
+    searchAbort = new AbortController();
 
-        title.addEventListener('click', toggleSection);
-        title.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            toggleSection();
-          }
-        });
+    try {
+      const response = await fetch(`/find-a-coach?${params.toString()}`, {
+        headers: {
+          Accept: 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        signal: searchAbort.signal,
+        credentials: 'same-origin',
       });
 
-      function selectRating(button) {
-        ratingButtons.forEach((item) => {
-          item.classList.remove('border-brand-red', 'bg-brand-red', 'text-white');
-          item.classList.add(
-            'border-zinc-300',
-            'bg-white',
-            'text-zinc-600',
-            'hover:border-brand-red',
-            'hover:text-brand-red'
-          );
-        });
+      if (!response.ok) throw new Error('Search failed');
+      const data = await response.json();
+      resultsMount.innerHTML = data.html || '';
+      syncMoreFiltersToggle();
 
-        button.classList.remove(
-          'border-zinc-300',
-          'bg-white',
-          'text-zinc-600',
-          'hover:border-brand-red',
-          'hover:text-brand-red'
-        );
-        button.classList.add('border-brand-red', 'bg-brand-red', 'text-white');
+      params.delete('ajax');
+      const qs = params.toString();
+      if (replaceHistory) {
+        const nextUrl = qs ? `/find-a-coach?${qs}` : '/find-a-coach';
+        window.history.replaceState({}, '', nextUrl);
       }
 
-      function updateDistanceDisplay() {
-        if (!distanceRange || !distanceValue) return;
-
-        const min = Number(distanceRange.min || 0);
-        const max = Number(distanceRange.max || 50);
-        const value = Number(distanceRange.value);
-        const percent = max === min ? 0 : ((value - min) / (max - min)) * 100;
-        const thumbOffset = 8 - (percent * 0.16);
-
-        distanceValue.textContent = `${value} mi`;
-        distanceValue.style.left = `calc(${percent}% + ${thumbOffset}px)`;
-        distanceRange.setAttribute('aria-valuetext', `${value} miles`);
+      if (scroll && resultsSection) {
+        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-
-      function selectedValues(category) {
-        return checkboxes
-          .filter((box) => box.checked && box.dataset.filter === category)
-          .map((box) => box.value);
+    } catch (error) {
+      if (error?.name === 'AbortError') return;
+      console.error(error);
+    } finally {
+      setLoading(false);
+      if (useLocationButton) {
+        useLocationButton.disabled = false;
+        useLocationButton.classList.remove('is-loading');
+        useLocationButton.setAttribute('aria-label', 'Use my location');
       }
+    }
+  }
 
-      function cardHasAny(card, category, selected) {
-        if (!selected.length) return true;
-        const available = String(card.dataset[category] || '')
-          .toLowerCase()
-          .split(/\s+/)
-          .filter(Boolean);
-        return selected.some((value) => available.includes(String(value).toLowerCase()));
-      }
+  function resetSearch() {
+    if (locationInput) locationInput.value = '';
+    if (sportSelect) sportSelect.value = '';
+    clearCoords();
+    const minPrice = document.getElementById('filterMinPrice');
+    const maxPrice = document.getElementById('filterMaxPrice');
+    const rating = document.getElementById('filterRating');
+    const session = document.getElementById('filterSession');
+    if (minPrice) minPrice.value = '';
+    if (maxPrice) maxPrice.value = '';
+    if (rating) rating.value = '0';
+    if (session) session.value = '';
+    document.querySelectorAll('.filter-experience, .filter-age').forEach((el) => {
+      el.checked = false;
+    });
+    moreFiltersOpen = false;
+    window.CoachNowSearch?.write({
+      location: '',
+      sport: '',
+      sportSlug: '',
+      lat: '',
+      lng: '',
+      session: '',
+    });
+    runSearch({ scroll: true });
+  }
 
-      function toISODate(date) {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-      }
+  function clearExtraFilters() {
+    const minPrice = document.getElementById('filterMinPrice');
+    const maxPrice = document.getElementById('filterMaxPrice');
+    const rating = document.getElementById('filterRating');
+    const session = document.getElementById('filterSession');
+    if (minPrice) minPrice.value = '';
+    if (maxPrice) maxPrice.value = '';
+    if (rating) rating.value = '0';
+    if (session) session.value = '';
+    document.querySelectorAll('.filter-experience, .filter-age').forEach((el) => {
+      el.checked = false;
+    });
+    runSearch({ scroll: false });
+  }
 
-      function presetToDate(value) {
-        if (!value) return '';
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (value === 'today') return toISODate(today);
-        if (value === 'tomorrow') {
-          today.setDate(today.getDate() + 1);
-          return toISODate(today);
-        }
-        if (value === 'this-weekend') {
-          const day = today.getDay();
-          const add = day === 6 || day === 0 ? 0 : 6 - day;
-          today.setDate(today.getDate() + add);
-          return toISODate(today);
-        }
-        if (value === 'next-week') {
-          const add = ((8 - today.getDay()) % 7) || 7;
-          today.setDate(today.getDate() + add);
-          return toISODate(today);
-        }
-        return '';
-      }
+  locationInput?.addEventListener('input', () => {
+    clearCoords();
+    persistDraft();
+  });
 
-      function selectedSearchDate() {
-        return (whenDate?.value || '').trim() || presetToDate(whenSelect?.value || '');
-      }
+  sportSelect?.addEventListener('change', () => {
+    persistDraft();
+  });
 
-      function coachHasFreeSlot(card, isoDate) {
-        if (!isoDate) return true;
-        let occupied = [];
-        try {
-          occupied = JSON.parse(card.dataset.occupied || '[]');
-        } catch {
-          occupied = [];
-        }
-        const dayItems = occupied.filter((item) => item && item.date === isoDate);
-        if (dayItems.some((item) => !item.time)) return false;
-        for (let hour = 8; hour < 19; hour += 1) {
-          const start = hour * 60;
-          const end = start + 60;
-          const clash = dayItems.some((item) => {
-            const parts = String(item.time || '').split(':');
-            const mins = (Number(parts[0]) || 0) * 60 + (Number(parts[1]) || 0);
-            const busyEnd = mins + (Number(item.minutes) || 60);
-            return start < busyEnd && mins < end;
-          });
-          if (!clash) return true;
-        }
-        return false;
-      }
+  searchForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    runSearch({ scroll: true });
+  });
 
-      function persistSearchDraft() {
-        const sportOption = sportSelect?.selectedOptions?.[0];
+  morePanel?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    runSearch({ scroll: false });
+  });
+
+  document.getElementById('clearExtraFilters')?.addEventListener('click', clearExtraFilters);
+
+  resultsSection?.addEventListener('click', (event) => {
+    const pageLink = event.target.closest?.('a[data-page]');
+    if (pageLink) {
+      event.preventDefault();
+      const page = pageLink.getAttribute('data-page');
+      runSearch({ scroll: true, page });
+      return;
+    }
+
+    const toggle = event.target.closest?.('#toggleMoreFilters');
+    if (toggle) {
+      moreFiltersOpen = !moreFiltersOpen;
+      syncMoreFiltersToggle();
+      return;
+    }
+    if (event.target.closest?.('#resetSearchBtn, [data-reset-search]')) {
+      resetSearch();
+    }
+  });
+
+  useLocationButton?.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      if (locationInput) locationInput.placeholder = 'Location unavailable - enter a city or ZIP';
+      return;
+    }
+
+    useLocationButton.disabled = true;
+    useLocationButton.classList.add('is-loading');
+    useLocationButton.setAttribute('aria-label', 'Locating...');
+    setLoading(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (searchLat) searchLat.value = String(pos.coords.latitude);
+        if (searchLng) searchLng.value = String(pos.coords.longitude);
+        if (locationInput) locationInput.value = 'Near me';
         window.CoachNowSearch?.write({
-          location: (locationInput?.value || '').trim(),
-          date: selectedSearchDate(),
-          sport: sportOption?.text?.trim() && sportSelect.value ? sportOption.text.trim() : '',
-          sportSlug: sportSelect?.value || '',
-          session: sessionTypeSelect?.value === 'all' ? '' : (sessionTypeSelect?.value || ''),
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          location: 'Near me',
         });
-      }
+        persistDraft();
+        runSearch({ scroll: true });
+      },
+      () => {
+        setLoading(false);
+        useLocationButton.disabled = false;
+        useLocationButton.classList.remove('is-loading');
+        useLocationButton.setAttribute('aria-label', 'Use my location');
+        if (locationInput) locationInput.placeholder = 'Could not get location - enter a city or ZIP';
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+    );
+  });
 
-      function syncSearchFiltersFromHero() {
-        searchFilters = {
-          sport: sportSelect?.value || '',
-          session: sessionTypeSelect?.value === 'all' ? '' : (sessionTypeSelect?.value || ''),
-          when: selectedSearchDate(),
-          location: (locationInput?.value || '').trim().toLowerCase()
-        };
-        persistSearchDraft();
-      }
+  syncMoreFiltersToggle();
 
-      function applyFilters() {
-        const activeRating = document.querySelector('.rating-filter.bg-brand-red');
-        const selectedRating = Number(activeRating?.dataset.rating || 0);
-        let min = minPrice?.value === '' || minPrice?.value == null ? 0 : Number(minPrice.value);
-        let max = maxPrice?.value === '' || maxPrice?.value == null ? Infinity : Number(maxPrice.value);
-        const maxDistance = Number(distanceRange?.value || 50);
-
-        if (!Number.isFinite(min)) min = 0;
-        if (!Number.isFinite(max)) max = Infinity;
-        if (min > max) [min, max] = [max, min];
-
-        const experience = selectedValues('experience');
-        const age = selectedValues('age');
-        const session = selectedValues('session');
-        const availability = selectedValues('availability');
-        const locationQuery = (searchFilters.location || (locationInput?.value || '').trim().toLowerCase());
-        const searchDate = selectedSearchDate();
-        let visibleCount = 0;
-
-        cards.forEach((card) => {
-          const cardSessions = String(card.dataset.session || '').toLowerCase().split(/\s+/).filter(Boolean);
-          const cardWhen = String(card.dataset.when || '').toLowerCase().split(/\s+/).filter(Boolean);
-          const cardSports = String(card.dataset.sport || '').toLowerCase().split(/\s+/).filter(Boolean);
-          const cardLocation = String(card.dataset.location || '').toLowerCase();
-          const price = Number(card.dataset.price || 0);
-          const rating = Number(card.dataset.rating || 0);
-          const distanceRaw = card.dataset.distance;
-          const distance = distanceRaw === '' || distanceRaw == null ? null : Number(distanceRaw);
-
-          const matches =
-            price >= min &&
-            price <= max &&
-            rating >= selectedRating &&
-            (distance == null || !Number.isFinite(distance) || distance <= maxDistance) &&
-            cardHasAny(card, 'experience', experience) &&
-            cardHasAny(card, 'age', age) &&
-            cardHasAny(card, 'session', session) &&
-            cardHasAny(card, 'availability', availability) &&
-            (!searchFilters.sport || cardSports.includes(String(searchFilters.sport).toLowerCase())) &&
-            (!searchFilters.session || cardSessions.includes(String(searchFilters.session).toLowerCase())) &&
-            (!searchFilters.when || coachHasFreeSlot(card, searchDate)) &&
-            (!locationQuery || locationQuery === 'current location' || cardLocation.includes(locationQuery));
-
-          card.hidden = !matches;
-          card.style.display = matches ? '' : 'none';
-          if (matches) visibleCount += 1;
-        });
-
-        if (noResults) noResults.classList.toggle('hidden', visibleCount !== 0);
-
-        if (sortByNearest) {
-          const parent = cards[0]?.parentElement;
-          if (parent) {
-            cards.slice().sort((a, b) => {
-              const da = a.dataset.distance === '' ? Number.POSITIVE_INFINITY : Number(a.dataset.distance);
-              const db = b.dataset.distance === '' ? Number.POSITIVE_INFINITY : Number(b.dataset.distance);
-              return da - db;
-            }).forEach((card) => parent.appendChild(card));
-          }
-        }
-      }
-
-      function schedulePriceApply() {
-        window.clearTimeout(priceTimer);
-        priceTimer = window.setTimeout(applyFilters, 150);
-      }
-
-      function resetFilters() {
-        checkboxes.forEach((box) => {
-          box.checked = false;
-        });
-
-        if (minPrice) minPrice.value = '';
-        if (maxPrice) maxPrice.value = '';
-        if (ratingButtons[0]) selectRating(ratingButtons[0]);
-        if (distanceRange) distanceRange.value = '100';
-        updateDistanceDisplay();
-        if (locationInput) locationInput.value = '';
-        if (sportSelect) sportSelect.value = '';
-        if (sessionTypeSelect) sessionTypeSelect.value = 'all';
-        if (whenSelect) whenSelect.value = '';
-        if (whenDate) whenDate.value = '';
-        searchFilters = { sport: '', session: '', when: '', location: '' };
-        sortByNearest = false;
-        applyFilters();
-      }
-
-      ratingButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-          selectRating(button);
-          applyFilters();
-        });
-      });
-
-      checkboxes.forEach((box) => {
-        box.addEventListener('change', applyFilters);
-      });
-
-      minPrice?.addEventListener('input', schedulePriceApply);
-      maxPrice?.addEventListener('input', schedulePriceApply);
-      minPrice?.addEventListener('change', applyFilters);
-      maxPrice?.addEventListener('change', applyFilters);
-
-      distanceRange?.addEventListener('input', () => {
-        updateDistanceDisplay();
-        applyFilters();
-      });
-
-      clearButton?.addEventListener('click', resetFilters);
-      resetButton?.addEventListener('click', resetFilters);
-      emptyResetButton?.addEventListener('click', resetFilters);
-      applyButton?.addEventListener('click', (event) => {
-        event.preventDefault();
-        applyFilters();
-      });
-
-      updateDistanceDisplay();
-
-      searchForm?.addEventListener('submit', (event) => {
-        event.preventDefault();
-        syncSearchFiltersFromHero();
-        applyFilters();
-        resultsSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-
-      sportSelect?.addEventListener('change', () => {
-        syncSearchFiltersFromHero();
-        applyFilters();
-      });
-      sessionTypeSelect?.addEventListener('change', () => {
-        syncSearchFiltersFromHero();
-        applyFilters();
-      });
-      whenSelect?.addEventListener('change', () => {
-        if (whenDate && whenSelect.value) whenDate.value = presetToDate(whenSelect.value);
-        syncSearchFiltersFromHero();
-        applyFilters();
-      });
-      chooseDateBtn?.addEventListener('click', () => {
-        if (!whenDate) return;
-        whenDate.classList.remove('hidden');
-        whenDate.showPicker?.();
-        whenDate.focus();
-      });
-      whenDate?.addEventListener('change', () => {
-        if (whenSelect && whenDate.value) whenSelect.value = '';
-        syncSearchFiltersFromHero();
-        applyFilters();
-      });
-      locationInput?.addEventListener('input', () => {
-        searchFilters.location = (locationInput.value || '').trim().toLowerCase();
-        persistSearchDraft();
-        schedulePriceApply();
-      });
-
-      useLocationButton?.addEventListener('click', () => {
-        sortByNearest = true;
-        const finish = (coords) => {
-          if (coords) window.CoachNowSearch?.write({ lat: coords.latitude, lng: coords.longitude });
-          if (locationInput) locationInput.placeholder = 'Sorted by nearest listed parks';
-          useLocationButton.disabled = false;
-          persistSearchDraft();
-          applyFilters();
-        };
-
-        if (!navigator.geolocation) {
-          finish();
-          return;
-        }
-
-        useLocationButton.disabled = true;
-        navigator.geolocation.getCurrentPosition(
-          (pos) => finish(pos.coords),
-          () => finish(),
-          { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
-        );
-      });
-
-      const params = new URLSearchParams(window.location.search);
-      const draft = window.CoachNowSearch?.read() || {};
-      if (locationInput && (params.get('location') || draft.location)) {
-        locationInput.value = params.get('location') || draft.location;
-      }
-      if (sportSelect) {
-        const slug = params.get('sport') || draft.sportSlug || '';
-        if (slug) sportSelect.value = slug;
-        else if (draft.sport) {
-          const match = [...sportSelect.options].find((opt) => opt.text.trim().toLowerCase() === String(draft.sport).toLowerCase());
-          if (match) sportSelect.value = match.value;
-        }
-      }
-      if (sessionTypeSelect && (params.get('session') || draft.session)) {
-        sessionTypeSelect.value = params.get('session') || draft.session;
-      }
-      const incomingDate = params.get('date') || draft.date || '';
-      if (incomingDate && whenDate) {
-        whenDate.value = incomingDate;
-        whenDate.classList.remove('hidden');
-        if (whenSelect) whenSelect.value = '';
-      }
-
-      syncSearchFiltersFromHero();
-      applyFilters();
-    })();
+  if (resultsSection && new URLSearchParams(window.location.search).has('location')) {
+    requestAnimationFrame(() => {
+      resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+})();
 
 (() => {
       const HERO_HEADING_SELECTOR =

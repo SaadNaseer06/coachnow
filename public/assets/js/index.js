@@ -866,9 +866,18 @@
   if (useLocationBtn && locationInput) {
     useLocationBtn.addEventListener('click', () => {
       const finish = (coords) => {
-        if (coords) window.CoachNowSearch?.write({ lat: coords.latitude, lng: coords.longitude });
-        locationInput.placeholder = 'Sorted by nearest listed parks on Find a Coach';
-        openLocationDropdown();
+        if (coords) {
+          window.CoachNowSearch?.write({
+            lat: coords.latitude,
+            lng: coords.longitude,
+            location: locationInput.value.trim() || 'Near me',
+          });
+          if (!locationInput.value.trim()) locationInput.value = 'Near me';
+          locationInput.placeholder = 'Using your current location';
+        } else {
+          locationInput.placeholder = 'Could not get location — enter a city or ZIP';
+        }
+        closeAllDropdowns();
       };
       if (!navigator.geolocation) {
         finish();
@@ -931,6 +940,7 @@
     const date = whenInput && whenInput.value;
     const sport = document.getElementById('sportSelect');
     const session = document.getElementById('sessionTypeSelect');
+    const draft = window.CoachNowSearch?.read() || {};
     if (location) params.set('location', location);
     if (date) params.set('date', date);
     const sportSlug = sport?.value || '';
@@ -938,12 +948,16 @@
     if (sportSlug) params.set('sport', sportSlug);
     const sessionValue = session?.value && session.value !== 'all' ? session.value : '';
     if (sessionValue) params.set('session', sessionValue);
+    if (draft.lat) params.set('lat', String(draft.lat));
+    if (draft.lng) params.set('lng', String(draft.lng));
     window.CoachNowSearch?.write({
       location: location || '',
       date: date || '',
       sport: sportLabel && sportSlug ? sportLabel : '',
       sportSlug,
       session: sessionValue,
+      lat: draft.lat || '',
+      lng: draft.lng || '',
     });
     const qs = params.toString();
     window.location.href = qs ? `/find-a-coach?${qs}` : '/find-a-coach';

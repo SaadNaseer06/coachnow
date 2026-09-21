@@ -21,9 +21,11 @@
   const queryString = (extra = {}) => {
     const data = { ...read(), ...extra };
     const params = new URLSearchParams();
-    ['location', 'date', 'sport', 'session', 'coach'].forEach((key) => {
+    ['location', 'date', 'session', 'coach', 'lat', 'lng'].forEach((key) => {
       if (data[key]) params.set(key, String(data[key]));
     });
+    if (data.sportSlug) params.set('sport', String(data.sportSlug));
+    else if (data.sport) params.set('sport', String(data.sport));
     return params.toString();
   };
 

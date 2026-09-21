@@ -17,7 +17,7 @@
     class="player-dash-hero relative pt-[106px] pb-28 lg:pb-32 min-h-[500px] lg:min-h-[560px] flex items-end bg-zinc-950 text-white overflow-hidden"
     style="background-image:
       linear-gradient(90deg, rgba(12,13,14,0.88) 0%, rgba(12,13,14,0.62) 38%, rgba(12,13,14,0.18) 72%, rgba(12,13,14,0.04) 100%),
-      linear-gradient(180deg, rgba(12,13,14,0.08) 0%, rgba(12,13,14,0.12) 55%, rgba(244,244,245,0.95) 100%),
+      linear-gradient(180deg, rgba(12,13,14,0.08) 0%, rgba(12,13,14,0.35) 55%, rgba(12,13,14,0.96) 100%),
       url('{{ asset('assets/hero-bg.png') }}');
       background-size: cover;
       background-position: center bottom;">
@@ -106,10 +106,16 @@
           <div class="player-stat-icon">
             <svg class="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
           </div>
-          <span class="player-status-pill player-status-pill--green">On track</span>
+          @if ($progressTone === 'green')
+            <span class="player-status-pill player-status-pill--green">{{ $progressNote }}</span>
+          @elseif ($progressTone === 'amber')
+            <span class="player-status-pill player-status-pill--amber">{{ $progressNote }}</span>
+          @else
+            <span class="player-status-pill player-status-pill--zinc">{{ $progressNote }}</span>
+          @endif
         </div>
         <p class="player-stat-label">Overall progress</p>
-        <p class="player-stat-value player-stat-value--text text-white">Improving steadily</p>
+        <p class="player-stat-value player-stat-value--text text-white">{{ $progressLabel }}</p>
       </div>
 
       <div class="player-stat-card motion-item motion-soft-up" style="--motion-delay:80ms">
@@ -162,13 +168,15 @@
                 <h2 class="player-panel-title">{{ $focusCoachName }}@if(! $focusIsUpcoming && $latestPast) · {{ $latestPast->session_date?->format('F j') }}@endif</h2>
               </div>
             </div>
-            <span class="inline-flex items-center px-3 py-1.5 rounded-full {{ $focusIsUpcoming ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-600' }} text-[10px] font-bold uppercase tracking-[0.08em] shrink-0">{{ $focusIsUpcoming ? 'Upcoming' : 'Complete' }}</span>
+            <span class="inline-flex items-center px-3 py-1.5 rounded-full {{ $focusIsUpcoming ? 'bg-emerald-500/15 text-emerald-300' : (($nextBooking || $latestPast) ? 'bg-white/10 text-zinc-300' : 'bg-brand-red/15 text-brand-red') }} text-[10px] font-bold uppercase tracking-[0.08em] shrink-0">
+              {{ $focusIsUpcoming ? 'Upcoming' : (($nextBooking || $latestPast) ? 'Complete' : 'Get started') }}
+            </span>
           </div>
 
           <div class="player-focus-box mb-5">
             <p class="text-[11px] uppercase tracking-[0.08em] text-brand-red font-bold mb-1.5">Focus of the week</p>
-            <p class="text-[13px] text-[#191615] leading-[1.55] font-medium">
-              @if ($focusLabel && $focusLabel !== 'Training')
+            <p class="text-[13px] text-white leading-[1.55] font-medium">
+              @if ($focusLabel && $focusLabel !== 'Training' && $focusLabel !== 'No priority yet')
                 Keep building on {{ strtolower($focusLabel) }} in your next sessions.
               @else
                 Book or complete a session to unlock personalized coach focus notes.
@@ -178,8 +186,8 @@
 
           <div class="player-feedback-grid">
             <div class="player-feedback-card is-positive">
-              <p class="text-[12px] font-bold text-emerald-800 uppercase tracking-[0.06em] mb-2">Upcoming</p>
-              <p class="text-[13px] text-zinc-600 leading-[1.65] font-light">
+              <p class="text-[12px] font-bold text-emerald-300 uppercase tracking-[0.06em] mb-2">Upcoming</p>
+              <p class="text-[13px] text-zinc-400 leading-[1.65] font-light">
                 @if ($nextBooking)
                   {{ $nextBooking->session_type }} · {{ $nextBooking->whenLabel() }}
                   @if ($nextBooking->location) at {{ $nextBooking->location->name }} @endif
@@ -189,8 +197,8 @@
               </p>
             </div>
             <div class="player-feedback-card is-focus">
-              <p class="text-[12px] font-bold text-orange-800 uppercase tracking-[0.06em] mb-2">Location</p>
-              <p class="text-[13px] text-zinc-600 leading-[1.65] font-light">
+              <p class="text-[12px] font-bold text-amber-300 uppercase tracking-[0.06em] mb-2">Location</p>
+              <p class="text-[13px] text-zinc-400 leading-[1.65] font-light">
                 {{ ($nextBooking ?? $latestPast)?->location?->name ?? 'Choose a park when you request a session' }}
               </p>
             </div>
@@ -254,8 +262,8 @@
               </div>
             @empty
               <div class="player-req-empty" data-request-empty>
-                <p class="text-[14px] font-semibold text-[#191615]">No session requests yet</p>
-                <p class="text-[13px] text-zinc-500 mt-1">Request a private or group session — it will show up here with live status.</p>
+                <p class="text-[14px] font-semibold text-white">No session requests yet</p>
+                <p class="text-[13px] text-zinc-400 mt-1">Request a private or group session — it will show up here with live status.</p>
                 <a href="{{ route('request-session') }}" class="player-req-cta mt-4 inline-flex">Request a session</a>
               </div>
             @endforelse
@@ -269,31 +277,37 @@
               <p class="player-section-kicker">Development profile</p>
               <h2 class="player-panel-title">Skill progress</h2>
             </div>
-            <span class="text-[12px] text-zinc-400 font-medium">Updated Aug 4</span>
+            @if (! empty($skillUpdatedAt))
+              <span class="text-[12px] text-zinc-400 font-medium">Updated {{ $skillUpdatedAt }}</span>
+            @endif
           </div>
 
-          <div class="space-y-3 pt-2">
-            @foreach ([
-              ['First touch', 'green', 'Strong'],
-              ['Scanning', 'yellow', 'Developing'],
-              ['Passing', 'green', 'Strong'],
-              ['Finishing', 'yellow', 'Developing'],
-              ['Confidence', 'green', 'Strong'],
-            ] as [$skill, $tone, $label])
-              <div class="player-skill-row">
-                <span class="text-[13px] font-semibold text-zinc-700">{{ $skill }}</span>
-                <div class="player-skill-status">
-                  <span class="player-skill-dot player-skill-dot--{{ $tone }}" aria-hidden="true"></span>
-                  <span class="player-skill-label player-skill-label--{{ $tone }}">{{ $label }}</span>
+          @if (! empty($skillProgress))
+            <div class="space-y-3 pt-2">
+              @foreach ($skillProgress as $item)
+                <div class="player-skill-row">
+                  <span class="text-[13px] font-semibold text-zinc-100">{{ $item['skill'] }}</span>
+                  <div class="player-skill-status">
+                    <span class="player-skill-dot player-skill-dot--{{ $item['tone'] }}" aria-hidden="true"></span>
+                    <span class="player-skill-label player-skill-label--{{ $item['tone'] }}">{{ $item['label'] }}</span>
+                  </div>
                 </div>
-              </div>
-            @endforeach
-          </div>
-          <div class="player-skill-legend">
-            <span><i class="player-skill-dot player-skill-dot--green"></i> Strong</span>
-            <span><i class="player-skill-dot player-skill-dot--yellow"></i> Developing</span>
-            <span><i class="player-skill-dot player-skill-dot--red"></i> Needs work</span>
-          </div>
+              @endforeach
+            </div>
+            <div class="player-skill-legend">
+              <span><i class="player-skill-dot player-skill-dot--green"></i> Strong</span>
+              <span><i class="player-skill-dot player-skill-dot--yellow"></i> Developing</span>
+              <span><i class="player-skill-dot player-skill-dot--red"></i> Needs work</span>
+            </div>
+          @else
+            <div class="pt-1">
+              <p class="text-[14px] font-semibold text-white">No skill profile yet</p>
+              <p class="text-[13px] text-zinc-400 mt-1.5 leading-[1.65]">
+                After you complete sessions and your coach shares a report, your development skills will appear here.
+              </p>
+              <a href="{{ route('request-session') }}" class="player-req-cta mt-4 inline-flex">Request a session</a>
+            </div>
+          @endif
         </article>
 
         {{-- Sessions --}}
@@ -309,24 +323,24 @@
             @forelse ($pastBookings as $booking)
               <div class="player-timeline-item flex items-start justify-between gap-4">
                 <div>
-                  <p class="text-[14px] font-semibold text-[#191615]">{{ $booking->session_type ?? 'Session' }}</p>
-                  <p class="text-[12px] text-zinc-500 mt-1">{{ $booking->location?->name ?? 'Training' }} · {{ $booking->coach?->display_name ?? 'Coach' }}</p>
+                  <p class="text-[14px] font-semibold text-white">{{ $booking->session_type ?? 'Session' }}</p>
+                  <p class="text-[12px] text-zinc-400 mt-1">{{ $booking->location?->name ?? 'Training' }} · {{ $booking->coach?->display_name ?? 'Coach' }}</p>
                 </div>
                 <span class="text-[12px] font-medium text-zinc-400 shrink-0">{{ $booking->session_date?->format('M j') }}</span>
               </div>
             @empty
               <div class="player-timeline-item flex items-start justify-between gap-4">
                 <div>
-                  <p class="text-[14px] font-semibold text-[#191615]">No sessions yet</p>
-                  <p class="text-[12px] text-zinc-500 mt-1">Completed bookings will appear here</p>
+                  <p class="text-[14px] font-semibold text-white">No sessions yet</p>
+                  <p class="text-[12px] text-zinc-400 mt-1">Completed bookings will appear here</p>
                 </div>
               </div>
             @endforelse
             @foreach ($upcomingBookings->take(3) as $booking)
               <div class="player-timeline-item flex items-start justify-between gap-4">
                 <div>
-                  <p class="text-[14px] font-semibold text-[#191615]">{{ $booking->session_type ?? 'Session' }} (upcoming)</p>
-                  <p class="text-[12px] text-zinc-500 mt-1">{{ $booking->location?->name ?? 'Training' }} · {{ $booking->coach?->display_name ?? 'Coach' }}</p>
+                  <p class="text-[14px] font-semibold text-white">{{ $booking->session_type ?? 'Session' }} (upcoming)</p>
+                  <p class="text-[12px] text-zinc-400 mt-1">{{ $booking->location?->name ?? 'Training' }} · {{ $booking->coach?->display_name ?? 'Coach' }}</p>
                 </div>
                 <span class="text-[12px] font-medium text-zinc-400 shrink-0">{{ $booking->session_date?->format('M j') }}</span>
               </div>
@@ -341,7 +355,7 @@
         <article class="player-panel player-panel--accent motion-item motion-soft-up">
           <p class="player-section-kicker">Book next</p>
           <h2 class="player-panel-title mb-2">Need another session?</h2>
-          <p class="text-[13px] text-zinc-600 leading-[1.65] font-light mb-4">
+          <p class="text-[13px] text-zinc-400 leading-[1.65] font-light mb-4">
             Create a request or join an open group. Track everything under My session requests.
           </p>
           <a href="{{ route('request-session') }}" class="player-req-cta player-req-cta--block">Request a session</a>
@@ -356,8 +370,8 @@
         <article class="player-panel motion-item motion-soft-up" style="--motion-delay:40ms">
           <p class="player-section-kicker">This week</p>
           <h2 class="player-panel-title mb-2">Focus of the Week</h2>
-          <p class="text-[13px] text-zinc-600 leading-[1.65] font-light">
-            @if ($focusLabel && $focusLabel !== 'Training')
+          <p class="text-[13px] text-zinc-400 leading-[1.65] font-light">
+            @if ($focusLabel && $focusLabel !== 'Training' && $focusLabel !== 'No priority yet')
               Priority from your schedule: {{ $focusLabel }}.
             @else
               Complete a session to unlock a personalized focus of the week.
@@ -370,13 +384,13 @@
           <p class="player-section-kicker">From your coach</p>
           <h2 class="player-panel-title mb-2">Coach's Notes</h2>
           @if (!empty($latestReport))
-            <p class="text-[12px] text-zinc-500 mb-2">
+            <p class="text-[12px] text-zinc-400 mb-2">
               {{ $latestReport['coach'] ? 'From '.$latestReport['coach'] : 'Shared report' }}
               @if (!empty($latestReport['created_at']))
                 · {{ $latestReport['created_at'] }}
               @endif
             </p>
-            <p class="text-[13px] text-zinc-600 leading-[1.65] font-light mb-3">{{ \Illuminate\Support\Str::limit($latestReport['summary'] ?: $latestReport['focus'], 220) }}</p>
+            <p class="text-[13px] text-zinc-400 leading-[1.65] font-light mb-3">{{ \Illuminate\Support\Str::limit($latestReport['summary'] ?: $latestReport['focus'], 220) }}</p>
             <details class="player-report-details">
               <summary class="text-[13px] font-semibold text-brand-red cursor-pointer">View full report</summary>
               <div class="player-report-body">
@@ -387,7 +401,7 @@
               </div>
             </details>
           @else
-            <p class="text-[13px] text-zinc-600 leading-[1.65] font-light mb-4">When your coach shares a session report, the focus and home plan will show up here.</p>
+            <p class="text-[13px] text-zinc-400 leading-[1.65] font-light mb-4">When your coach shares a session report, the focus and home plan will show up here.</p>
           @endif
         </article>
 
@@ -434,8 +448,8 @@
               </div>
             @empty
               <div class="player-video-empty">
-                <p class="text-[13px] font-semibold text-[#191615]">No videos yet</p>
-                <p class="text-[12px] text-zinc-500 mt-1">When your coach shares a training clip, it will show up here.</p>
+                <p class="text-[13px] font-semibold text-white">No videos yet</p>
+                <p class="text-[12px] text-zinc-400 mt-1">When your coach shares a training clip, it will show up here.</p>
               </div>
             @endforelse
           </div>
@@ -446,19 +460,22 @@
           <p class="player-section-kicker">Achievements</p>
           <h2 class="player-panel-title mb-3">Your milestones</h2>
           <div class="flex flex-wrap gap-2">
-            <span class="player-milestone is-earned">
-              <svg class="w-3.5 h-3.5 text-brand-red" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-              4-week streak
-            </span>
-            <span class="player-milestone is-earned">
-              <svg class="w-3.5 h-3.5 text-brand-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              10 sessions
-            </span>
-            <span class="player-milestone is-locked">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              20 sessions
-            </span>
+            @foreach ($milestones as $milestone)
+              <span class="player-milestone {{ $milestone['earned'] ? 'is-earned' : 'is-locked' }}">
+                @if ($milestone['icon'] === 'bolt')
+                  <svg class="w-3.5 h-3.5 {{ $milestone['earned'] ? 'text-brand-red' : '' }}" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                @elseif ($milestone['icon'] === 'star')
+                  <svg class="w-3.5 h-3.5 {{ $milestone['earned'] ? 'text-brand-red' : '' }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                @else
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                @endif
+                {{ $milestone['label'] }}
+              </span>
+            @endforeach
           </div>
+          @if ($completedCount === 0)
+            <p class="text-[12px] text-zinc-400 mt-3 leading-[1.55]">Complete sessions to unlock milestones.</p>
+          @endif
         </article>
       </aside>
     </div>

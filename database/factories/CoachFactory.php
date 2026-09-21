@@ -6,6 +6,7 @@ use App\Models\Coach;
 use App\Models\Location;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Coach>
@@ -20,6 +21,9 @@ class CoachFactory extends Factory
             'user_id' => User::factory()->state(['role' => User::ROLE_COACH]),
             'location_id' => Location::factory(),
             'display_name' => 'Coach '.fake()->firstName(),
+            'slug' => fn (array $attrs) => Str::slug(
+                trim(preg_replace('/^coach\s+/i', '', (string) ($attrs['display_name'] ?? 'coach')))
+            ).'-'.Str::lower(Str::random(4)),
             'specialty' => fake()->randomElement([
                 'Private Soccer Training',
                 'Small Group Soccer',

@@ -1,7 +1,8 @@
 /* Request Session — open request flow (coach accepts, players join) */
 
 .req-page {
-  background: #f4f4f5;
+  background: #0C0D0E;
+  color: #e4e4e7;
 }
 
 .req-body {
@@ -29,15 +30,15 @@
   padding: 0.85rem 1rem;
   margin-bottom: 1.5rem;
   border-radius: 14px;
-  background: rgba(218, 2, 12, 0.06);
-  border: 1px solid rgba(218, 2, 12, 0.18);
+  background: rgba(218, 2, 12, 0.12);
+  border: 1px solid rgba(218, 2, 12, 0.28);
 }
 
 .req-banner p {
   margin: 0;
   font-size: 12.5px;
   line-height: 1.6;
-  color: #52525b;
+  color: #a1a1aa;
 }
 
 .req-banner__pill {
@@ -60,7 +61,7 @@
 
 .req-progress__track {
   height: 4px;
-  background: #e4e4e7;
+  background: #2a2d32;
   border-radius: 999px;
   overflow: hidden;
   margin-bottom: 0.7rem;
@@ -89,7 +90,7 @@
 }
 
 .req-progress__steps li.is-done {
-  color: #71717a;
+  color: #a1a1aa;
 }
 
 .req-progress__steps li.is-active {
@@ -113,11 +114,12 @@
 }
 
 .req-card {
-  background: #fff;
-  border: 1px solid rgba(228, 228, 231, 0.9);
+  background: #141618;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   padding: 1.75rem 1.5rem;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  color: #e4e4e7;
 }
 
 .req-card--center {
@@ -139,9 +141,9 @@
   width: 38px;
   height: 38px;
   border-radius: 999px;
-  border: 1px solid #e4e4e7;
-  background: #fff;
-  color: #191615;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #1B1E22;
+  color: #fff;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -149,8 +151,8 @@
 }
 
 .req-back:hover {
-  background: #f4f4f5;
-  border-color: #d4d4d8;
+  background: #2a2d32;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .req-back svg {
@@ -163,7 +165,7 @@
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.15;
-  color: #191615;
+  color: #fff;
   margin: 0 0 0.5rem;
 }
 
@@ -176,8 +178,8 @@
   margin: 0;
   font-size: 13.5px;
   line-height: 1.7;
-  color: #71717a;
-  font-weight: 300;
+  color: #d4d4d8;
+  font-weight: 400;
   max-width: 34rem;
 }
 
@@ -207,7 +209,7 @@
   margin: -0.15rem 0 0.55rem;
   font-size: 12px;
   line-height: 1.5;
-  color: #71717a;
+  color: #a1a1aa;
 }
 
 .req-chips {
@@ -221,9 +223,9 @@
   height: 34px;
   padding: 0 0.75rem;
   border-radius: 999px;
-  border: 1px solid #e4e4e7;
-  background: #fff;
-  color: #3f3f46;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #1B1E22;
+  color: #d4d4d8;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -233,8 +235,8 @@
 .req-chip:hover,
 .req-chip.is-active {
   border-color: rgba(218, 2, 12, 0.4);
-  color: #da020c;
-  background: rgba(218, 2, 12, 0.06);
+  color: #fff;
+  background: rgba(218, 2, 12, 0.18);
 }
 
 .req-field label {
@@ -242,7 +244,7 @@
   font-size: 12px;
   font-weight: 600;
   margin-bottom: 0.45rem;
-  color: #191615;
+  color: #fff;
 }
 
 .req-optional {
@@ -267,13 +269,14 @@
 
 .req-field input,
 .req-field select,
-.req-field textarea {
+.req-field textarea,
+.req-input-wrap input {
   width: 100%;
   height: 50px;
   border-radius: 12px;
-  border: 1px solid #e4e4e7;
-  background: #fff;
-  color: #191615;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #1B1E22;
+  color: #fff;
   font-size: 14px;
   padding: 0 1rem;
   outline: none;
@@ -290,16 +293,24 @@
 
 .req-input-wrap input {
   padding-left: 2.6rem;
+  appearance: none;
+}
+
+.req-input-wrap input::-webkit-search-decoration,
+.req-input-wrap input::-webkit-search-cancel-button {
+  appearance: none;
 }
 
 .req-field input::placeholder,
-.req-field textarea::placeholder {
+.req-field textarea::placeholder,
+.req-input-wrap input::placeholder {
   color: #a1a1aa;
 }
 
 .req-field input:focus,
 .req-field select:focus,
-.req-field textarea:focus {
+.req-field textarea:focus,
+.req-input-wrap input:focus {
   border-color: #da020c;
   box-shadow: 0 0 0 3px rgba(218, 2, 12, 0.12);
 }
@@ -380,13 +391,13 @@
 }
 
 .req-btn--ghost {
-  background: #fff;
-  color: #52525b;
-  border: 1px solid #e4e4e7;
+  background: #1B1E22;
+  color: #e4e4e7;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .req-btn--ghost:hover {
-  background: #f4f4f5;
+  background: #2a2d32;
 }
 
 .req-disclaimer {
@@ -396,7 +407,7 @@
   margin: 0;
   font-size: 11.5px;
   line-height: 1.6;
-  color: #71717a;
+  color: #a1a1aa;
 }
 
 .req-disclaimer svg {
@@ -413,7 +424,7 @@
   margin: 0.55rem 0 0;
   font-size: 12.5px;
   line-height: 1.55;
-  color: #71717a;
+  color: #a1a1aa;
 }
 
 .req-inline-chip {
@@ -436,36 +447,112 @@
 
 .req-loc-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1rem;
-  margin-bottom: 0.85rem;
+  align-items: stretch;
+  margin-bottom: 0.9rem;
 }
 
-.req-loc-toolbar__search {
-  flex: 1 1 220px;
+.req-search-bar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 54px;
+  padding: 6px 6px 6px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0C0D0E;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.req-search-bar:focus-within {
+  border-color: rgba(218, 2, 12, 0.7);
+  box-shadow: 0 0 0 3px rgba(218, 2, 12, 0.16);
+}
+
+.req-search-bar__icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: #a1a1aa;
+  flex-shrink: 0;
+  margin-right: 10px;
+}
+
+.req-search-bar__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.req-search-bar input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 42px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0;
+  outline: none;
+  box-shadow: none;
+  appearance: none;
+}
+
+.req-search-bar input::placeholder {
+  color: #a1a1aa;
+  font-weight: 400;
+}
+
+.req-search-bar input::-webkit-search-decoration,
+.req-search-bar input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.req-search-bar input:focus {
+  border: 0;
+  box-shadow: none;
+}
+
+.req-search-bar__action {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 0.95rem;
+  border: 0;
+  border-radius: 10px;
+  background: #da020c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.req-search-bar__action:hover {
+  background: #bf020a;
 }
 
 .req-loc-count {
   margin: 0 0 0.75rem;
   font-size: 12px;
   font-weight: 600;
-  color: #71717a;
+  color: #a1a1aa;
 }
 
 .req-loc-empty {
   margin-top: 0.5rem;
   padding: 1.25rem;
   border-radius: 14px;
-  border: 1px dashed #d4d4d8;
-  background: #fafafa;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  background: #141618;
   text-align: center;
 }
 
 .req-loc-empty p {
   margin: 0 0 0.85rem;
   font-size: 13px;
-  color: #52525b;
+  color: #a1a1aa;
 }
 
 .req-locations {
@@ -478,8 +565,8 @@
   grid-template-columns: minmax(0, 1fr);
   border-radius: 16px;
   overflow: hidden;
-  background: #fff;
-  border: 1px solid #e4e4e7;
+  background: #1B1E22;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   cursor: pointer;
   transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -514,10 +601,11 @@
   right: 10px;
   padding: 0.24rem 0.6rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.94);
-  color: #191615;
+  background: rgba(12, 13, 14, 0.88);
+  color: #fff;
   font-size: 11px;
   font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .req-loc-card__badge {
@@ -550,13 +638,13 @@
   margin: 0 0 0.15rem;
   font-size: 1.05rem;
   font-weight: 600;
-  color: #191615;
+  color: #fff;
 }
 
 .req-loc-card__body p {
   margin: 0;
   font-size: 12.5px;
-  color: #71717a;
+  color: #a1a1aa;
 }
 
 .req-loc-card__meta {
@@ -566,7 +654,7 @@
   margin-top: 0.5rem !important;
   font-size: 12px !important;
   font-weight: 500;
-  color: #52525b !important;
+  color: #d4d4d8 !important;
 }
 
 .req-dot {
@@ -609,9 +697,9 @@
   min-width: 66px;
   padding: 0.6rem 0.7rem;
   border-radius: 12px;
-  border: 1px solid #e4e4e7;
-  background: #fff;
-  color: #52525b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #1B1E22;
+  color: #e4e4e7;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -631,7 +719,7 @@
   margin-top: 0.15rem;
   font-size: 15px;
   font-weight: 700;
-  color: #191615;
+  color: #fff;
 }
 
 .req-date-btn:hover {
@@ -674,9 +762,9 @@
 .req-time-slot {
   min-height: 44px;
   border-radius: 11px;
-  border: 1px solid #e4e4e7;
-  background: #fff;
-  color: #191615;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #1B1E22;
+  color: #fff;
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
@@ -714,8 +802,8 @@
 .req-summary {
   padding: 1.1rem 1.15rem;
   border-radius: 14px;
-  background: #f9f9fa;
-  border: 1px solid #e4e4e7;
+  background: #141618;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .req-summary dl {
@@ -737,7 +825,7 @@
   margin: 0;
   font-size: 13.5px;
   font-weight: 600;
-  color: #191615;
+  color: #fff;
 }
 
 /* ---------- Live request ---------- */
@@ -762,8 +850,8 @@
   margin: 1.6rem 0;
   text-align: left;
   border-radius: 16px;
-  background: #fff;
-  border: 1px solid #e4e4e7;
+  background: #1B1E22;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   overflow: hidden;
 }
 
@@ -812,7 +900,7 @@
   padding: 1.3rem 1rem;
   text-align: center;
   border-bottom: 1px solid #f1f1f3;
-  background: #f9f9fa;
+  background: #141618;
 }
 
 .req-countdown__label {
@@ -829,7 +917,7 @@
   font-size: 2.3rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: #191615;
+  color: #fff;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
@@ -837,7 +925,7 @@
 .req-countdown__hint {
   margin: 0.35rem 0 0;
   font-size: 12px;
-  color: #71717a;
+  color: #a1a1aa;
 }
 
 body.req-pay-modal-open {
@@ -879,7 +967,7 @@ body.req-pay-modal-open {
   max-height: 92vh;
   margin: 0;
   border-radius: 16px;
-  background: #fff;
+  background: #1B1E22;
   box-shadow: 0 24px 64px rgba(12, 13, 14, 0.28);
   overflow: visible;
 }
@@ -888,7 +976,7 @@ body.req-pay-modal-open {
   position: relative;
   flex: 0 0 auto;
   padding: 1.25rem 1.4rem 1rem;
-  border-bottom: 1px solid #f0f0f1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .req-pay-modal__body {
@@ -903,8 +991,8 @@ body.req-pay-modal-open {
   grid-template-columns: 1fr 1fr;
   gap: 0.65rem;
   padding: 1rem 1.4rem 1.25rem;
-  border-top: 1px solid #f0f0f1;
-  background: #fff;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1B1E22;
 }
 
 .req-pay-modal__close {
@@ -918,14 +1006,14 @@ body.req-pay-modal-open {
   justify-content: center;
   border: 0;
   border-radius: 999px;
-  background: #f4f4f5;
-  color: #52525b;
+  background: rgba(255, 255, 255, 0.06);
+  color: #a1a1aa;
   cursor: pointer;
 }
 
 .req-pay-modal__close:hover {
-  background: #e4e4e7;
-  color: #18181b;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
 }
 
 .req-pay-modal__close svg {
@@ -938,18 +1026,18 @@ body.req-pay-modal-open {
   font-size: 1.3rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #18181b;
+  color: #fff;
 }
 
 .req-pay-modal__lead {
   margin: 0;
   font-size: 14px;
   line-height: 1.5;
-  color: #71717a;
+  color: #a1a1aa;
 }
 
 .req-pay-modal__lead strong {
-  color: #3f3f46;
+  color: #fff;
   font-weight: 650;
 }
 
@@ -969,67 +1057,109 @@ body.req-pay-modal-open {
 
 .req-pay-modal .pay-methods__head {
   margin-bottom: 10px;
+  color: #a1a1aa;
 }
 
 .req-pay-modal .pay-methods__test {
   font-size: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #d4d4d8;
 }
 
 .req-pay-modal .pay-methods__list {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
 .req-pay-modal .pay-method {
-  padding: 10px 12px;
-  border-radius: 10px;
-  gap: 9px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #141618;
+}
+
+.req-pay-modal .pay-method:hover {
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .req-pay-modal .pay-method.is-selected {
   border-color: #da020c;
-  box-shadow: none;
-  background: #fff8f8;
+  box-shadow: 0 0 0 1px rgba(218, 2, 12, 0.35);
+  background: rgba(218, 2, 12, 0.08);
 }
 
 .req-pay-modal .pay-method__brand {
-  min-width: 38px;
-  font-size: 8px;
+  min-width: 42px;
+  background: #0c0d0e;
+  color: #fff;
+  font-size: 9px;
 }
 
 .req-pay-modal .pay-method__meta strong {
   font-size: 13px;
+  color: #f4f4f5;
 }
 
 .req-pay-modal .pay-method__meta em {
   font-size: 11px;
+  color: #a1a1aa;
 }
 
 .req-pay-modal .pay-methods__add-toggle {
   margin-top: 12px;
   font-size: 12px;
+  color: #da020c;
 }
 
 .req-pay-modal .pay-methods__form {
   margin-top: 10px;
   padding: 12px;
   border-style: solid;
-  border-color: #e4e4e7;
-  background: #fafafa;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #141618;
 }
 
 .req-pay-modal .pay-methods__hint {
   margin-bottom: 10px;
   font-size: 11px;
+  color: #a1a1aa;
 }
 
 .req-pay-modal .pay-methods__field {
   margin-bottom: 8px;
 }
 
+.req-pay-modal .pay-methods__field label {
+  color: #d4d4d8;
+}
+
 .req-pay-modal .pay-methods__field input {
   height: 40px;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #0c0d0e;
+  color: #f4f4f5;
+}
+
+.req-pay-modal .pay-methods__field input::placeholder {
+  color: #a1a1aa;
+}
+
+.req-pay-modal .pay-methods__field input:focus {
+  border-color: #da020c;
+  box-shadow: 0 0 0 3px rgba(218, 2, 12, 0.2);
+}
+
+.req-pay-modal .pay-methods__save {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #0c0d0e;
+  color: #f4f4f5;
+}
+
+.req-pay-modal .pay-methods__save:hover {
+  border-color: #da020c;
+  color: #fff;
 }
 
 @media (max-width: 560px) {
@@ -1049,10 +1179,6 @@ body.req-pay-modal-open {
     overflow: visible;
   }
 
-  .req-pay-modal .pay-methods__list {
-    grid-template-columns: 1fr;
-  }
-
   .req-pay-modal__footer {
     grid-template-columns: 1fr;
   }
@@ -1060,12 +1186,12 @@ body.req-pay-modal-open {
 
 .req-deposit--waiting {
   border-color: rgba(245, 158, 11, 0.28);
-  background: #fffbeb;
+  background: rgba(245, 158, 11, 0.08);
 }
 
 .req-deposit__badge--wait {
   background: rgba(245, 158, 11, 0.18);
-  color: #b45309;
+  color: #fbbf24;
 }
 
 .req-next-steps {
@@ -1073,7 +1199,7 @@ body.req-pay-modal-open {
   padding-left: 1.15rem;
   font-size: 13px;
   line-height: 1.55;
-  color: #52525b;
+  color: #a1a1aa;
 }
 
 .req-next-steps li + li {
@@ -1084,8 +1210,8 @@ body.req-pay-modal-open {
   margin: 0 1.1rem 1.1rem;
   padding: 1.05rem 1.1rem 1.15rem;
   border-radius: 12px;
-  border: 1px solid rgba(218, 2, 12, 0.18);
-  background: #fff8f8;
+  border: 1px solid rgba(218, 2, 12, 0.28);
+  background: rgba(218, 2, 12, 0.06);
   text-align: left;
 }
 
@@ -1093,14 +1219,14 @@ body.req-pay-modal-open {
   margin: 0 0 0.35rem;
   font-size: 16px;
   font-weight: 700;
-  color: #191615;
+  color: #fff;
 }
 
 .req-deposit p {
   margin: 0 0 0.9rem;
   font-size: 13px;
   line-height: 1.55;
-  color: #52525b;
+  color: #a1a1aa;
 }
 
 .req-deposit__badge {
@@ -1128,7 +1254,60 @@ body.req-pay-modal-open {
 
 .req-deposit--paid {
   border-color: rgba(34, 197, 94, 0.28);
-  background: #f0fdf4;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.req-deposit .pay-methods__head {
+  color: #a1a1aa;
+}
+
+.req-deposit .pay-methods__test {
+  background: rgba(255, 255, 255, 0.08);
+  color: #d4d4d8;
+}
+
+.req-deposit .pay-method {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #141618;
+}
+
+.req-deposit .pay-method.is-selected {
+  border-color: #da020c;
+  box-shadow: 0 0 0 1px rgba(218, 2, 12, 0.35);
+  background: rgba(218, 2, 12, 0.08);
+}
+
+.req-deposit .pay-method__meta strong {
+  color: #f4f4f5;
+}
+
+.req-deposit .pay-method__meta em {
+  color: #a1a1aa;
+}
+
+.req-deposit .pay-methods__form {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #141618;
+}
+
+.req-deposit .pay-methods__hint {
+  color: #a1a1aa;
+}
+
+.req-deposit .pay-methods__field label {
+  color: #d4d4d8;
+}
+
+.req-deposit .pay-methods__field input {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #0c0d0e;
+  color: #f4f4f5;
+}
+
+.req-deposit .pay-methods__save {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #0c0d0e;
+  color: #f4f4f5;
 }
 
 .req-live-summary {
@@ -1155,16 +1334,16 @@ body.req-pay-modal-open {
   margin: 0;
   font-size: 13.5px;
   font-weight: 600;
-  color: #191615;
+  color: #fff;
 }
 
 .req-live-card__footer {
   padding: 0.85rem 1rem;
-  background: #f9f9fa;
-  border-top: 1px solid #f1f1f3;
+  background: #141618;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 12px;
   line-height: 1.6;
-  color: #71717a;
+  color: #d4d4d8;
 }
 
 .req-live-card__footer p {
@@ -1180,11 +1359,11 @@ body.req-pay-modal-open {
 }
 
 .req-aside-card {
-  background: #fff;
-  border: 1px solid rgba(228, 228, 231, 0.9);
+  background: #1B1E22;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 18px;
   padding: 1.4rem 1.35rem;
-  box-shadow: 0 4px 22px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 22px rgba(0, 0, 0, 0.2);
 }
 
 .req-aside-card--dark {
@@ -1198,11 +1377,11 @@ body.req-pay-modal-open {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #a1a1aa;
+  color: #d4d4d8;
 }
 
 .req-aside-title--light {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .req-steps-list {
@@ -1236,7 +1415,7 @@ body.req-pay-modal-open {
   display: block;
   font-size: 13.5px;
   font-weight: 600;
-  color: #191615;
+  color: #fff;
   margin-bottom: 0.2rem;
 }
 
@@ -1244,8 +1423,8 @@ body.req-pay-modal-open {
   margin: 0;
   font-size: 12.5px;
   line-height: 1.6;
-  color: #71717a;
-  font-weight: 300;
+  color: #d4d4d8;
+  font-weight: 400;
 }
 
 .req-benefits {
@@ -1262,8 +1441,8 @@ body.req-pay-modal-open {
   align-items: flex-start;
   font-size: 12.5px;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.82);
-  font-weight: 300;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 400;
 }
 
 .req-benefits svg {
@@ -1285,7 +1464,7 @@ body.req-pay-modal-open {
   margin: 0;
   font-size: 12px;
   line-height: 1.65;
-  color: #52525b;
+  color: #d4d4d8;
 }
 
 .req-aside-note strong {
@@ -1313,6 +1492,22 @@ body.req-pay-modal-open {
 
   .req-live-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .req-search-bar {
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .req-search-bar__icon {
+    margin-left: 8px;
+  }
+
+  .req-search-bar__action {
+    padding: 0 0.8rem;
+    font-size: 11px;
   }
 }
 

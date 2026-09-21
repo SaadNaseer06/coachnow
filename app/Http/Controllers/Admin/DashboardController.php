@@ -11,6 +11,7 @@ use App\Models\Location;
 use App\Models\SessionRequest;
 use App\Models\User;
 use App\Services\AppMailer;
+use App\Services\NominatimGeocoder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -308,7 +309,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function storeLocation(Request $request): RedirectResponse
+    public function storeLocation(Request $request, NominatimGeocoder $geocoder): RedirectResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
@@ -325,18 +326,27 @@ class DashboardController extends Controller
             $i++;
         }
 
+        $coords = $geocoder->geocodePark($data['name'], $data['area']);
+
         Location::query()->create([
             'name' => $data['name'],
             'slug' => $slug,
             'area' => $data['area'],
             'distance_miles' => $data['distance_miles'],
+            'latitude' => $coords['lat'] ?? null,
+            'longitude' => $coords['lng'] ?? null,
             'status' => $data['status'],
             'image_path' => 'assets/Background.png',
         ]);
 
+        $message = 'Location added successfully.';
+        if ($coords === null) {
+            $message .= ' Coordinates could not be geocoded yet — coaches at this park may not appear in nearby search until coordinates are set.';
+        }
+
         return redirect()
             ->route('admin.locations')
-            ->with('success', 'Location added successfully.');
+            ->with('success', $message);
     }
 
     public function destroyLocation(Location $location): RedirectResponse

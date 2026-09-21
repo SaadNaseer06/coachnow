@@ -155,11 +155,13 @@
                 </header>
 
                 <div class="req-loc-toolbar">
-                  <div class="req-input-wrap req-loc-toolbar__search">
-                    <svg class="req-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                    <input type="search" id="reqLocationRefine" placeholder="Refine by park or city" autocomplete="off">
-                  </div>
-                  <button type="button" class="req-link-btn" id="reqShowAllLocations">Show all parks</button>
+                  <label class="req-search-bar" for="reqLocationRefine">
+                    <span class="req-search-bar__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    </span>
+                    <input type="search" id="reqLocationRefine" placeholder="Search parks, city, or ZIP" autocomplete="off" aria-label="Search parks">
+                    <button type="button" class="req-search-bar__action" id="reqShowAllLocations">All parks</button>
+                  </label>
                 </div>
 
                 <p class="req-loc-count" id="reqLocationCount" hidden></p>
@@ -171,12 +173,14 @@
                     data-location-name="{{ $loc->name }}"
                     data-location-city="{{ $loc->area }}"
                     data-distance="{{ (float) $loc->distance_miles }}"
+                    data-lat="{{ $loc->latitude !== null ? $loc->latitude : '' }}"
+                    data-lng="{{ $loc->longitude !== null ? $loc->longitude : '' }}"
                     tabindex="0"
                     role="button"
                     aria-label="Select {{ $loc->name }}"
                   >
                     <div class="req-loc-card__media" style="background-image:url('{{ asset($loc->image_path ?: 'assets/Background.png') }}')">
-                      <span class="req-loc-card__distance">{{ number_format((float) $loc->distance_miles, 1) }} mi</span>
+                      <span class="req-loc-card__distance" data-distance-label>{{ number_format((float) $loc->distance_miles, 1) }} mi</span>
                       <span class="req-loc-card__badge" hidden>Recommended</span>
                     </div>
                     <div class="req-loc-card__body">
