@@ -55,9 +55,6 @@ test -f database/database.sqlite || touch database/database.sqlite
 log "Running database migrations..."
 $PHP artisan migrate --force --no-interaction
 
-log "Backfilling park coordinates for Near me search..."
-$PHP artisan locations:geocode --no-interaction
-
 log "Clearing caches..."
 $PHP artisan optimize:clear --no-interaction
 $PHP artisan cache:clear --no-interaction
