@@ -39,7 +39,8 @@ jobs:
             if [ -n "$GITHUB_DEPLOY_TOKEN" ]; then
               git remote set-url origin "https://x-access-token:${GITHUB_DEPLOY_TOKEN}@github.com/${REPO}.git"
             fi
-            git fetch origin "$BRANCH"
+            export GIT_TERMINAL_PROMPT=0
+            git fetch --verbose --progress origin "$BRANCH"
             git reset --hard "origin/${BRANCH}"
 
             echo "[deploy] Running composer + artisan..."
