@@ -55,6 +55,14 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
+        $flaggedCoaches = Coach::query()
+            ->with(['user', 'location'])
+            ->where('approval_status', 'flagged')
+            ->orderByDesc('last_active_at')
+            ->orderByDesc('updated_at')
+            ->limit(5)
+            ->get();
+
         return view('admin.dashboard', [
             'activeCoaches' => $activeCoaches,
             'bookingsToday' => $bookingsToday,
@@ -63,6 +71,7 @@ class DashboardController extends Controller
             'recentBookings' => $recentBookings,
             'topLocations' => $topLocations,
             'pendingCoaches' => $pendingCoaches,
+            'flaggedCoaches' => $flaggedCoaches,
         ]);
     }
 
@@ -70,6 +79,8 @@ class DashboardController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
         $status = (string) $request->query('status', '');
+        $plan = (string) $request->query('plan', '');
+        $approval = (string) $request->query('approval', '');
         $locationId = $request->query('location_id');
 
         $coaches = Coach::query()
@@ -86,8 +97,11 @@ class DashboardController extends Controller
                 });
             })
             ->when(in_array($status, ['pending', 'active', 'paused'], true), fn ($query) => $query->where('status', $status))
+            ->when(in_array($plan, ['standard', 'plus'], true), fn ($query) => $query->where('plan', $plan))
+            ->when(in_array($approval, ['none', 'flagged', 'approved', 'rejected'], true), fn ($query) => $query->where('approval_status', $approval))
             ->when($locationId === 'none', fn ($query) => $query->whereNull('location_id'))
             ->when(is_numeric($locationId), fn ($query) => $query->where('location_id', (int) $locationId))
+            ->orderByRaw("CASE approval_status WHEN 'flagged' THEN 0 WHEN 'none' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END")
             ->orderByRaw("CASE status WHEN 'pending' THEN 0 WHEN 'active' THEN 1 ELSE 2 END")
             ->orderByDesc('created_at')
             ->paginate(15)
@@ -101,13 +115,17 @@ class DashboardController extends Controller
         });
 
         $locations = Location::query()->orderBy('name')->get(['id', 'name']);
+        $flaggedCount = Coach::query()->where('approval_status', 'flagged')->count();
 
         return view('admin.coaches', [
             'coaches' => $coaches,
             'locations' => $locations,
+            'flaggedCount' => $flaggedCount,
             'filters' => [
                 'q' => $search,
                 'status' => $status,
+                'plan' => $plan,
+                'approval' => $approval,
                 'location_id' => $locationId,
             ],
         ]);
@@ -176,9 +194,27 @@ class DashboardController extends Controller
             'status' => ['required', Rule::in(['pending', 'active', 'paused'])],
             'experience' => ['nullable', 'string', Rule::in(Coach::EXPERIENCE_OPTIONS)],
             'bio' => ['nullable', 'string', 'max:2000'],
+            'plan' => ['required', Rule::in(['standard', 'plus'])],
+            'approval_status' => ['required', Rule::in(['none', 'flagged', 'approved', 'rejected'])],
+            'background_check_status' => ['required', Rule::in(['none', 'pending', 'clear'])],
+            'verified' => ['sometimes', 'boolean'],
         ]);
 
-        $coach->update(collect($data)->except('status')->all());
+        $payload = collect($data)->except(['status', 'verified'])->all();
+
+        if ($data['approval_status'] === 'approved') {
+            $payload['approved_at'] = $coach->approved_at ?? now();
+        } elseif (in_array($data['approval_status'], ['none', 'rejected', 'flagged'], true)) {
+            $payload['approved_at'] = null;
+        }
+
+        if ($request->boolean('verified') || $data['background_check_status'] === 'clear') {
+            $payload['verified_at'] = $coach->verified_at ?? now();
+        } elseif (! $request->boolean('verified') && $data['background_check_status'] !== 'clear') {
+            $payload['verified_at'] = null;
+        }
+
+        $coach->update($payload);
         $coach->user?->update(['sport' => $data['sport']]);
 
         if ($data['status'] !== $coach->status && $data['status'] === 'paused') {
@@ -198,6 +234,67 @@ class DashboardController extends Controller
         return redirect()
             ->route('admin.coaches')
             ->with('success', $coach->display_name.' was updated.');
+    }
+
+    public function updateCoachApproval(Request $request, Coach $coach): RedirectResponse
+    {
+        $data = $request->validate([
+            'action' => ['required', Rule::in(['approve', 'reject', 'flag', 'verify', 'unverify', 'plus', 'standard'])],
+        ]);
+
+        $message = match ($data['action']) {
+            'approve' => (function () use ($coach) {
+                $coach->forceFill([
+                    'approval_status' => 'approved',
+                    'approved_at' => now(),
+                ])->save();
+
+                return $coach->display_name.' is CoachNow Approved.';
+            })(),
+            'reject' => (function () use ($coach) {
+                $coach->forceFill([
+                    'approval_status' => 'rejected',
+                    'approved_at' => null,
+                ])->save();
+
+                return $coach->display_name.' was rejected for CoachNow Approved.';
+            })(),
+            'flag' => (function () use ($coach) {
+                $coach->forceFill(['approval_status' => 'flagged'])->save();
+
+                return $coach->display_name.' was flagged for review.';
+            })(),
+            'verify' => (function () use ($coach) {
+                $coach->forceFill([
+                    'verified_at' => now(),
+                    'background_check_status' => 'clear',
+                ])->save();
+
+                return $coach->display_name.' is CoachNow Verified.';
+            })(),
+            'unverify' => (function () use ($coach) {
+                $coach->forceFill([
+                    'verified_at' => null,
+                    'background_check_status' => 'none',
+                ])->save();
+
+                return $coach->display_name.' verification was cleared.';
+            })(),
+            'plus' => (function () use ($coach) {
+                $coach->forceFill(['plan' => 'plus'])->save();
+
+                return $coach->display_name.' is on CoachNow Plus.';
+            })(),
+            'standard' => (function () use ($coach) {
+                $coach->forceFill(['plan' => 'standard'])->save();
+
+                return $coach->display_name.' is on the standard plan.';
+            })(),
+        };
+
+        return redirect()
+            ->route('admin.coaches', array_filter($request->only(['q', 'status', 'plan', 'approval', 'location_id'])))
+            ->with('success', $message);
     }
 
     public function updateCoachStatus(Request $request, Coach $coach): RedirectResponse

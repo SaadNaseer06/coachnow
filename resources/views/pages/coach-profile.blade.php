@@ -108,18 +108,33 @@
                 </div>
 
                 <div class="flex gap-2 flex-wrap">
-                  <span class="inline-flex items-center gap-2 px-3 py-2 rounded-[8px] border border-white/80 bg-black/10 text-[10px] lg:text-[11px]">
-                    <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m7.5 12 3 3 6-6" fill="none" stroke="#3c4023" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
-                    Available Today
+                  @if ($coach->isCoachNowApproved())
+                  <span class="inline-flex items-center gap-2 px-3 py-2 rounded-[8px] border border-brand-red/50 bg-brand-red/15 text-[10px] lg:text-[11px] text-white">
+                    CoachNow Approved
                   </span>
+                  @endif
+                  @if ($coach->isCoachNowVerified())
                   <span class="inline-flex items-center gap-2 px-3 py-2 rounded-[8px] border border-white/80 bg-black/10 text-[10px] lg:text-[11px]">
-                    <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-4.9-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.1-8 11-8 11Z"></path></svg>
+                    CoachNow Verified
+                  </span>
+                  @endif
+                  @if ($coach->hasCredentialType('cpr'))
+                  <span class="inline-flex items-center gap-2 px-3 py-2 rounded-[8px] border border-white/80 bg-black/10 text-[10px] lg:text-[11px]">
                     CPR Certified
                   </span>
+                  @endif
+                  @if ($coach->hasCredentialType('insurance'))
                   <span class="inline-flex items-center gap-2 px-3 py-2 rounded-[8px] border border-white/80 bg-black/10 text-[10px] lg:text-[11px]">
-                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4 5v6c0 5.2 3.4 9.3 8 11 4.6-1.7 8-5.8 8-11V5l-8-3Z"></path><path d="M12 7v8M8 11h8" fill="none" stroke="#3c4023" stroke-width="2" stroke-linecap="round"></path></svg>
                     Insured
                   </span>
+                  @endif
+                  @foreach ($coach->credentialList() as $cred)
+                    @if (! in_array($cred['type'], ['cpr', 'insurance'], true))
+                    <span class="inline-flex items-center gap-2 px-3 py-2 rounded-[8px] border border-white/80 bg-black/10 text-[10px] lg:text-[11px]">
+                      {{ $cred['label'] }}
+                    </span>
+                    @endif
+                  @endforeach
                 </div>
               </div>
             </div>
@@ -161,16 +176,26 @@
 
                 <h3 class="text-[16px] lg:text-[17px] font-semibold text-white mb-3">Coaching Philosophy</h3>
                 <p class="text-[13px] lg:text-[14px] text-zinc-400 leading-[1.7]">
-                  I believe in more than just developing better players&mdash;I aim to build better people. My sessions emphasize fundamentals, hard work, discipline, and teamwork both on and off the field.
+                  {{ $coach->coaching_philosophy ?: 'This coach has not added a coaching philosophy yet.' }}
                 </p>
 
                 <h3 class="text-[16px] lg:text-[17px] font-semibold text-white mt-6 mb-3">My Approach</h3>
+                @php
+                  $approachLines = collect(preg_split('/[\r\n•\-]+/', (string) ($coach->coaching_philosophy ?? '')))
+                    ->map(fn ($line) => trim($line))
+                    ->filter(fn ($line) => strlen($line) > 12)
+                    ->take(4)
+                    ->values();
+                @endphp
+                @if ($approachLines->isNotEmpty())
                 <ul class="space-y-3 text-[12px] lg:text-[13px] text-zinc-400">
-                  <li class="flex gap-2.5"><span class="w-4 h-4 mt-0.5 rounded-full bg-brand-red text-white text-[9px] grid place-items-center">&#10003;</span><span>Focus on fundamentals and technique</span></li>
-                  <li class="flex gap-2.5"><span class="w-4 h-4 mt-0.5 rounded-full bg-brand-red text-white text-[9px] grid place-items-center">&#10003;</span><span>Encourage confidence and positive mindset</span></li>
-                  <li class="flex gap-2.5"><span class="w-4 h-4 mt-0.5 rounded-full bg-brand-red text-white text-[9px] grid place-items-center">&#10003;</span><span>Build strong work ethic and accountability</span></li>
-                  <li class="flex gap-2.5"><span class="w-4 h-4 mt-0.5 rounded-full bg-brand-red text-white text-[9px] grid place-items-center">&#10003;</span><span>Create a supportive, fun, and challenging environment</span></li>
+                  @foreach ($approachLines as $line)
+                  <li class="flex gap-2.5"><span class="w-4 h-4 mt-0.5 rounded-full bg-brand-red text-white text-[9px] grid place-items-center">&#10003;</span><span>{{ $line }}</span></li>
+                  @endforeach
                 </ul>
+                @else
+                <p class="text-[13px] text-zinc-500">Approach details will appear here once the coach adds their philosophy.</p>
+                @endif
               </div>
 
               <aside class="rounded-[12px] border border-white/10 overflow-hidden divide-y divide-white/10 bg-[#1B1E22]">
@@ -193,7 +218,7 @@
                 </div>
                 <div class="p-4">
                   <h4 class="flex items-center gap-2 text-[14px] lg:text-[15px] font-semibold text-white mb-3"><img src="{{ asset('assets/Group 273355229.svg') }}" alt="" class="w-4 h-4 object-contain shrink-0">Languages</h4>
-                  <p class="pl-6 text-[12px] lg:text-[13px] text-zinc-400 leading-[1.8]">English</p>
+                  <p class="pl-6 text-[12px] lg:text-[13px] text-zinc-400 leading-[1.8]">{{ $coach->languages_spoken ?: '—' }}</p>
                 </div>
               </aside>
             </div>
@@ -270,10 +295,31 @@
               <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
                   <h3 class="text-[16px] lg:text-[17px] font-semibold text-white">Coach Availability</h3>
-                  <p class="mt-1 text-[11px] lg:text-[12px] text-zinc-400">Pick a date and time in the booking panel to request a session.</p>
+                  <p class="mt-1 text-[11px] lg:text-[12px] text-zinc-400">
+                    @if (($openSlotCount ?? 0) > 0)
+                      {{ $openSlotCount }} open slot{{ $openSlotCount === 1 ? '' : 's' }} in the next 2 weeks.
+                    @else
+                      Weekly schedule below — book a specific time with Book Now.
+                    @endif
+                  </p>
                 </div>
+                @if (! auth()->check() || auth()->user()->isAthlete())
+                <a href="{{ auth()->check() ? route('book-coach', $coach) : route('login') }}" class="inline-flex items-center justify-center h-10 px-4 rounded-[10px] bg-brand-red text-white text-[12px] font-semibold hover:bg-brand-red-hover">Book Now</a>
+                @endif
               </div>
-              <p class="mt-5 text-[13px] text-zinc-400">Live calendar slots will appear here once coaching schedules are connected. Use <strong class="text-white">Book a Session</strong> to send a request for now.</p>
+              @if (($weeklyAvailability ?? collect())->isNotEmpty())
+              <ul class="mt-5 space-y-3">
+                @foreach ($weeklyAvailability as $block)
+                <li class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 rounded-[10px] border border-white/10 bg-[#1B1E22] px-4 py-3 text-[13px]">
+                  <span class="text-white font-medium">{{ $block->dayName() }}</span>
+                  <span class="text-zinc-400">{{ $block->startTimeLabel() }} – {{ $block->endTimeLabel() }} · {{ $block->duration_minutes }} min</span>
+                  <span class="text-zinc-500">{{ $block->location?->name ?? ($coach->location?->name ?? 'Field TBD') }}</span>
+                </li>
+                @endforeach
+              </ul>
+              @else
+              <p class="mt-5 text-[13px] text-zinc-400">This coach has not published weekly availability yet. You can still <a href="{{ route('request-session', ['coach' => $coach->id]) }}" class="text-brand-red underline">request a session</a>.</p>
+              @endif
             </div>
           </div>
         </div>
@@ -330,8 +376,10 @@
             </select>
 
             @if (! auth()->check() || auth()->user()->isAthlete())
-            <a href="{{ route('request-session', ['coach' => $coach->publicToken()]) }}"
-              class="js-search-carry w-full h-11 rounded-[10px] mt-4 bg-brand-red hover:bg-brand-red-hover text-white text-[12px] lg:text-[13px] font-semibold transition-colors inline-flex items-center justify-center gap-2"><img src="{{ asset('assets/Group 273355246-1.svg') }}" alt="" class="w-4 h-4 object-contain" style="filter:brightness(0) invert(1)">Book Session</a>
+            <a href="{{ auth()->check() ? route('book-coach', $coach) : route('login') }}"
+              class="w-full h-11 rounded-[10px] mt-4 bg-brand-red hover:bg-brand-red-hover text-white text-[12px] lg:text-[13px] font-semibold transition-colors inline-flex items-center justify-center gap-2"><img src="{{ asset('assets/Group 273355246-1.svg') }}" alt="" class="w-4 h-4 object-contain" style="filter:brightness(0) invert(1)">Book Now</a>
+            <a href="{{ auth()->check() ? route('request-session', ['coach' => $coach->publicToken()]) : route('login') }}"
+              class="w-full h-11 rounded-[10px] mt-3 border border-white/25 bg-transparent text-white text-[12px] lg:text-[13px] font-medium hover:bg-brand-red hover:border-brand-red transition-colors inline-flex items-center justify-center">Request a session</a>
             @elseif (auth()->user()->isCoach() && (int) auth()->user()->coach?->id === (int) $coach->id)
             <a href="{{ route('coach.profile') }}"
               class="w-full h-11 rounded-[10px] mt-4 bg-brand-red hover:bg-brand-red-hover text-white text-[12px] lg:text-[13px] font-semibold transition-colors inline-flex items-center justify-center">Edit my listing</a>
@@ -339,7 +387,7 @@
             <a href="{{ route('contact') }}"
               class="w-full h-11 rounded-[10px] mt-3 border border-white/25 bg-transparent text-white text-[12px] lg:text-[13px] font-medium hover:bg-brand-red hover:border-brand-red transition-colors inline-flex items-center justify-center gap-2"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path><path d="M8 9h8M8 13h5"></path></svg>Send Message</a>
 
-            <p class="text-[11px] lg:text-[12px] text-zinc-400 leading-[1.6] mt-4">&#9830; You won't be charged yet.<br>&nbsp;&nbsp;&nbsp;Confirmation from your coach.</p>
+            <p class="text-[11px] lg:text-[12px] text-zinc-400 leading-[1.6] mt-4">Book Now uses the coach’s published times.<br>&nbsp;&nbsp;&nbsp;Request a session is for open marketplace criteria.</p>
           </div>
 
           <div class="rounded-[14px] border border-white/10 bg-[#141618] overflow-hidden">

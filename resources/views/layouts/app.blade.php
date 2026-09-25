@@ -51,9 +51,12 @@
   <link rel="stylesheet" href="{{ asset('assets/css/dialog.css') }}?v={{ @filemtime(public_path('assets/css/dialog.css')) ?: time() }}">
   @stack('styles')
 </head>
-<body class="font-sans bg-white text-zinc-900 antialiased selection:bg-brand-red selection:text-white">
+<body class="font-sans bg-white text-zinc-900 antialiased selection:bg-brand-red selection:text-white @yield('body_class')">
   @include('partials.scroll-ui')
-  @include('partials.preloader')
+  @hasSection('hide_preloader')
+  @else
+    @include('partials.preloader')
+  @endif
   @include('partials.header')
 
   @if (session('error') || (session('success') && ! request()->routeIs('contact')))
@@ -68,7 +71,10 @@
 
   @yield('content')
 
-  @include('partials.footer')
+  @hasSection('hide_footer')
+  @else
+    @include('partials.footer')
+  @endif
 
   <script src="https://unpkg.com/lenis@1.3.26/dist/lenis.min.js"></script>
   <script src="{{ asset('assets/js/form-busy.js') }}?v={{ @filemtime(public_path('assets/js/form-busy.js')) ?: time() }}"></script>

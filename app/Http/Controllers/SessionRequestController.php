@@ -110,6 +110,9 @@ class SessionRequestController extends Controller
             if (! $requestedCoach) {
                 return response()->json(['message' => 'That coach is not available for booking.'], 422);
             }
+        } else {
+            // Open marketplace requests — coaches need Plus to accept; athletes can still post.
+            // (Gating accept is the subscription control surface.)
         }
 
         $time = null;
@@ -210,6 +213,13 @@ class SessionRequestController extends Controller
             return response()->json(['message' => 'Only active coaches can accept session requests.'], 422);
         }
 
+        // Open marketplace (no targeted coach) requires Plus plan
+        if (! $session->requested_coach_id && ! $coach->isPlusPlan()) {
+            return response()->json([
+                'message' => 'Open session requests require a CoachNow Plus plan. Ask an admin to upgrade your plan, or wait for a request sent directly to you.',
+            ], 403);
+        }
+
         if (! $session->isVisibleToCoach($coach)) {
             return response()->json(['message' => 'This request was sent to a different coach.'], 403);
         }
@@ -239,6 +249,11 @@ class SessionRequestController extends Controller
                 'host_coach_id' => $coach->id,
                 'accepted_at' => now(),
             ]);
+
+            $coach->forceFill(['last_active_at' => now()])->save();
+            if ($coach->shouldFlagForApprovalReview()) {
+                $coach->forceFill(['approval_status' => 'flagged'])->save();
+            }
 
             $requester = $session->players()->where('role', 'requester')->first();
             if ($requester && $requester->card_on_file) {

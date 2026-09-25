@@ -105,6 +105,7 @@ class OllamaReportService
         $system = <<<'PROMPT'
 You are an elite youth sports coach writing professional post-session development reports for CoachNow.
 Write clear, encouraging, specific coaching language. Avoid fluff, emojis, and markdown.
+Ground the report in the coach's own notes about wins and work-ons — expand and polish them, do not invent unrelated topics.
 Always return ONLY valid JSON with these exact keys:
 {
   "title": "short report title",
@@ -116,9 +117,26 @@ Always return ONLY valid JSON with these exact keys:
 }
 PROMPT;
 
+        $wins = trim((string) ($context['wins'] ?? ''));
+        $workOns = trim((string) ($context['work_ons'] ?? ''));
+        $focusHint = trim((string) ($context['focus_hint'] ?? ''));
+        $philosophy = trim((string) ($context['coach_philosophy'] ?? ''));
+
         $user = "Player: {$player}\nSport: {$sport}".($age !== '' && $age !== '—' ? "\nAge/group: {$age}" : '')
-            ."\nSession keywords: {$keywords}\n"
-            .'Write a professional private-session report tailored to these keywords.';
+            ."\nSession keywords: {$keywords}\n";
+        if ($wins !== '') {
+            $user .= "Coach notes — wins / what went well:\n{$wins}\n";
+        }
+        if ($workOns !== '') {
+            $user .= "Coach notes — work-ons / needs improvement:\n{$workOns}\n";
+        }
+        if ($focusHint !== '') {
+            $user .= "Coach focus hint:\n{$focusHint}\n";
+        }
+        if ($philosophy !== '') {
+            $user .= "Coach philosophy / voice (match this tone):\n{$philosophy}\n";
+        }
+        $user .= 'Write a professional private-session report that reflects the coach notes above.';
 
         return [$system, $user];
     }

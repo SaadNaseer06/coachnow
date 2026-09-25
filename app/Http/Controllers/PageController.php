@@ -493,11 +493,44 @@ class PageController extends Controller
 
         abort_unless($coach->status === 'active' || $isOwner, 404);
 
-        $coach->loadMissing('location');
+        $coach->loadMissing(['location', 'availabilitySlots.location']);
+
+        $weeklyAvailability = $coach->availabilitySlots
+            ->filter(fn ($slot) => (bool) $slot->is_active)
+            ->sortBy(['day_of_week', 'start_time'])
+            ->values();
+
+        $openSlots = app(\App\Services\CoachAvailabilityService::class)
+            ->openSlotsForCoach($coach, now()->startOfDay(), now()->addDays(14)->startOfDay());
 
         return view('pages.coach-profile', [
             'coach' => $coach,
             'isOwnerPreview' => $isOwner && $coach->status !== 'active',
+            'weeklyAvailability' => $weeklyAvailability,
+            'openSlotCount' => count($openSlots),
+        ]);
+    }
+
+    public function bookCoach(Request $request, Coach $coach): View|RedirectResponse
+    {
+        $raw = $request->route()->originalParameter('coach');
+        if (ctype_digit((string) $raw) && filled($coach->slug)) {
+            return redirect()->route('book-coach', $coach, 301);
+        }
+
+        abort_unless($coach->status === 'active', 404);
+        $coach->loadMissing('location');
+
+        $slots = app(\App\Services\CoachAvailabilityService::class)
+            ->openSlotsForCoach($coach, now()->startOfDay(), now()->addDays(14)->startOfDay());
+
+        $dates = collect($slots)->pluck('date')->unique()->values()->all();
+
+        return view('pages.book-coach', [
+            'coach' => $coach,
+            'slots' => $slots,
+            'availableDates' => $dates,
+            'slotsJson' => $slots,
         ]);
     }
 

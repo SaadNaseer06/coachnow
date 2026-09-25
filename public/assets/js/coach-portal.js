@@ -57,9 +57,15 @@
   const reportForm = document.getElementById('sessionReportForm');
   const reportGenerateBtn = document.getElementById('reportGenerateBtn');
   const reportKeywords = document.getElementById('reportKeywords');
+  const reportWins = document.getElementById('reportWins');
+  const reportWorkOns = document.getElementById('reportWorkOns');
+  const reportFocusHint = document.getElementById('reportFocusHint');
+  const reportNotesWins = document.getElementById('reportNotesWins');
+  const reportNotesWorkOns = document.getElementById('reportNotesWorkOns');
   const playerSelect = document.getElementById('reportPlayerSelect');
 
-  if (!form || !input || !output) return;
+  if (!app && !reportForm) return;
+  if (!form && !reportGenerateBtn) return;
 
   const generateUrl = app?.dataset.generateUrl || '';
   const csrf =
@@ -90,13 +96,13 @@
 
   const setGenerating = (on) => {
     generating = on;
-    [reportGenerateBtn, form.querySelector('button[type="submit"]'), ...chips].forEach((el) => {
+    [reportGenerateBtn, form?.querySelector('button[type="submit"]'), ...chips].forEach((el) => {
       if (el) el.disabled = on;
     });
     if (reportGenerateBtn) {
       reportGenerateBtn.textContent = on ? 'Generating…' : 'Generate with AI';
     }
-    const asideSubmit = form.querySelector('.coach-ai__submit');
+    const asideSubmit = form?.querySelector('.coach-ai__submit');
     if (asideSubmit) asideSubmit.textContent = on ? 'Generating…' : 'Generate report';
   };
 
@@ -112,6 +118,8 @@
       reportSummary: current.summary || '',
       reportAiSource: current.source || 'ollama',
       reportVideosJson: JSON.stringify(current.videos || []),
+      reportNotesWins: current.coach_notes_wins || reportWins?.value || '',
+      reportNotesWorkOns: current.coach_notes_work_ons || reportWorkOns?.value || '',
     };
 
     Object.entries(fields).forEach(([id, value]) => {
@@ -132,7 +140,8 @@
         ? 'AI draft ready'
         : 'Professional draft (AI offline)';
 
-    output.innerHTML = `
+    if (output) {
+      output.innerHTML = `
       <h3>${escape(data.title || keyword)} — draft report</h3>
       <p>${escape(data.summary || '')}</p>
       <p class="coach-ai__source">${escape(sourceNote)}</p>
@@ -143,6 +152,7 @@
         <li><strong>Home training</strong>${escape(data.home || '')}</li>
       </ul>
     `;
+    }
 
     if (autoApply && document.getElementById('reportFocus')) {
       applyToForm(keyword);
@@ -150,20 +160,36 @@
   };
 
   const generate = async (keyword) => {
-    const cleaned = String(keyword || '').trim();
-    if (!cleaned || generating) {
-      if (!cleaned) reportKeywords?.focus();
+    const wins = String(reportWins?.value || '').trim();
+    const workOns = String(reportWorkOns?.value || '').trim();
+    const cleaned = String(keyword || reportKeywords?.value || 'session review').trim();
+
+    if (reportWins && reportWorkOns && (!wins || !workOns)) {
+      if (!wins) reportWins.focus();
+      else reportWorkOns.focus();
+      if (window.CoachNowDialog?.alert) {
+        window.CoachNowDialog.alert({
+          title: 'Notes required',
+          message: 'Add Wins and Work-ons before generating so the AI matches what you saw.',
+        });
+      }
       return;
     }
 
+    if (generating) return;
+
     if (!generateUrl) {
-      output.innerHTML = '<h3>Setup needed</h3><p>Generate endpoint is missing. Refresh the page and try again.</p>';
+      if (output) {
+        output.innerHTML = '<h3>Setup needed</h3><p>Generate endpoint is missing. Refresh the page and try again.</p>';
+      }
       return;
     }
 
     setGenerating(true);
-    output.innerHTML =
-      '<h3>Writing your report…</h3><p>Drafting a professional session report. This usually takes a few seconds.</p>';
+    if (output) {
+      output.innerHTML =
+        '<h3>Writing your report…</h3><p>Drafting a professional session report. This usually takes a few seconds.</p>';
+    }
 
     try {
       const response = await fetch(generateUrl, {
@@ -176,6 +202,9 @@
         },
         body: JSON.stringify({
           keywords: cleaned,
+          wins,
+          work_ons: workOns,
+          focus_hint: String(reportFocusHint?.value || '').trim(),
           player: playerSlug(),
         }),
       });
@@ -193,16 +222,17 @@
         throw new Error(detail);
       }
 
-      render(payload.report || {}, cleaned, true);
-
-      if (payload.report?.warning && window.CoachNowDialog?.alert) {
-        // Soft notice only — draft still applied.
-      }
+      const report = payload.report || {};
+      report.coach_notes_wins = wins;
+      report.coach_notes_work_ons = workOns;
+      render(report, cleaned, true);
     } catch (error) {
-      output.innerHTML = `
+      if (output) {
+        output.innerHTML = `
         <h3>Generation failed</h3>
         <p>${escape(error.message || 'Something went wrong. Please try again in a moment.')}</p>
       `;
+      }
       if (window.CoachNowDialog?.alert) {
         window.CoachNowDialog.alert({
           title: 'AI generate failed',
@@ -214,22 +244,26 @@
     }
   };
 
-  chips.forEach((chip) => {
-    chip.addEventListener('click', () => {
-      chips.forEach((other) => other.classList.remove('is-active'));
-      chip.classList.add('is-active');
-      generate(chip.dataset.coachPrompt);
+  if (form && input) {
+    chips.forEach((chip) => {
+      chip.addEventListener('click', () => {
+        chips.forEach((other) => other.classList.remove('is-active'));
+        chip.classList.add('is-active');
+        generate(chip.dataset.coachPrompt);
+      });
     });
-  });
 
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    chips.forEach((chip) => chip.classList.remove('is-active'));
-    generate(input.value);
-  });
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      chips.forEach((chip) => chip.classList.remove('is-active'));
+      generate(input.value);
+    });
+  }
 
-  if (reportGenerateBtn && reportKeywords) {
-    reportGenerateBtn.addEventListener('click', () => generate(reportKeywords.value));
+  if (reportGenerateBtn) {
+    reportGenerateBtn.addEventListener('click', () => generate(reportKeywords?.value || 'session review'));
+  }
+  if (reportKeywords) {
     reportKeywords.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
@@ -244,10 +278,15 @@
       if (!reportForm.contains(btn) && btn.getAttribute('form') !== 'sessionReportForm') return;
       btn.addEventListener('click', () => {
         if (shareFlag) shareFlag.value = btn.getAttribute('data-share') || '0';
+        if (reportNotesWins && reportWins) reportNotesWins.value = reportWins.value;
+        if (reportNotesWorkOns && reportWorkOns) reportNotesWorkOns.value = reportWorkOns.value;
       });
     });
 
     reportForm.addEventListener('submit', (event) => {
+      if (reportNotesWins && reportWins) reportNotesWins.value = reportWins.value;
+      if (reportNotesWorkOns && reportWorkOns) reportNotesWorkOns.value = reportWorkOns.value;
+
       if (!playerSlug()) {
         event.preventDefault();
         if (window.CoachNowDialog?.alert) {

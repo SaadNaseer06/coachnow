@@ -102,7 +102,17 @@
 
       <div class="min-w-0">
         <h2 class="coach-name font-semibold text-white">{{ $coach->display_name }}</h2>
-        <p class="coach-role text-zinc-400 mt-1 mb-4">{{ $coach->roleLabel() }}</p>
+        <p class="coach-role text-zinc-400 mt-1 mb-3">{{ $coach->roleLabel() }}</p>
+        @if ($coach->isCoachNowApproved() || $coach->isCoachNowVerified())
+          <div class="flex flex-wrap gap-2 mb-3">
+            @if ($coach->isCoachNowApproved())
+              <span class="inline-flex items-center px-2.5 py-1 rounded-[6px] border border-brand-red/50 bg-brand-red/15 text-[10px] text-white font-medium">CoachNow Approved</span>
+            @endif
+            @if ($coach->isCoachNowVerified())
+              <span class="inline-flex items-center px-2.5 py-1 rounded-[6px] border border-white/40 bg-white/5 text-[10px] text-zinc-200 font-medium">CoachNow Verified</span>
+            @endif
+          </div>
+        @endif
         <div class="coach-meta text-white mb-2">
           <span class="text-amber-400">&#9733;</span>
           <span class="font-semibold">{{ number_format((float) $coach->rating, 1) }}</span>
@@ -133,8 +143,8 @@
           <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
         </a>
         @if (! auth()->check() || auth()->user()->isAthlete())
-        <a href="{{ route('request-session', ['coach' => $coach->publicToken()]) }}"
-          class="js-search-carry coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-white/25 bg-transparent text-white font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red transition-all">
+        <a href="{{ auth()->check() ? route('book-coach', $coach) : route('login') }}"
+          class="coach-button coach-button-secondary h-11 px-4 rounded-[10px] border border-white/25 bg-transparent text-white font-medium inline-flex items-center justify-center gap-2 hover:bg-brand-red hover:border-brand-red transition-all">
           <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <rect x="3" y="4" width="18" height="18" rx="2"></rect>
             <line x1="16" y1="2" x2="16" y2="6"></line>

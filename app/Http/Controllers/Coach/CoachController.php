@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Coach;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Coach;
+use App\Models\CoachAvailabilitySlot;
 use App\Models\Location;
 use App\Models\SessionRequest;
 use App\Models\SharedVideo;
@@ -63,6 +64,19 @@ class CoachController extends Controller
             ->upcoming()
             ->count();
 
+        $locations = Location::query()
+            ->where('status', 'live')
+            ->orderBy('name')
+            ->get(['id', 'name', 'area']);
+
+        $availability = $coach->availabilitySlots()
+            ->with('location')
+            ->orderBy('day_of_week')
+            ->orderBy('start_time')
+            ->get();
+
+        $roster = $this->rosterFromBookings($coach)->values();
+
         return view('coach.schedule', [
             'weekLabel' => $weekStart->format('M j').' – '.$weekStart->copy()->addDays(6)->format('M j, Y'),
             'weekStart' => $weekStart->toDateString(),
@@ -72,12 +86,153 @@ class CoachController extends Controller
             'days' => $this->calendarDays($weekStart),
             'sessions' => $sessions,
             'upcomingTotal' => $upcomingTotal,
+            'locations' => $locations,
+            'availability' => $availability,
+            'roster' => $roster,
+            'sessionTypes' => [
+                'Private 1-on-1',
+                'Small Group',
+                'Group',
+                'Assessment',
+                'Team Training',
+            ],
             'summary' => [
                 ['label' => 'Sessions', 'value' => (string) $bookings->count(), 'note' => 'Booked this week'],
                 ['label' => 'Players', 'value' => (string) $uniquePlayers, 'note' => 'Across all sessions'],
                 ['label' => 'Hours', 'value' => (string) $hours, 'note' => 'On the field'],
             ],
         ]);
+    }
+
+    public function storeSession(Request $request): RedirectResponse
+    {
+        $coach = $this->currentCoach();
+
+        $data = $request->validate([
+            'athlete_id' => ['nullable', 'integer', 'exists:users,id'],
+            'player_name' => ['nullable', 'string', 'max:120'],
+            'session_date' => ['required', 'date', 'after_or_equal:today'],
+            'session_time' => ['required', 'date_format:H:i'],
+            'duration_minutes' => ['nullable', 'integer', 'min:30', 'max:180'],
+            'location_id' => ['required', 'integer', 'exists:locations,id'],
+            'session_type' => ['required', 'string', 'max:160'],
+            'week' => ['nullable', 'date'],
+        ]);
+
+        if (empty($data['athlete_id']) && blank($data['player_name'] ?? null)) {
+            return redirect()
+                ->route('coach.schedule', array_filter([
+                    'week' => $data['week'] ?? $request->query('week'),
+                    'book' => 1,
+                ]))
+                ->withErrors(['player_name' => 'Choose a roster player or enter a client name.'])
+                ->withInput();
+        }
+
+        try {
+            $booking = app(SessionBookingService::class)->createCoachBooking($coach, [
+                'athlete_id' => $data['athlete_id'] ?? null,
+                'player_name' => $data['player_name'] ?? null,
+                'date' => $data['session_date'],
+                'time' => $data['session_time'],
+                'location_id' => $data['location_id'],
+                'duration_minutes' => $data['duration_minutes'] ?? 60,
+                'session_type' => $data['session_type'],
+            ]);
+        } catch (ValidationException $e) {
+            return redirect()
+                ->route('coach.schedule', array_filter([
+                    'week' => $data['week'] ?? $request->query('week'),
+                    'book' => 1,
+                ]))
+                ->withErrors($e->errors())
+                ->withInput();
+        }
+
+        $coach->forceFill(['last_active_at' => now()])->save();
+
+        $week = $data['week']
+            ?? optional($booking->session_date)->copy()->startOfWeek(Carbon::MONDAY)->toDateString();
+
+        return redirect()
+            ->route('coach.schedule', ['week' => $week])
+            ->with('success', $booking->displayName().' was booked for '.$booking->whenLabel().'.');
+    }
+
+    public function storeAvailability(Request $request): RedirectResponse
+    {
+        $coach = $this->currentCoach();
+
+        $data = $request->validate([
+            'location_id' => ['required', 'integer', 'exists:locations,id'],
+            'day_of_week' => ['required', 'integer', 'min:0', 'max:6'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            'duration_minutes' => ['nullable', 'integer', 'min:30', 'max:180'],
+        ]);
+
+        $coach->availabilitySlots()->create([
+            'location_id' => $data['location_id'],
+            'day_of_week' => (int) $data['day_of_week'],
+            'start_time' => $data['start_time'],
+            'end_time' => $data['end_time'],
+            'duration_minutes' => (int) ($data['duration_minutes'] ?? 60),
+            'is_active' => true,
+        ]);
+
+        $coach->forceFill(['last_active_at' => now()])->save();
+
+        return redirect()
+            ->route('coach.schedule', array_filter([
+                'week' => $request->query('week') ?: $request->input('week'),
+                'availability' => 1,
+            ]))
+            ->with('success', 'Availability block added. Players can book those times.');
+    }
+
+    public function destroyAvailability(Request $request, int $slot): RedirectResponse
+    {
+        $coach = $this->currentCoach();
+        $block = $coach->availabilitySlots()->whereKey($slot)->firstOrFail();
+        $block->delete();
+
+        return redirect()
+            ->route('coach.schedule', array_filter([
+                'week' => $request->query('week') ?: $request->input('week'),
+                'availability' => 1,
+            ]))
+            ->with('success', 'Availability block removed.');
+    }
+
+    public function updateAvailability(Request $request, int $slot): RedirectResponse
+    {
+        $coach = $this->currentCoach();
+        $block = $coach->availabilitySlots()->whereKey($slot)->firstOrFail();
+
+        $data = $request->validate([
+            'location_id' => ['required', 'integer', 'exists:locations,id'],
+            'day_of_week' => ['required', 'integer', 'min:0', 'max:6'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            'duration_minutes' => ['nullable', 'integer', 'min:30', 'max:180'],
+        ]);
+
+        $block->update([
+            'location_id' => $data['location_id'],
+            'day_of_week' => (int) $data['day_of_week'],
+            'start_time' => $data['start_time'],
+            'end_time' => $data['end_time'],
+            'duration_minutes' => (int) ($data['duration_minutes'] ?? 60),
+        ]);
+
+        $coach->forceFill(['last_active_at' => now()])->save();
+
+        return redirect()
+            ->route('coach.schedule', array_filter([
+                'week' => $request->query('week') ?: $request->input('week'),
+                'availability' => 1,
+            ]))
+            ->with('success', 'Availability block updated.');
     }
 
     public function dashboard(): View
@@ -404,7 +559,10 @@ class CoachController extends Controller
         $coach = $this->currentCoach();
 
         $data = $request->validate([
-            'keywords' => ['required', 'string', 'max:255'],
+            'keywords' => ['nullable', 'string', 'max:255'],
+            'wins' => ['required', 'string', 'max:2000'],
+            'work_ons' => ['required', 'string', 'max:2000'],
+            'focus_hint' => ['nullable', 'string', 'max:1000'],
             'player' => ['nullable', 'string', 'max:120'],
         ]);
 
@@ -412,11 +570,20 @@ class CoachController extends Controller
             ? $this->resolvePlayerProfile($coach, $data['player'])
             : null;
 
+        $keywords = trim((string) ($data['keywords'] ?? ''));
+        if ($keywords === '') {
+            $keywords = 'session review';
+        }
+
         try {
-            $draft = app(OllamaReportService::class)->generate($data['keywords'], [
+            $draft = app(OllamaReportService::class)->generate($keywords, [
                 'player_name' => $profile['name'] ?? 'the player',
-                'sport' => $profile['sport'] ?? 'soccer',
+                'sport' => $profile['sport'] ?? ($coach->sport ?: 'soccer'),
                 'age' => $profile['age'] ?? '',
+                'wins' => $data['wins'],
+                'work_ons' => $data['work_ons'],
+                'focus_hint' => $data['focus_hint'] ?? '',
+                'coach_philosophy' => $coach->coaching_philosophy ?? '',
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -438,6 +605,8 @@ class CoachController extends Controller
                 'videos' => $draft['videos'],
                 'source' => $draft['source'] ?? 'fallback',
                 'warning' => $draft['warning'] ?? null,
+                'coach_notes_wins' => $data['wins'],
+                'coach_notes_work_ons' => $data['work_ons'],
             ],
         ]);
     }
@@ -449,6 +618,8 @@ class CoachController extends Controller
         $data = $request->validate([
             'player' => ['required', 'string', 'max:120'],
             'keywords' => ['nullable', 'string', 'max:255'],
+            'coach_notes_wins' => ['nullable', 'string', 'max:2000'],
+            'coach_notes_work_ons' => ['nullable', 'string', 'max:2000'],
             'focus' => ['required', 'string', 'max:5000'],
             'went_well' => ['required', 'string', 'max:5000'],
             'needs_work' => ['required', 'string', 'max:5000'],
@@ -490,6 +661,8 @@ class CoachController extends Controller
             'athlete_id' => $profile['athlete_id'] ?? null,
             'athlete_name' => $profile['name'] ?? null,
             'keywords' => $data['keywords'] ?? null,
+            'coach_notes_wins' => $data['coach_notes_wins'] ?? null,
+            'coach_notes_work_ons' => $data['coach_notes_work_ons'] ?? null,
             'focus' => $data['focus'],
             'went_well' => $data['went_well'],
             'needs_work' => $data['needs_work'],
@@ -564,6 +737,12 @@ class CoachController extends Controller
             'location_id' => ['required', 'integer', 'exists:locations,id'],
             'rate' => ['required', 'numeric', 'min:0', 'max:9999'],
             'bio' => ['nullable', 'string', 'max:2000'],
+            'languages_spoken' => ['nullable', 'string', 'max:255'],
+            'coaching_philosophy' => ['nullable', 'string', 'max:5000'],
+            'cred_cpr' => ['nullable', 'boolean'],
+            'cred_license' => ['nullable', 'string', 'max:160'],
+            'cred_insurance' => ['nullable', 'boolean'],
+            'cred_other' => ['nullable', 'string', 'max:255'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'remove_photo' => ['nullable', 'boolean'],
         ]);
@@ -578,11 +757,39 @@ class CoachController extends Controller
             $data['photo_path'] = $request->file('photo')->store('coach-photos', 'public');
         }
 
-        unset($data['photo'], $data['remove_photo']);
+        $credentials = [];
+        if ($request->boolean('cred_cpr')) {
+            $credentials[] = ['type' => 'cpr', 'label' => 'CPR Certified'];
+        }
+        if (filled($data['cred_license'] ?? null)) {
+            $credentials[] = ['type' => 'license', 'label' => trim((string) $data['cred_license'])];
+        }
+        if ($request->boolean('cred_insurance')) {
+            $credentials[] = ['type' => 'insurance', 'label' => 'Insured'];
+        }
+        if (filled($data['cred_other'] ?? null)) {
+            $credentials[] = ['type' => 'other', 'label' => trim((string) $data['cred_other'])];
+        }
+        $data['credentials'] = $credentials;
+
+        unset(
+            $data['photo'],
+            $data['remove_photo'],
+            $data['cred_cpr'],
+            $data['cred_license'],
+            $data['cred_insurance'],
+            $data['cred_other']
+        );
+
+        $data['last_active_at'] = now();
 
         $coach->update($data);
         $coach->user?->update(['sport' => $data['sport']]);
         $coach->refresh();
+
+        if ($coach->shouldFlagForApprovalReview()) {
+            $coach->forceFill(['approval_status' => 'flagged'])->save();
+        }
 
         $message = $coach->isProfileComplete()
             ? ($coach->status === 'active'

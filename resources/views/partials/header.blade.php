@@ -31,7 +31,7 @@
     <nav class="hidden lg:flex items-center bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-full p-1 shadow-lg">
       <ul class="flex items-center gap-0.5 list-none m-0 p-0 text-xs font-normal">
         <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $navActive : $navIdle }}">Home</a></li>
-        <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile') ? $navActive : $navIdle }}">Find a Coach</a></li>
+        <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile', 'book-coach') ? $navActive : $navIdle }}">Find a Coach</a></li>
         @if ($showRequestSession)
           <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $navActive : $navIdle }}">Request Session</a></li>
         @endif
@@ -89,7 +89,7 @@
   <div id="mobileMenuDrawer" class="hidden lg:hidden px-4 pt-3 pb-5 mt-2 bg-[#191615] backdrop-blur-2xl border-b border-zinc-800 transition-all">
     <ul class="flex flex-col gap-2 text-sm font-medium text-zinc-200">
       <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $mobileActive : $mobileIdle }}">Home</a></li>
-      <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile') ? $mobileActive : $mobileIdle }}">Find a Coach</a></li>
+      <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile', 'book-coach') ? $mobileActive : $mobileIdle }}">Find a Coach</a></li>
       @if ($showRequestSession)
         <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $mobileActive : $mobileIdle }}">Request Session</a></li>
       @endif

@@ -58,19 +58,37 @@
         @endif
 
         <div class="coach-form-block">
-          <label class="coach-field-label" for="reportKeywords">Session keywords</label>
+          <label class="coach-field-label" for="reportWins">Wins (what went well)</label>
+          <textarea id="reportWins" class="admin-input coach-textarea coach-textarea--sm" name="coach_notes_wins_input" placeholder="What did you actually see go well today?" required>{{ old('coach_notes_wins') }}</textarea>
+        </div>
+
+        <div class="coach-form-block">
+          <label class="coach-field-label" for="reportWorkOns">Work-ons / needs improvement</label>
+          <textarea id="reportWorkOns" class="admin-input coach-textarea coach-textarea--sm" name="coach_notes_work_ons_input" placeholder="What needs work based on this session?" required>{{ old('coach_notes_work_ons') }}</textarea>
+        </div>
+
+        <div class="coach-form-block">
+          <label class="coach-field-label" for="reportFocusHint">Focus hint (optional)</label>
+          <input id="reportFocusHint" class="admin-input" type="text" maxlength="1000" placeholder="Optional focus of the week hint">
+        </div>
+
+        <div class="coach-form-block">
+          <label class="coach-field-label" for="reportKeywords">Session keywords (optional)</label>
           <div class="coach-keyword-row">
-            <input id="reportKeywords" class="admin-input" type="text" name="keywords" value="{{ old('keywords') }}" placeholder="e.g. improve first touch, scanning, finishing" maxlength="255">
+            <input id="reportKeywords" class="admin-input" type="text" name="keywords" value="{{ old('keywords') }}" placeholder="e.g. first touch, scanning" maxlength="255">
             <button type="button" class="admin-btn admin-btn-primary" id="reportGenerateBtn" data-loading-text="Generating…">Generate with AI</button>
           </div>
           <p class="coach-field-hint">
             @if (!empty($ollamaReady))
-              AI is ready — generate a draft, then edit before saving.
+              AI uses your wins / work-ons notes so the draft matches what you saw.
             @else
-              AI is not configured on this server — a professional template draft will be used instead.
+              AI is not configured — a template draft will still use your wins / work-ons notes.
             @endif
           </p>
         </div>
+
+        <input type="hidden" name="coach_notes_wins" id="reportNotesWins" value="{{ old('coach_notes_wins') }}">
+        <input type="hidden" name="coach_notes_work_ons" id="reportNotesWorkOns" value="{{ old('coach_notes_work_ons') }}">
 
         <div class="coach-form-block">
           <label class="coach-field-label" for="reportFocus">Focus of the week</label>

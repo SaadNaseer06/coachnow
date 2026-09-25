@@ -204,6 +204,39 @@
       <span>Bio</span>
       <textarea class="admin-input admin-textarea" name="bio" rows="4" maxlength="2000" placeholder="Short intro for athletes and parents">{{ old('bio', $coach->bio) }}</textarea>
     </label>
+
+    <label class="admin-field admin-field--full">
+      <span>Languages spoken</span>
+      <input class="admin-input" type="text" name="languages_spoken" value="{{ old('languages_spoken', $coach->languages_spoken) }}" maxlength="255" placeholder="English, Spanish">
+    </label>
+
+    <label class="admin-field admin-field--full">
+      <span>Coaching philosophy</span>
+      <textarea class="admin-input admin-textarea" name="coaching_philosophy" rows="4" maxlength="5000" placeholder="What you believe about training and player development">{{ old('coaching_philosophy', $coach->coaching_philosophy) }}</textarea>
+    </label>
+
+    <div class="admin-field admin-field--full">
+      <span>Credentials</span>
+      <div style="display:grid;gap:10px;margin-top:6px">
+        @php
+          $creds = collect($coach->credentialList());
+          $hasCpr = $creds->contains(fn ($c) => $c['type'] === 'cpr');
+          $hasIns = $creds->contains(fn ($c) => $c['type'] === 'insurance');
+          $license = $creds->firstWhere('type', 'license')['label'] ?? '';
+          $other = $creds->firstWhere('type', 'other')['label'] ?? '';
+        @endphp
+        <label class="coach-photo-upload__remove" style="display:inline-flex;gap:8px;align-items:center">
+          <input type="checkbox" name="cred_cpr" value="1" @checked(old('cred_cpr', $hasCpr))>
+          CPR certification
+        </label>
+        <label class="coach-photo-upload__remove" style="display:inline-flex;gap:8px;align-items:center">
+          <input type="checkbox" name="cred_insurance" value="1" @checked(old('cred_insurance', $hasIns))>
+          Liability insurance
+        </label>
+        <input class="admin-input" type="text" name="cred_license" value="{{ old('cred_license', $license) }}" maxlength="160" placeholder="Coaching license (e.g. USSF D License)">
+        <input class="admin-input" type="text" name="cred_other" value="{{ old('cred_other', $other) }}" maxlength="255" placeholder="Other credential (optional)">
+      </div>
+    </div>
   </div>
 
   <div class="coach-profile-actions">

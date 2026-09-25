@@ -197,4 +197,71 @@
     </table>
   </div>
 </section>
+
+<section class="admin-card">
+  <div class="admin-card-header">
+    <div>
+      <h2>Ready for CoachNow review</h2>
+      <p>High-rated active coaches flagged for Approved / Verified badges</p>
+    </div>
+    <a href="{{ route('admin.coaches', ['approval' => 'flagged']) }}" class="admin-btn admin-btn-ghost admin-btn-sm">Open queue</a>
+  </div>
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Coach</th>
+          <th>Rating</th>
+          <th>Plan</th>
+          <th>Last active</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @forelse ($flaggedCoaches ?? [] as $coach)
+          <tr>
+            <td>
+              <div class="admin-person">
+                <img src="{{ $coach->photoUrl() }}" alt="">
+                <div>
+                  <strong>{{ $coach->display_name }}</strong>
+                  <span>{{ $coach->user?->email ?? '—' }}</span>
+                </div>
+              </div>
+            </td>
+            <td>{{ $coach->rating ? number_format((float) $coach->rating, 1) : '—' }}</td>
+            <td>{{ ($coach->plan ?? 'standard') === 'plus' ? 'Plus' : 'Standard' }}</td>
+            <td class="whitespace-nowrap">
+              {{ $coach->last_active_at?->format('M j, Y') ?? '—' }}
+            </td>
+            <td class="whitespace-nowrap">
+              <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}" class="inline">
+                @csrf
+                @method('PATCH')
+                <input type="hidden" name="action" value="approve">
+                <button type="submit" class="admin-btn admin-btn-primary admin-btn-sm" data-loading-text="Approving…">Approve</button>
+              </form>
+              <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}" class="inline">
+                @csrf
+                @method('PATCH')
+                <input type="hidden" name="action" value="verify">
+                <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm" data-loading-text="Verifying…">Verify</button>
+              </form>
+              <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}" class="inline">
+                @csrf
+                @method('PATCH')
+                <input type="hidden" name="action" value="reject">
+                <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm" data-loading-text="Rejecting…">Reject</button>
+              </form>
+            </td>
+          </tr>
+        @empty
+          <tr>
+            <td colspan="5" class="text-center text-zinc-500 py-6">No coaches flagged for badge review.</td>
+          </tr>
+        @endforelse
+      </tbody>
+    </table>
+  </div>
+</section>
 @endsection

@@ -28,14 +28,17 @@ Route::get('/contact', [PageController::class, 'contact'])->name('contact');
 Route::post('/contact', [PageController::class, 'submitContact'])->name('contact.submit');
 Route::get('/coach-profile', fn () => redirect()->route('find-a-coach'));
 Route::get('/coaches/{coach}', [PageController::class, 'coachProfile'])->name('coach-profile');
+Route::get('/api/coaches/{coach}/slots', [\App\Http\Controllers\BookingController::class, 'slots'])->name('coaches.slots');
 
 Route::middleware('auth')->group(function () {
     Route::middleware('role:athlete')->group(function () {
         Route::get('/player-dashboard', [PageController::class, 'playerDashboard'])->name('player-dashboard');
+        Route::get('/book/{coach}', [PageController::class, 'bookCoach'])->name('book-coach');
         Route::get('/request-session', [PageController::class, 'requestSession'])->name('request-session');
         Route::post('/api/session-requests', [SessionRequestController::class, 'store'])->name('session-requests.store');
         Route::post('/api/session-requests/{reference}/join', [SessionRequestController::class, 'join'])->name('session-requests.join');
         Route::post('/api/session-requests/{reference}/cancel', [SessionRequestController::class, 'cancel'])->name('session-requests.cancel');
+        Route::post('/api/bookings', [\App\Http\Controllers\BookingController::class, 'store'])->name('bookings.store');
     });
 
     Route::get('/api/session-requests', [SessionRequestController::class, 'index'])->name('session-requests.index');
@@ -69,6 +72,10 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 */
 Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach'])->group(function () {
     Route::get('/schedule', [CoachController::class, 'schedule'])->name('schedule');
+    Route::post('/schedule/availability', [CoachController::class, 'storeAvailability'])->name('schedule.availability.store');
+    Route::patch('/schedule/availability/{slot}', [CoachController::class, 'updateAvailability'])->name('schedule.availability.update');
+    Route::delete('/schedule/availability/{slot}', [CoachController::class, 'destroyAvailability'])->name('schedule.availability.destroy');
+    Route::post('/schedule/sessions', [CoachController::class, 'storeSession'])->name('schedule.sessions.store');
     Route::get('/dashboard', [CoachController::class, 'dashboard'])->name('dashboard');
     Route::get('/profile', [CoachController::class, 'profile'])->name('profile');
     Route::get('/api/status', [CoachController::class, 'status'])->name('status');
@@ -94,6 +101,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/coaches', [DashboardController::class, 'storeCoach'])->name('coaches.store');
     Route::patch('/coaches/{coach}', [DashboardController::class, 'updateCoach'])->name('coaches.update');
     Route::patch('/coaches/{coach}/status', [DashboardController::class, 'updateCoachStatus'])->name('coaches.status');
+    Route::patch('/coaches/{coach}/approval', [DashboardController::class, 'updateCoachApproval'])->name('coaches.approval');
     Route::get('/bookings', [DashboardController::class, 'bookings'])->name('bookings');
     Route::get('/locations', [DashboardController::class, 'locations'])->name('locations');
     Route::post('/locations', [DashboardController::class, 'storeLocation'])->name('locations.store');

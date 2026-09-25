@@ -51,11 +51,20 @@ class Coach extends Model
         'experience',
         'ages',
         'status',
+        'plan',
         'rate',
         'rating',
         'reviews_count',
         'photo_path',
         'bio',
+        'languages_spoken',
+        'coaching_philosophy',
+        'credentials',
+        'approval_status',
+        'background_check_status',
+        'verified_at',
+        'approved_at',
+        'last_active_at',
     ];
 
     protected function casts(): array
@@ -63,6 +72,10 @@ class Coach extends Model
         return [
             'rate' => 'decimal:2',
             'rating' => 'decimal:1',
+            'credentials' => 'array',
+            'verified_at' => 'datetime',
+            'approved_at' => 'datetime',
+            'last_active_at' => 'datetime',
         ];
     }
 
@@ -159,6 +172,75 @@ class Coach extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    public function availabilitySlots(): HasMany
+    {
+        return $this->hasMany(CoachAvailabilitySlot::class);
+    }
+
+    public function isPlusPlan(): bool
+    {
+        return ($this->plan ?? 'standard') === 'plus';
+    }
+
+    public function isCoachNowVerified(): bool
+    {
+        return $this->verified_at !== null
+            || in_array($this->background_check_status, ['clear'], true);
+    }
+
+    public function isCoachNowApproved(): bool
+    {
+        return ($this->approval_status ?? 'none') === 'approved' && $this->approved_at !== null;
+    }
+
+    /**
+     * @return list<array{type:string,label:string,issuer:?string,expires_at:?string}>
+     */
+    public function credentialList(): array
+    {
+        $raw = $this->credentials;
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(function ($row) {
+            if (! is_array($row) || empty($row['label'])) {
+                return null;
+            }
+
+            return [
+                'type' => (string) ($row['type'] ?? 'other'),
+                'label' => (string) $row['label'],
+                'issuer' => isset($row['issuer']) ? (string) $row['issuer'] : null,
+                'expires_at' => isset($row['expires_at']) ? (string) $row['expires_at'] : null,
+            ];
+        }, $raw)));
+    }
+
+    public function hasCredentialType(string $type): bool
+    {
+        foreach ($this->credentialList() as $row) {
+            if (strcasecmp($row['type'], $type) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function shouldFlagForApprovalReview(): bool
+    {
+        if (in_array($this->approval_status, ['approved', 'flagged'], true)) {
+            return false;
+        }
+
+        $ratingOk = (float) $this->rating >= 4.5;
+        $activeRecently = $this->last_active_at
+            && $this->last_active_at->gte(now()->subDays(30));
+
+        return $ratingOk && (bool) $activeRecently;
     }
 
     public function bookings(): HasMany

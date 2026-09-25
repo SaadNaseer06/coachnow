@@ -14,6 +14,8 @@ class SessionReport extends Model
         'athlete_id',
         'athlete_name',
         'keywords',
+        'coach_notes_wins',
+        'coach_notes_work_ons',
         'focus',
         'went_well',
         'needs_work',

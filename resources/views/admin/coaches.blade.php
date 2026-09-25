@@ -34,6 +34,18 @@
       <option value="pending" @selected(($filters['status'] ?? '') === 'pending')>Pending</option>
       <option value="paused" @selected(($filters['status'] ?? '') === 'paused')>Paused</option>
     </select>
+    <select class="admin-select" name="plan">
+      <option value="">All plans</option>
+      <option value="standard" @selected(($filters['plan'] ?? '') === 'standard')>Standard</option>
+      <option value="plus" @selected(($filters['plan'] ?? '') === 'plus')>Plus</option>
+    </select>
+    <select class="admin-select" name="approval">
+      <option value="">All trust</option>
+      <option value="flagged" @selected(($filters['approval'] ?? '') === 'flagged')>Ready for review</option>
+      <option value="approved" @selected(($filters['approval'] ?? '') === 'approved')>Approved</option>
+      <option value="rejected" @selected(($filters['approval'] ?? '') === 'rejected')>Rejected</option>
+      <option value="none" @selected(($filters['approval'] ?? '') === 'none')>No badge yet</option>
+    </select>
     <select class="admin-select" name="location_id">
       <option value="">All locations</option>
       @foreach ($locations as $location)
@@ -42,7 +54,12 @@
       <option value="none" @selected(($filters['location_id'] ?? '') === 'none')>No location</option>
     </select>
   </form>
-  <span class="text-[12px] text-zinc-500">{{ $coaches->total() }} coaches</span>
+  <div class="flex items-center gap-3">
+    @if (($flaggedCount ?? 0) > 0)
+      <a href="{{ route('admin.coaches', ['approval' => 'flagged']) }}" class="text-[12px] font-medium text-amber-700 hover:underline">{{ $flaggedCount }} ready for review</a>
+    @endif
+    <span class="text-[12px] text-zinc-500">{{ $coaches->total() }} coaches</span>
+  </div>
 </div>
 
 <div class="admin-card">
@@ -53,9 +70,10 @@
           <th>Coach</th>
           <th>Location</th>
           <th>Specialty</th>
+          <th>Plan</th>
+          <th>Trust</th>
           <th>Rate</th>
           <th>Rating</th>
-          <th>Submitted</th>
           <th>Status</th>
           <th>Actions</th>
         </tr>
@@ -82,16 +100,25 @@
             </td>
             <td>{{ $locationName !== '' ? $locationName : '—' }}</td>
             <td>{{ $coach->specialty ?? '—' }}</td>
-            <td>{{ $coach->rate !== null ? '$'.number_format((float) $coach->rate, 0) : '—' }}</td>
-            <td>{{ $coach->rating ? number_format((float) $coach->rating, 1) : '—' }}</td>
-            <td class="whitespace-nowrap">
-              @if ($coach->created_at)
-                <strong class="block text-[12px] text-[#191615] font-medium">{{ $coach->created_at->format('M j, Y') }}</strong>
-                <span class="block text-[11px] text-zinc-500">{{ $coach->created_at->format('g:i A') }}</span>
+            <td>
+              <span class="admin-badge {{ ($coach->plan ?? 'standard') === 'plus' ? 'admin-badge-green' : 'admin-badge-zinc' }}">{{ ($coach->plan ?? 'standard') === 'plus' ? 'Plus' : 'Standard' }}</span>
+            </td>
+            <td>
+              @if ($coach->isCoachNowApproved())
+                <span class="admin-badge admin-badge-green">Approved</span>
+              @elseif (($coach->approval_status ?? 'none') === 'flagged')
+                <span class="admin-badge admin-badge-amber">Review</span>
+              @elseif (($coach->approval_status ?? 'none') === 'rejected')
+                <span class="admin-badge admin-badge-zinc">Rejected</span>
               @else
-                —
+                <span class="text-[11px] text-zinc-400">—</span>
+              @endif
+              @if ($coach->isCoachNowVerified())
+                <span class="block text-[10px] text-emerald-700 mt-1">Verified</span>
               @endif
             </td>
+            <td>{{ $coach->rate !== null ? '$'.number_format((float) $coach->rate, 0) : '—' }}</td>
+            <td>{{ $coach->rating ? number_format((float) $coach->rating, 1) : '—' }}</td>
             <td><span class="admin-badge {{ $statusClass }}">{{ ucfirst($coach->status) }}</span>
               @if ($coach->status !== 'active')
                 <span class="block text-[10px] text-zinc-400 mt-1">Hidden on Find a Coach</span>
@@ -115,6 +142,20 @@
                 </form>
               @else
                 <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-admin-modal-open="editCoachModal-{{ $coach->id }}">Edit</button>
+                @if (($coach->approval_status ?? 'none') === 'flagged')
+                  <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}" class="inline">
+                    @csrf
+                    @method('PATCH')
+                    <input type="hidden" name="action" value="approve">
+                    <button type="submit" class="admin-btn admin-btn-primary admin-btn-sm" data-loading-text="Approving…">Badge</button>
+                  </form>
+                  <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}" class="inline">
+                    @csrf
+                    @method('PATCH')
+                    <input type="hidden" name="action" value="reject">
+                    <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm" data-loading-text="Rejecting…">Reject</button>
+                  </form>
+                @endif
                 @if ($coach->status === 'active')
                   <form method="POST" action="{{ route('admin.coaches.status', $coach) }}" class="inline" data-pause-form data-no-busy @if(($coach->upcoming_commitments_count ?? $coach->upcoming_bookings_count ?? 0) > 0) data-upcoming="{{ $coach->upcoming_commitments_count ?? $coach->upcoming_bookings_count }}" @endif>
                     @csrf
@@ -136,7 +177,7 @@
           </tr>
         @empty
           <tr>
-            <td colspan="8" class="text-center text-zinc-500 py-8">No coaches match these filters.</td>
+            <td colspan="9" class="text-center text-zinc-500 py-8">No coaches match these filters.</td>
           </tr>
         @endforelse
       </tbody>
@@ -207,6 +248,34 @@
               <option value="paused" @selected(old('status', $coach->status) === 'paused')>Paused</option>
             </select>
           </label>
+          <label class="admin-field">
+            <span>Plan</span>
+            <select class="admin-select" name="plan" required>
+              <option value="standard" @selected(old('plan', $coach->plan ?? 'standard') === 'standard')>Standard</option>
+              <option value="plus" @selected(old('plan', $coach->plan ?? 'standard') === 'plus')>Plus (open marketplace)</option>
+            </select>
+          </label>
+          <label class="admin-field">
+            <span>CoachNow Approved</span>
+            <select class="admin-select" name="approval_status" required>
+              <option value="none" @selected(old('approval_status', $coach->approval_status ?? 'none') === 'none')>None</option>
+              <option value="flagged" @selected(old('approval_status', $coach->approval_status ?? 'none') === 'flagged')>Flagged for review</option>
+              <option value="approved" @selected(old('approval_status', $coach->approval_status ?? 'none') === 'approved')>Approved</option>
+              <option value="rejected" @selected(old('approval_status', $coach->approval_status ?? 'none') === 'rejected')>Rejected</option>
+            </select>
+          </label>
+          <label class="admin-field">
+            <span>Background check</span>
+            <select class="admin-select" name="background_check_status" required>
+              <option value="none" @selected(old('background_check_status', $coach->background_check_status ?? 'none') === 'none')>None</option>
+              <option value="pending" @selected(old('background_check_status', $coach->background_check_status ?? 'none') === 'pending')>Pending</option>
+              <option value="clear" @selected(old('background_check_status', $coach->background_check_status ?? 'none') === 'clear')>Clear</option>
+            </select>
+          </label>
+          <label class="admin-field admin-field--full" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" name="verified" value="1" @checked(old('verified', (bool) $coach->verified_at))>
+            <span>CoachNow Verified badge</span>
+          </label>
           <label class="admin-field admin-field--full">
             <span>Experience</span>
             <select class="admin-select" name="experience">
@@ -221,11 +290,40 @@
             <textarea class="admin-input admin-textarea" name="bio" rows="3" maxlength="2000">{{ old('bio', $coach->bio) }}</textarea>
           </label>
         </div>
-        <div class="admin-modal__footer">
+        <div class="admin-modal__footer" style="flex-wrap:wrap;gap:8px">
           <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-close>Cancel</button>
           <button type="submit" class="admin-btn admin-btn-primary" data-loading-text="Saving…">Save changes</button>
         </div>
       </form>
+      <div class="admin-modal__body" style="padding-top:0;border-top:1px solid #e5e5e5">
+        <p class="text-[12px] text-zinc-500 mb-2">Quick trust actions</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}">
+            @csrf
+            @method('PATCH')
+            <input type="hidden" name="action" value="approve">
+            <button type="submit" class="admin-btn admin-btn-primary admin-btn-sm">Grant Approved</button>
+          </form>
+          <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}">
+            @csrf
+            @method('PATCH')
+            <input type="hidden" name="action" value="verify">
+            <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm">Grant Verified</button>
+          </form>
+          <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}">
+            @csrf
+            @method('PATCH')
+            <input type="hidden" name="action" value="plus">
+            <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm">Upgrade to Plus</button>
+          </form>
+          <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}">
+            @csrf
+            @method('PATCH')
+            <input type="hidden" name="action" value="standard">
+            <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm">Set Standard</button>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 @endforeach
