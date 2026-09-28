@@ -1003,3 +1003,244 @@ button.sched-calendar-slot:focus-visible::after {
     display: none;
   }
 }
+
+/* —— Mobile-friendly coach schedule —— */
+.sched-top-btn__short {
+  display: none;
+}
+
+.sched-mobile-hint {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sched-page {
+    gap: 12px;
+  }
+
+  .sched-top-btn__full {
+    display: none;
+  }
+
+  .sched-top-btn__short {
+    display: inline;
+  }
+
+  .sched-top-btn.admin-btn-ghost {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .sched-top-btn__badge {
+    margin-left: 4px;
+  }
+
+  .sched-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .sched-stat {
+    padding: 10px 8px;
+  }
+
+  .sched-stat-value {
+    font-size: 18px;
+  }
+
+  .sched-stat-label,
+  .sched-stat-note {
+    font-size: 10px;
+  }
+
+  .sched-mobile-hint {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: #f4f4f5;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #52525b;
+  }
+
+  .sched-mobile-hint a {
+    color: #da020c;
+    font-weight: 700;
+  }
+
+  .sched-card-header {
+    padding: 10px;
+  }
+
+  .sched-toolbar-left {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .sched-date-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .sched-date-picker {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+    font-size: 12px;
+    padding: 0 8px;
+  }
+
+  .sched-session-count {
+    display: none;
+  }
+
+  .sched-workspace .sched-calendar-scroll {
+    max-height: min(62vh, 560px);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Week: swipe sideways with fat columns */
+  .sched-page .sched-calendar:not(.sched-calendar--day) {
+    min-width: 820px;
+  }
+
+  .sched-page .sched-workspace .sched-calendar:not(.sched-calendar--day) .sched-calendar-days,
+  .sched-page .sched-workspace .sched-calendar:not(.sched-calendar--day) .sched-calendar-grid {
+    grid-template-columns: repeat(7, minmax(104px, 1fr)) !important;
+  }
+
+  .sched-page .sched-workspace .sched-calendar-times {
+    grid-template-rows: repeat(17, 112px);
+  }
+
+  .sched-page .sched-workspace .sched-calendar-column {
+    grid-template-rows: repeat(34, 56px);
+  }
+
+  .sched-page .sched-calendar--day {
+    min-width: 0;
+  }
+
+  .sched-page .sched-calendar--day .sched-calendar-days,
+  .sched-page .sched-calendar--day .sched-calendar-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .sched-page .sched-calendar--day .sched-calendar-times,
+  .sched-page .sched-workspace .sched-calendar--day .sched-calendar-times {
+    grid-template-rows: repeat(17, 120px);
+  }
+
+  .sched-page .sched-calendar--day .sched-calendar-column,
+  .sched-page .sched-workspace .sched-calendar--day .sched-calendar-column {
+    grid-template-rows: repeat(34, 60px);
+  }
+
+  .sched-calendar-scroll--day {
+    max-height: min(68vh, 640px);
+  }
+
+  .sched-calendar-time {
+    font-size: 10px;
+    padding-right: 4px;
+  }
+
+  .sched-calendar-legend {
+    gap: 6px 10px;
+    font-size: 10px;
+    padding: 8px 10px;
+  }
+
+  .sched-workspace .sched-agenda {
+    max-height: none;
+  }
+
+  .sched-agenda-header {
+    padding: 12px 14px 8px;
+  }
+
+  /* Hover chips don’t work well on phones — use press state */
+  button.sched-calendar-slot {
+    touch-action: manipulation;
+  }
+
+  button.sched-calendar-slot:hover::after {
+    display: none;
+  }
+
+  button.sched-calendar-slot.is-pressing,
+  button.sched-calendar-slot:active {
+    background: #fee2e2;
+    outline: 2px solid #da020c;
+    outline-offset: -2px;
+    z-index: 3;
+  }
+
+  button.sched-calendar-slot.is-pressing::after,
+  button.sched-calendar-slot:active::after {
+    display: block;
+    content: attr(data-time-label);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 4;
+    padding: 5px 9px;
+    border-radius: 8px;
+    background: #191615;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .sched-month-cell {
+    min-height: 64px;
+    padding: 6px;
+  }
+
+  .sched-month-dow {
+    font-size: 10px;
+  }
+
+  .sched-action-sheet {
+    max-width: none;
+    width: calc(100vw - 1.25rem);
+    margin: 0 auto;
+  }
+
+  .sched-action-btn {
+    padding: 16px;
+    min-height: 56px;
+  }
+
+  .avail-days__chips {
+    gap: 8px;
+  }
+
+  .avail-day-chip span {
+    min-width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sched-stats {
+    gap: 6px;
+  }
+
+  .sched-stat-note {
+    display: none;
+  }
+
+  .sched-page .sched-calendar:not(.sched-calendar--day) {
+    min-width: 780px;
+  }
+}

@@ -10,14 +10,15 @@
 
 @section('topbar_actions')
   @php $availabilityCount = collect($availability ?? [])->count(); @endphp
-  <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-open="bookPlayerModal">
+  <button type="button" class="admin-btn admin-btn-ghost sched-top-btn" data-admin-modal-open="bookPlayerModal" aria-label="Book player">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-    Book player
+    <span class="sched-top-btn__full">Book player</span>
   </button>
-  <button type="button" class="admin-btn admin-btn-primary" data-admin-modal-open="availabilityModal">
-    Working hours
+  <button type="button" class="admin-btn admin-btn-primary sched-top-btn" data-admin-modal-open="availabilityModal" aria-label="Working hours">
+    <span class="sched-top-btn__full">Working hours</span>
+    <span class="sched-top-btn__short">Hours</span>
     @if ($availabilityCount > 0)
-      <span class="admin-badge admin-badge-zinc" style="margin-left:6px">{{ $availabilityCount }}</span>
+      <span class="admin-badge admin-badge-zinc sched-top-btn__badge">{{ $availabilityCount }}</span>
     @endif
   </button>
 @endsection
@@ -152,6 +153,9 @@
               <a href="{{ route('coach.schedule', $navQuery('week')) }}" class="sched-view-btn {{ $viewMode === 'week' ? 'is-active' : '' }}">Week</a>
               <a href="{{ route('coach.schedule', $navQuery('month')) }}" class="sched-view-btn {{ $viewMode === 'month' ? 'is-active' : '' }}">Month</a>
             </nav>
+            @if ($viewMode === 'week')
+              <p class="sched-mobile-hint">On phones, swipe the grid sideways — or use <a href="{{ route('coach.schedule', $navQuery('day')) }}">Day</a> to tap slots easily.</p>
+            @endif
             @if ($viewMode !== 'month')
               <span class="sched-session-count">{{ count($bookingsOnly ?? []) }} session{{ count($bookingsOnly ?? []) === 1 ? '' : 's' }}</span>
             @endif
@@ -917,6 +921,20 @@
 <script src="{{ asset('assets/js/admin.js') }}?v={{ @filemtime(public_path('assets/js/admin.js')) ?: time() }}"></script>
 <script>
   (function () {
+    // Phones: default to Day view (easier tapping). Keep Week/Month if the user chose them.
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const narrow = window.matchMedia('(max-width: 768px)').matches;
+      if (narrow && !params.has('view')) {
+        params.set('view', 'day');
+        if (!params.has('date') && !params.has('week')) {
+          params.set('date', '{{ $focusDate ?? now()->toDateString() }}');
+        }
+        window.location.replace(window.location.pathname + '?' + params.toString());
+        return;
+      }
+    } catch (e) { /* ignore */ }
+
     const scroller = document.querySelector('.sched-calendar-scroll[data-scroll-to-row]');
     if (scroller) {
       const row = parseInt(scroller.dataset.scrollToRow || '', 10);
@@ -926,6 +944,18 @@
         requestAnimationFrame(() => { scroller.scrollTop = top; });
       }
     }
+
+    // Touch: show time chip while pressing a slot
+    document.querySelectorAll('[data-slot-click]').forEach((btn) => {
+      btn.addEventListener('touchstart', () => {
+        document.querySelectorAll('[data-slot-click].is-pressing').forEach((el) => el.classList.remove('is-pressing'));
+        btn.classList.add('is-pressing');
+      }, { passive: true });
+      btn.addEventListener('touchend', () => {
+        setTimeout(() => btn.classList.remove('is-pressing'), 180);
+      }, { passive: true });
+      btn.addEventListener('touchcancel', () => btn.classList.remove('is-pressing'), { passive: true });
+    });
 
     const openModal = (id) => {
       const el = document.getElementById(id);
