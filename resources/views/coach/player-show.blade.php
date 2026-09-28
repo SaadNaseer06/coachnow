@@ -9,9 +9,18 @@
 @endsection
 
 @section('topbar_actions')
-  <a href="{{ route('coach.player-overview') }}" class="admin-btn admin-btn-ghost">← Back</a>
-  <a href="{{ route('coach.add-report', ['player' => $player['slug']]) }}" class="admin-btn admin-btn-primary">+ Add Report</a>
-  <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-open="shareVideoModal">Share Video</button>
+  <a href="{{ route('coach.player-overview') }}" class="admin-btn admin-btn-ghost coach-top-action" aria-label="Back to players">
+    <span class="coach-top-action__full">← Back</span>
+    <span class="coach-top-action__short">←</span>
+  </a>
+  <a href="{{ route('coach.add-report', ['player' => $player['slug']]) }}" class="admin-btn admin-btn-primary coach-top-action">
+    <span class="coach-top-action__full">+ Add Report</span>
+    <span class="coach-top-action__short">+ Report</span>
+  </a>
+  <button type="button" class="admin-btn admin-btn-ghost coach-top-action" data-admin-modal-open="shareVideoModal">
+    <span class="coach-top-action__full">Share Video</span>
+    <span class="coach-top-action__short">Video</span>
+  </button>
 @endsection
 
 @push('styles')

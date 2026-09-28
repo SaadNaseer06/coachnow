@@ -5,7 +5,10 @@
 @section('page_subtitle', 'Your players, sessions, and reports at a glance')
 
 @section('topbar_actions')
-  <a href="{{ route('coach.add-report') }}" class="admin-btn admin-btn-primary">+ Add Report</a>
+  <a href="{{ route('coach.add-report') }}" class="admin-btn admin-btn-primary coach-top-action">
+    <span class="coach-top-action__full">+ Add Report</span>
+    <span class="coach-top-action__short">+ Report</span>
+  </a>
 @endsection
 
 @section('content')
@@ -101,7 +104,7 @@
         <tbody>
           @foreach ($players as $player)
             <tr>
-              <td>
+              <td data-label="Player">
                 <a href="{{ route('coach.players.show', $player['slug']) }}" class="admin-person coach-player-link">
                   <div class="admin-person-fallback">{{ $player['initials'] }}</div>
                   <div>
@@ -110,9 +113,9 @@
                   </div>
                 </a>
               </td>
-              <td>{{ $player['focus'] }}</td>
-              <td>{{ $player['next'] }}</td>
-              <td>
+              <td data-label="Focus">{{ $player['focus'] }}</td>
+              <td data-label="Next Session">{{ $player['next'] }}</td>
+              <td data-label="Status">
                 @if ($player['reportDue'])
                   <span class="admin-badge admin-badge-amber">Report due</span>
                 @else

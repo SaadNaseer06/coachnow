@@ -7,10 +7,13 @@
 @section('topbar_actions')
   <a
     href="{{ $coach->id ? route('coach-profile', $coach) : route('find-a-coach') }}"
-    class="admin-btn admin-btn-ghost"
+    class="admin-btn admin-btn-ghost coach-top-action"
     target="_blank"
     rel="noopener"
-  >Preview listing</a>
+  >
+    <span class="coach-top-action__full">Preview listing</span>
+    <span class="coach-top-action__short">Preview</span>
+  </a>
 @endsection
 
 @section('content')

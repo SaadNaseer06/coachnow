@@ -5,7 +5,10 @@
 @section('page_subtitle', 'Browse your roster and open a player profile for development details')
 
 @section('topbar_actions')
-  <a href="{{ route('coach.add-report') }}" class="admin-btn admin-btn-primary">+ Add Report</a>
+  <a href="{{ route('coach.add-report') }}" class="admin-btn admin-btn-primary coach-top-action">
+    <span class="coach-top-action__full">+ Add Report</span>
+    <span class="coach-top-action__short">+ Report</span>
+  </a>
 @endsection
 
 @section('content')
@@ -61,7 +64,7 @@
       <tbody>
         @forelse ($players as $player)
           <tr>
-            <td>
+            <td data-label="Player">
               <a href="{{ route('coach.players.show', $player['slug']) }}" class="admin-person coach-player-link">
                 <div class="admin-person-fallback">{{ $player['initials'] }}</div>
                 <div>
@@ -70,23 +73,23 @@
                 </div>
               </a>
             </td>
-            <td>{{ $player['focus'] }}</td>
-            <td>{{ $player['sessions'] }}</td>
-            <td>{{ $player['next'] }}</td>
-            <td>
+            <td data-label="Focus">{{ $player['focus'] }}</td>
+            <td data-label="Sessions">{{ $player['sessions'] }}</td>
+            <td data-label="Next Session">{{ $player['next'] }}</td>
+            <td data-label="Status">
               @if ($player['reportDue'])
                 <span class="admin-badge admin-badge-amber">Report due</span>
               @else
                 <span class="admin-badge admin-badge-green">On track</span>
               @endif
             </td>
-            <td class="admin-table-actions">
+            <td class="admin-table-actions" data-label="">
               <a href="{{ route('coach.players.show', $player['slug']) }}" class="admin-btn admin-btn-ghost admin-btn-sm">View profile</a>
             </td>
           </tr>
         @empty
           <tr>
-            <td colspan="6" class="text-center text-zinc-500 py-8">No players match these filters.</td>
+            <td colspan="6" class="text-center text-zinc-500 py-8" data-label="">No players match these filters.</td>
           </tr>
         @endforelse
       </tbody>

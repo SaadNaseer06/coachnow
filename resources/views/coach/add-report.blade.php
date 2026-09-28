@@ -6,11 +6,20 @@
 
 @section('topbar_actions')
   @if (! empty($player['slug']))
-    <a href="{{ route('coach.players.show', $player['slug']) }}" class="admin-btn admin-btn-ghost">&larr; Back to player</a>
+    <a href="{{ route('coach.players.show', $player['slug']) }}" class="admin-btn admin-btn-ghost coach-top-action" aria-label="Back to player">
+      <span class="coach-top-action__full">&larr; Back to player</span>
+      <span class="coach-top-action__short">&larr;</span>
+    </a>
   @else
-    <a href="{{ route('coach.player-overview') }}" class="admin-btn admin-btn-ghost">&larr; Back to players</a>
+    <a href="{{ route('coach.player-overview') }}" class="admin-btn admin-btn-ghost coach-top-action" aria-label="Back to players">
+      <span class="coach-top-action__full">&larr; Back to players</span>
+      <span class="coach-top-action__short">&larr;</span>
+    </a>
   @endif
-  <button type="submit" form="sessionReportForm" class="admin-btn admin-btn-primary" data-share="0" data-loading-text="Saving…">Save Report</button>
+  <button type="submit" form="sessionReportForm" class="admin-btn admin-btn-primary coach-top-action" data-share="0" data-loading-text="Saving…">
+    <span class="coach-top-action__full">Save Report</span>
+    <span class="coach-top-action__short">Save</span>
+  </button>
 @endsection
 
 @section('content')

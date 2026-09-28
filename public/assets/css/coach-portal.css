@@ -1963,3 +1963,340 @@ body.coach-req-modal-open {
     width: auto;
   }
 }
+
+/* =========================================================
+   Coach portal — mobile UX (all screens)
+   ========================================================= */
+
+.coach-top-action__short {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .coach-top-action__full {
+    display: none;
+  }
+
+  .coach-top-action__short {
+    display: inline;
+  }
+
+  .admin-body .admin-topbar {
+    padding: 10px 12px;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .admin-body .admin-page-title {
+    min-width: 0;
+  }
+
+  .admin-body .admin-page-title h1 {
+    font-size: 16px;
+    line-height: 1.25;
+    max-width: min(52vw, 220px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-body .admin-page-title p {
+    font-size: 11px;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .admin-body .admin-topbar-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    max-width: 58%;
+  }
+
+  .admin-body .admin-topbar-actions .admin-btn {
+    height: 36px;
+    padding: 0 10px;
+    font-size: 12px;
+    gap: 4px;
+  }
+
+  .admin-body .admin-content {
+    padding: 14px 12px 28px;
+  }
+
+  .admin-body .admin-kpi-grid,
+  .admin-body .admin-kpi-grid--3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .admin-body .admin-kpi {
+    padding: 12px 10px;
+  }
+
+  .admin-body .admin-kpi-value {
+    font-size: 22px;
+  }
+
+  .admin-body .admin-kpi-label,
+  .admin-body .admin-kpi-trend {
+    font-size: 11px;
+  }
+
+  .admin-body .admin-card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .admin-body .admin-card-header h2 {
+    font-size: 16px;
+  }
+
+  .admin-body .admin-card-body {
+    padding: 12px 14px 16px;
+  }
+
+  .admin-body .admin-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .admin-body .admin-filters {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .admin-body .admin-filters .admin-input,
+  .admin-body .admin-filters .admin-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Tables → stacked cards */
+  .admin-body .admin-table-wrap {
+    overflow: visible;
+    margin: 0;
+  }
+
+  .admin-body .admin-table {
+    width: 100%;
+    border: 0;
+  }
+
+  .admin-body .admin-table thead {
+    display: none;
+  }
+
+  .admin-body .admin-table tbody {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .admin-body .admin-table tr {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid #e4e4e7;
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .admin-body .admin-table td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    border: 0 !important;
+    padding: 0 !important;
+    font-size: 13px;
+  }
+
+  .admin-body .admin-table td[data-label]:not([data-label=""])::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    min-width: 88px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #71717a;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding-top: 2px;
+  }
+
+  .admin-body .admin-table td[data-label=""] {
+    justify-content: stretch;
+  }
+
+  .admin-body .admin-table td[data-label=""] .admin-btn {
+    width: 100%;
+  }
+
+  .admin-body .admin-table td[colspan] {
+    display: block;
+    text-align: center;
+    padding: 18px 8px !important;
+  }
+
+  .admin-body .admin-person {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .admin-body .admin-list-item {
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .admin-body .admin-alert {
+    padding: 12px;
+  }
+
+  .admin-body .admin-modal__panel {
+    width: calc(100vw - 1rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+    max-height: min(92vh, 100%);
+    margin: 0.5rem;
+    border-radius: 16px;
+  }
+
+  .admin-body .admin-modal__header,
+  .admin-body .admin-modal__body {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .admin-body .admin-modal__footer {
+    flex-wrap: wrap;
+  }
+
+  .admin-body .admin-modal__footer .admin-btn {
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
+
+  /* Session requests drawer → almost full screen */
+  .coach-req-modal__panel {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .coach-req-modal__header,
+  .coach-req-modal__body,
+  .coach-req-modal__footer {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .coach-req-card__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .coach-req-card__actions .admin-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .coach-strip {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .coach-tabs {
+    gap: 0;
+    margin: 0 -12px;
+    padding: 0 12px;
+  }
+
+  .coach-tab {
+    flex: 0 0 auto;
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .coach-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .coach-form-actions .admin-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .coach-ai__form {
+    flex-direction: column;
+  }
+
+  .coach-ai__submit {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .coach-media {
+    grid-template-columns: 1fr;
+  }
+
+  .coach-media__actions {
+    justify-content: flex-start;
+  }
+
+  .coach-profile-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    margin: 0 -12px -12px;
+    padding: 12px;
+    background: rgba(244, 244, 245, 0.96);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid #e4e4e7;
+  }
+
+  .coach-profile-actions .admin-btn {
+    min-height: 44px;
+  }
+
+  .coach-sub-note {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
+  }
+
+  .coach-sub-note .admin-btn {
+    width: 100%;
+  }
+
+  /* Schedule top buttons already shortened — keep tap size */
+  .sched-top-btn {
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-body .admin-kpi-grid,
+  .admin-body .admin-kpi-grid--3 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-body .admin-kpi-grid > .admin-kpi:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .admin-body .admin-page-title p {
+    display: none;
+  }
+
+  .admin-body .admin-topbar-actions {
+    max-width: 62%;
+  }
+}

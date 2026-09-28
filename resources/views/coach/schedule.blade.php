@@ -10,13 +10,13 @@
 
 @section('topbar_actions')
   @php $availabilityCount = collect($availability ?? [])->count(); @endphp
-  <button type="button" class="admin-btn admin-btn-ghost sched-top-btn" data-admin-modal-open="bookPlayerModal" aria-label="Book player">
+  <button type="button" class="admin-btn admin-btn-ghost sched-top-btn coach-top-action" data-admin-modal-open="bookPlayerModal" aria-label="Book player">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-    <span class="sched-top-btn__full">Book player</span>
+    <span class="sched-top-btn__full coach-top-action__full">Book player</span>
   </button>
-  <button type="button" class="admin-btn admin-btn-primary sched-top-btn" data-admin-modal-open="availabilityModal" aria-label="Working hours">
-    <span class="sched-top-btn__full">Working hours</span>
-    <span class="sched-top-btn__short">Hours</span>
+  <button type="button" class="admin-btn admin-btn-primary sched-top-btn coach-top-action" data-admin-modal-open="availabilityModal" aria-label="Working hours">
+    <span class="sched-top-btn__full coach-top-action__full">Working hours</span>
+    <span class="sched-top-btn__short coach-top-action__short">Hours</span>
     @if ($availabilityCount > 0)
       <span class="admin-badge admin-badge-zinc sched-top-btn__badge">{{ $availabilityCount }}</span>
     @endif
