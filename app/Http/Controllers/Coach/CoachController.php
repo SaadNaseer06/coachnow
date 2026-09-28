@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Coach;
 use App\Models\CoachAvailabilitySlot;
+use App\Models\CoachTimeBlock;
 use App\Models\Location;
 use App\Models\SessionRequest;
 use App\Models\SharedVideo;
@@ -38,23 +39,56 @@ class CoachController extends Controller
         $coach = $this->currentCoach();
         app(SessionBookingService::class)->syncMissingForCoach($coach);
 
-        $weekStart = $this->resolveWeekStart($request->query('week'));
-        $weekExplicit = $request->filled('week');
+        $viewMode = in_array($request->query('view'), ['day', 'week', 'month'], true)
+            ? $request->query('view')
+            : 'week';
 
-        if (! $weekExplicit) {
+        $focusDate = $this->resolveFocusDate($request->query('date') ?? $request->query('week'));
+        $weekStart = $focusDate->copy()->startOfWeek(Carbon::MONDAY);
+        $monthStart = $focusDate->copy()->startOfMonth();
+
+        if ($viewMode === 'week' && ! $request->filled('date') && ! $request->filled('week')) {
             $weekStart = $this->preferWeekWithSessions($coach, $weekStart);
+            $focusDate = $weekStart->copy();
         }
+
+        $rangeStart = match ($viewMode) {
+            'day' => $focusDate->copy()->startOfDay(),
+            'month' => $monthStart->copy()->startOfWeek(Carbon::MONDAY),
+            default => $weekStart->copy(),
+        };
+        $rangeEnd = match ($viewMode) {
+            'day' => $focusDate->copy()->endOfDay(),
+            'month' => $monthStart->copy()->endOfMonth()->endOfWeek(Carbon::SUNDAY),
+            default => $weekStart->copy()->addDays(6)->endOfDay(),
+        };
 
         $bookings = Booking::query()
             ->forCoach($coach->id)
-            ->inWeek($weekStart)
             ->confirmed()
+            ->whereDate('session_date', '>=', $rangeStart->toDateString())
+            ->whereDate('session_date', '<=', $rangeEnd->toDateString())
             ->with(['athlete', 'location'])
             ->orderBy('session_date')
             ->orderBy('session_time')
             ->get();
 
-        $sessions = $this->mapBookingsToCalendar($bookings, $weekStart);
+        $timeBlocks = CoachTimeBlock::query()
+            ->where('coach_id', $coach->id)
+            ->whereDate('block_date', '>=', $rangeStart->toDateString())
+            ->whereDate('block_date', '<=', $rangeEnd->toDateString())
+            ->orderBy('block_date')
+            ->orderBy('start_time')
+            ->get();
+
+        $gridOrigin = $viewMode === 'day'
+            ? $focusDate->copy()->startOfDay()
+            : $weekStart->copy();
+
+        $sessions = $this->mapBookingsToCalendar($bookings, $gridOrigin);
+        $personalEvents = $this->mapTimeBlocksToCalendar($timeBlocks, $gridOrigin);
+        $calendarEvents = collect($sessions)->merge($personalEvents)->values()->all();
+
         $uniquePlayers = $bookings->map(fn (Booking $b) => $b->athlete_id ?: Str::lower($b->displayName()))->unique()->count();
         $hours = round($bookings->sum(fn (Booking $b) => ($b->duration_minutes ?? 60) / 60), 1);
 
@@ -75,20 +109,57 @@ class CoachController extends Controller
             ->orderBy('start_time')
             ->get();
 
+        $workingHoursByDow = $availability
+            ->groupBy(fn ($slot) => (int) $slot->day_of_week)
+            ->map(fn ($group) => $group->map(fn ($slot) => [
+                'start' => Carbon::parse($slot->start_time)->format('H:i'),
+                'end' => Carbon::parse($slot->end_time)->format('H:i'),
+                'location_id' => (int) $slot->location_id,
+            ])->values()->all())
+            ->all();
+
         $roster = $this->rosterFromBookings($coach)->values();
 
+        $monthCells = $viewMode === 'month'
+            ? $this->monthCells($monthStart, $bookings, $timeBlocks)
+            : [];
+
         return view('coach.schedule', [
+            'viewMode' => $viewMode,
+            'focusDate' => $focusDate->toDateString(),
+            'focusLabel' => match ($viewMode) {
+                'day' => $focusDate->format('l, M j, Y'),
+                'month' => $monthStart->format('F Y'),
+                default => $weekStart->format('M j').' – '.$weekStart->copy()->addDays(6)->format('M j, Y'),
+            },
             'weekLabel' => $weekStart->format('M j').' – '.$weekStart->copy()->addDays(6)->format('M j, Y'),
             'weekStart' => $weekStart->toDateString(),
-            'prevWeek' => $weekStart->copy()->subWeek()->toDateString(),
-            'nextWeek' => $weekStart->copy()->addWeek()->toDateString(),
+            'prevLink' => match ($viewMode) {
+                'day' => route('coach.schedule', ['view' => 'day', 'date' => $focusDate->copy()->subDay()->toDateString()]),
+                'month' => route('coach.schedule', ['view' => 'month', 'date' => $monthStart->copy()->subMonth()->startOfMonth()->toDateString()]),
+                default => route('coach.schedule', ['view' => 'week', 'week' => $weekStart->copy()->subWeek()->toDateString()]),
+            },
+            'nextLink' => match ($viewMode) {
+                'day' => route('coach.schedule', ['view' => 'day', 'date' => $focusDate->copy()->addDay()->toDateString()]),
+                'month' => route('coach.schedule', ['view' => 'month', 'date' => $monthStart->copy()->addMonth()->startOfMonth()->toDateString()]),
+                default => route('coach.schedule', ['view' => 'week', 'week' => $weekStart->copy()->addWeek()->toDateString()]),
+            },
+            'todayLink' => route('coach.schedule', ['view' => $viewMode, 'date' => now()->toDateString()]),
             'hours' => range(self::CAL_START_HOUR, self::CAL_END_HOUR - 1),
-            'days' => $this->calendarDays($weekStart),
-            'sessions' => $sessions,
+            'days' => $viewMode === 'day'
+                ? $this->calendarDays($focusDate->copy()->startOfDay(), 1)
+                : $this->calendarDays($weekStart, 7),
+            'sessions' => $calendarEvents,
+            'bookingsOnly' => $sessions,
             'upcomingTotal' => $upcomingTotal,
             'locations' => $locations,
             'availability' => $availability,
+            'workingHoursByDow' => $workingHoursByDow,
+            'workingHoursJson' => $workingHoursByDow,
             'roster' => $roster,
+            'monthCells' => $monthCells,
+            'monthStart' => $monthStart->toDateString(),
+            'calStartHour' => self::CAL_START_HOUR,
             'sessionTypes' => [
                 'Private 1-on-1',
                 'Small Group',
@@ -97,11 +168,60 @@ class CoachController extends Controller
                 'Team Training',
             ],
             'summary' => [
-                ['label' => 'Sessions', 'value' => (string) $bookings->count(), 'note' => 'Booked this week'],
-                ['label' => 'Players', 'value' => (string) $uniquePlayers, 'note' => 'Across all sessions'],
+                ['label' => 'Sessions', 'value' => (string) $bookings->count(), 'note' => $viewMode === 'month' ? 'This month' : ($viewMode === 'day' ? 'This day' : 'Booked this week')],
+                ['label' => 'Players', 'value' => (string) $uniquePlayers, 'note' => 'Across sessions'],
                 ['label' => 'Hours', 'value' => (string) $hours, 'note' => 'On the field'],
             ],
         ]);
+    }
+
+    public function storeTimeBlock(Request $request): RedirectResponse
+    {
+        $coach = $this->currentCoach();
+
+        $data = $request->validate([
+            'title' => ['nullable', 'string', 'max:160'],
+            'block_date' => ['required', 'date'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            'view' => ['nullable', Rule::in(['day', 'week', 'month'])],
+            'week' => ['nullable', 'date'],
+            'date' => ['nullable', 'date'],
+        ]);
+
+        $coach->timeBlocks()->create([
+            'title' => trim((string) ($data['title'] ?? '')) ?: 'Personal time',
+            'block_date' => $data['block_date'],
+            'start_time' => $data['start_time'],
+            'end_time' => $data['end_time'],
+            'type' => 'personal',
+        ]);
+
+        $coach->forceFill(['last_active_at' => now()])->save();
+
+        return redirect()
+            ->route('coach.schedule', array_filter([
+                'view' => $data['view'] ?? 'week',
+                'week' => $data['week'] ?? null,
+                'date' => $data['date'] ?? $data['block_date'],
+            ]))
+            ->with('success', 'Personal time blocked on your calendar.');
+    }
+
+    public function destroyTimeBlock(Request $request, int $block): RedirectResponse
+    {
+        $coach = $this->currentCoach();
+        $row = $coach->timeBlocks()->whereKey($block)->firstOrFail();
+        $date = $row->block_date?->toDateString();
+        $row->delete();
+
+        return redirect()
+            ->route('coach.schedule', array_filter([
+                'view' => $request->input('view', $request->query('view', 'week')),
+                'week' => $request->input('week', $request->query('week')),
+                'date' => $request->input('date', $date),
+            ]))
+            ->with('success', 'Personal time removed.');
     }
 
     public function storeSession(Request $request): RedirectResponse
@@ -122,7 +242,9 @@ class CoachController extends Controller
         if (empty($data['athlete_id']) && blank($data['player_name'] ?? null)) {
             return redirect()
                 ->route('coach.schedule', array_filter([
+                    'view' => $request->input('view', 'week'),
                     'week' => $data['week'] ?? $request->query('week'),
+                    'date' => $data['session_date'] ?? $request->query('date'),
                     'book' => 1,
                 ]))
                 ->withErrors(['player_name' => 'Choose a roster player or enter a client name.'])
@@ -142,7 +264,9 @@ class CoachController extends Controller
         } catch (ValidationException $e) {
             return redirect()
                 ->route('coach.schedule', array_filter([
+                    'view' => $request->input('view', 'week'),
                     'week' => $data['week'] ?? $request->query('week'),
+                    'date' => $data['session_date'] ?? $request->query('date'),
                     'book' => 1,
                 ]))
                 ->withErrors($e->errors())
@@ -151,11 +275,14 @@ class CoachController extends Controller
 
         $coach->forceFill(['last_active_at' => now()])->save();
 
-        $week = $data['week']
-            ?? optional($booking->session_date)->copy()->startOfWeek(Carbon::MONDAY)->toDateString();
+        $bookingDate = optional($booking->session_date)->toDateString();
 
         return redirect()
-            ->route('coach.schedule', ['week' => $week])
+            ->route('coach.schedule', array_filter([
+                'view' => $request->input('view', 'week'),
+                'week' => $data['week'] ?? optional($booking->session_date)->copy()->startOfWeek(Carbon::MONDAY)->toDateString(),
+                'date' => $bookingDate,
+            ]))
             ->with('success', $booking->displayName().' was booked for '.$booking->whenLabel().'.');
     }
 
@@ -165,29 +292,42 @@ class CoachController extends Controller
 
         $data = $request->validate([
             'location_id' => ['required', 'integer', 'exists:locations,id'],
-            'day_of_week' => ['required', 'integer', 'min:0', 'max:6'],
+            'days' => ['required', 'array', 'min:1'],
+            'days.*' => ['integer', 'min:0', 'max:6', 'distinct'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'duration_minutes' => ['nullable', 'integer', 'min:30', 'max:180'],
         ]);
 
-        $coach->availabilitySlots()->create([
-            'location_id' => $data['location_id'],
-            'day_of_week' => (int) $data['day_of_week'],
-            'start_time' => $data['start_time'],
-            'end_time' => $data['end_time'],
-            'duration_minutes' => (int) ($data['duration_minutes'] ?? 60),
-            'is_active' => true,
-        ]);
+        $duration = (int) ($data['duration_minutes'] ?? 60);
+        $created = 0;
+
+        foreach (array_unique(array_map('intval', $data['days'])) as $day) {
+            $coach->availabilitySlots()->create([
+                'location_id' => $data['location_id'],
+                'day_of_week' => $day,
+                'start_time' => $data['start_time'],
+                'end_time' => $data['end_time'],
+                'duration_minutes' => $duration,
+                'is_active' => true,
+            ]);
+            $created++;
+        }
 
         $coach->forceFill(['last_active_at' => now()])->save();
+
+        $label = $created === 1
+            ? 'Working hours added for 1 day.'
+            : "Working hours added for {$created} days.";
 
         return redirect()
             ->route('coach.schedule', array_filter([
                 'week' => $request->query('week') ?: $request->input('week'),
+                'view' => $request->input('view'),
+                'date' => $request->input('date'),
                 'availability' => 1,
             ]))
-            ->with('success', 'Availability block added. Players can book those times.');
+            ->with('success', $label);
     }
 
     public function destroyAvailability(Request $request, int $slot): RedirectResponse
@@ -826,16 +966,32 @@ class CoachController extends Controller
         return Carbon::today()->startOfWeek(Carbon::MONDAY);
     }
 
-    private function calendarDays(Carbon $weekStart): array
+    private function resolveFocusDate(?string $value): Carbon
+    {
+        if ($value) {
+            try {
+                return Carbon::parse($value)->startOfDay();
+            } catch (\Throwable) {
+                // fall through
+            }
+        }
+
+        return Carbon::today()->startOfDay();
+    }
+
+    private function calendarDays(Carbon $start, int $count = 7): array
     {
         $today = Carbon::today()->toDateString();
+        $base = $start->copy()->startOfDay();
 
-        return collect(range(0, 6))->map(function (int $offset) use ($weekStart, $today) {
-            $day = $weekStart->copy()->addDays($offset);
+        return collect(range(0, max(1, $count) - 1))->map(function (int $offset) use ($base, $today) {
+            $day = $base->copy()->addDays($offset);
 
             return [
                 'name' => strtoupper($day->format('D')),
                 'num' => $day->format('j'),
+                'iso' => $day->toDateString(),
+                'dow' => (int) $day->dayOfWeek,
                 'today' => $day->toDateString() === $today,
             ];
         })->all();
@@ -863,14 +1019,17 @@ class CoachController extends Controller
             [$hours, $minutes] = array_map('intval', explode(':', $time));
             $offset = ($hours * 60 + $minutes) - (self::CAL_START_HOUR * 60);
             $start = max(1, (int) floor($offset / 30) + 1);
-            $span = max(2, (int) ceil($duration / 30)); // at least 1 hour tall for readable labels
+            $span = max(2, (int) ceil($duration / 30));
 
             $timeLabel = $booking->session_time
                 ? Carbon::parse($booking->session_time)->format('g:i A')
                 : '';
 
             return [
+                'kind' => 'booking',
+                'id' => $booking->id,
                 'day' => $dayIndex,
+                'date' => $booking->session_date?->toDateString(),
                 'start' => $time,
                 'time_label' => $timeLabel,
                 'duration' => $duration,
@@ -884,6 +1043,81 @@ class CoachController extends Controller
                 'gridEnd' => min($rows + 1, $start + $span),
             ];
         })->values()->all();
+    }
+
+    /**
+     * @param  Collection<int, CoachTimeBlock>  $blocks
+     */
+    private function mapTimeBlocksToCalendar(Collection $blocks, Carbon $weekStart): array
+    {
+        $rows = (self::CAL_END_HOUR - self::CAL_START_HOUR) * 2;
+
+        return $blocks->map(function (CoachTimeBlock $block) use ($weekStart, $rows) {
+            $sessionDay = $block->block_date?->copy()->startOfDay();
+            $weekDay = $weekStart->copy()->startOfDay();
+            $dayIndex = $sessionDay
+                ? (int) $weekDay->diffInDays($sessionDay, false)
+                : 0;
+            $dayIndex = max(0, min(31, $dayIndex));
+            $time = Carbon::parse($block->start_time)->format('G:i');
+            $duration = $block->durationMinutes();
+
+            [$hours, $minutes] = array_map('intval', explode(':', $time));
+            $offset = ($hours * 60 + $minutes) - (self::CAL_START_HOUR * 60);
+            $start = max(1, (int) floor($offset / 30) + 1);
+            $span = max(1, (int) ceil($duration / 30));
+
+            return [
+                'kind' => 'personal',
+                'id' => $block->id,
+                'day' => $dayIndex,
+                'date' => $block->block_date?->toDateString(),
+                'start' => $time,
+                'time_label' => $block->startTimeLabel().' – '.$block->endTimeLabel(),
+                'duration' => $duration,
+                'title' => $block->title ?: 'Personal time',
+                'type' => 'Personal',
+                'players' => 0,
+                'tone' => 'personal',
+                'location' => null,
+                'date_label' => $block->block_date?->format('D, M j') ?? '',
+                'gridStart' => $start,
+                'gridEnd' => min($rows + 1, $start + $span),
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * @param  Collection<int, Booking>  $bookings
+     * @param  Collection<int, CoachTimeBlock>  $blocks
+     * @return list<array<string, mixed>>
+     */
+    private function monthCells(Carbon $monthStart, Collection $bookings, Collection $blocks): array
+    {
+        $gridStart = $monthStart->copy()->startOfWeek(Carbon::MONDAY);
+        $gridEnd = $monthStart->copy()->endOfMonth()->endOfWeek(Carbon::SUNDAY);
+        $today = Carbon::today()->toDateString();
+        $cells = [];
+
+        $cursor = $gridStart->copy();
+        while ($cursor->lte($gridEnd)) {
+            $iso = $cursor->toDateString();
+            $dayBookings = $bookings->filter(fn (Booking $b) => $b->session_date?->toDateString() === $iso);
+            $dayBlocks = $blocks->filter(fn (CoachTimeBlock $b) => $b->block_date?->toDateString() === $iso);
+
+            $cells[] = [
+                'iso' => $iso,
+                'num' => $cursor->format('j'),
+                'in_month' => $cursor->month === $monthStart->month,
+                'today' => $iso === $today,
+                'booking_count' => $dayBookings->count(),
+                'personal_count' => $dayBlocks->count(),
+                'labels' => $dayBookings->take(3)->map(fn (Booking $b) => $b->displayName())->values()->all(),
+            ];
+            $cursor->addDay();
+        }
+
+        return $cells;
     }
 
     private function preferWeekWithSessions(Coach $coach, Carbon $weekStart): Carbon

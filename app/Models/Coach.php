@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class Coach extends Model
@@ -177,6 +178,11 @@ class Coach extends Model
     public function availabilitySlots(): HasMany
     {
         return $this->hasMany(CoachAvailabilitySlot::class);
+    }
+
+    public function timeBlocks(): HasMany
+    {
+        return $this->hasMany(CoachTimeBlock::class);
     }
 
     public function isPlusPlan(): bool
@@ -481,6 +487,24 @@ class Coach extends Model
                 'date' => optional($request->session_date)->toDateString(),
                 'time' => $request->session_time ? substr((string) $request->session_time, 0, 5) : null,
                 'minutes' => 60,
+            ];
+        }
+
+        $personalBlocks = CoachTimeBlock::query()
+            ->whereIn('coach_id', $ids)
+            ->whereDate('block_date', '>=', $from)
+            ->whereDate('block_date', '<=', $to)
+            ->get(['coach_id', 'block_date', 'start_time', 'end_time']);
+
+        foreach ($personalBlocks as $block) {
+            $start = Carbon::parse($block->start_time);
+            $end = Carbon::parse($block->end_time);
+            $minutes = max(15, (int) $start->diffInMinutes($end));
+
+            $rows[$block->coach_id][] = [
+                'date' => optional($block->block_date)->toDateString(),
+                'time' => $start->format('H:i'),
+                'minutes' => $minutes,
             ];
         }
 

@@ -76,6 +76,8 @@ Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach'])->grou
     Route::patch('/schedule/availability/{slot}', [CoachController::class, 'updateAvailability'])->name('schedule.availability.update');
     Route::delete('/schedule/availability/{slot}', [CoachController::class, 'destroyAvailability'])->name('schedule.availability.destroy');
     Route::post('/schedule/sessions', [CoachController::class, 'storeSession'])->name('schedule.sessions.store');
+    Route::post('/schedule/blocks', [CoachController::class, 'storeTimeBlock'])->name('schedule.blocks.store');
+    Route::delete('/schedule/blocks/{block}', [CoachController::class, 'destroyTimeBlock'])->name('schedule.blocks.destroy');
     Route::get('/dashboard', [CoachController::class, 'dashboard'])->name('dashboard');
     Route::get('/profile', [CoachController::class, 'profile'])->name('profile');
     Route::get('/api/status', [CoachController::class, 'status'])->name('status');

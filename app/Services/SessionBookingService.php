@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\Coach;
+use App\Models\CoachTimeBlock;
 use App\Models\SessionRequest;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -171,6 +172,23 @@ class SessionBookingService
         if ($conflict) {
             throw ValidationException::withMessages([
                 'time' => $conflict,
+            ]);
+        }
+
+        $personalOverlap = CoachTimeBlock::query()
+            ->where('coach_id', $coach->id)
+            ->whereDate('block_date', $date)
+            ->get()
+            ->contains(function (CoachTimeBlock $block) use ($time, $duration) {
+                $blockStart = substr((string) $block->start_time, 0, 5);
+                $blockMinutes = $block->durationMinutes();
+
+                return SessionRequest::timesOverlap($time, $duration, $blockStart, $blockMinutes);
+            });
+
+        if ($personalOverlap) {
+            throw ValidationException::withMessages([
+                'time' => 'That time overlaps personal time on your calendar. Pick another slot.',
             ]);
         }
 

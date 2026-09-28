@@ -195,6 +195,13 @@ class SessionRequest extends Model
                     ? 'This player already has a booked session that overlaps that time. '.$slotHint
                     : 'You already have a booked session that overlaps that time. '.$slotHint;
             }
+            if (static::coachHasPersonalBlockAt($coachId, $sessionDate, $sessionTime, $durationMinutes)) {
+                $name = Coach::query()->find($coachId)?->display_name ?: 'That coach';
+
+                return $audience === 'coach'
+                    ? 'That time overlaps personal time on your calendar. Decline this request or move the personal block.'
+                    : $name.' is not available at that time (personal time blocked).';
+            }
             if (static::coachIsBusyAt($coachId, $sessionDate, $sessionTime, $durationMinutes, $ignoreRequestId)) {
                 $name = Coach::query()->find($coachId)?->display_name ?: 'That coach';
 
@@ -314,6 +321,32 @@ class SessionRequest extends Model
                 $booking->session_time,
                 (int) ($booking->duration_minutes ?: static::defaultDurationMinutes())
             )) {
+                return true;
+            }
+        }
+
+        if (static::coachHasPersonalBlockAt($coachId, $sessionDate, $sessionTime, $durationMinutes)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public static function coachHasPersonalBlockAt(
+        int $coachId,
+        string $sessionDate,
+        string $sessionTime,
+        int $durationMinutes,
+    ): bool {
+        $blocks = CoachTimeBlock::query()
+            ->where('coach_id', $coachId)
+            ->whereDate('block_date', $sessionDate)
+            ->get(['block_date', 'start_time', 'end_time']);
+
+        foreach ($blocks as $block) {
+            $blockStart = substr((string) $block->start_time, 0, 5);
+            $blockMinutes = $block->durationMinutes();
+            if (static::timesOverlap($sessionTime, $durationMinutes, $blockStart, $blockMinutes)) {
                 return true;
             }
         }
