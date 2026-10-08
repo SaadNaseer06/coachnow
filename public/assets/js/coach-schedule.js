@@ -415,12 +415,11 @@
         return col;
       }
     }
-    // Prefer nearest column by X when pointer is in the vertical band of the grid
     let best = null;
     let bestDist = Infinity;
     cols.forEach((col) => {
       const r = col.getBoundingClientRect();
-      if (y < r.top - 8 || y > r.bottom + 8) return;
+      if (y < r.top - 24 || y > r.bottom + 24) return;
       const mid = (r.left + r.right) / 2;
       const dist = Math.abs(x - mid);
       if (dist < bestDist) {
@@ -451,19 +450,34 @@
     floatEl: null,
     snapEl: null,
     dropCol: null,
+    lastSnapKey: '',
+    raf: 0,
+    latestX: 0,
+    latestY: 0,
+    tracking: false,
+    pointerId: null,
+    sourceEl: null,
+    startX: 0,
+    startY: 0,
   };
 
   const clearDropHighlight = () => {
-    document.querySelectorAll('.sched-calendar-column.is-drop-target').forEach((c) => {
-      c.classList.remove('is-drop-target');
-    });
+    if (drag.dropCol) {
+      drag.dropCol.classList.remove('is-drop-target');
+      drag.dropCol = null;
+    }
   };
 
   const teardownDragChrome = () => {
+    if (drag.raf) {
+      cancelAnimationFrame(drag.raf);
+      drag.raf = 0;
+    }
     drag.floatEl?.remove();
     drag.snapEl?.remove();
     drag.floatEl = null;
     drag.snapEl = null;
+    drag.lastSnapKey = '';
     clearDropHighlight();
     document.body.classList.remove('sched-is-dragging');
     if (drag.active?.el) {
@@ -473,22 +487,35 @@
 
   const placeFloat = (clientX, clientY) => {
     if (!drag.floatEl || !drag.active) return;
-    const x = clientX - drag.active.offsetX;
-    const y = clientY - drag.active.offsetY;
-    drag.floatEl.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(1.5deg) scale(1.03)`;
+    drag.floatEl.style.left = `${clientX - drag.active.offsetX}px`;
+    drag.floatEl.style.top = `${clientY - drag.active.offsetY}px`;
   };
 
   const updateSnap = (clientX, clientY) => {
     const col = hitColumn(clientX, clientY);
-    clearDropHighlight();
     if (!col || !drag.active) {
       if (drag.snapEl) drag.snapEl.hidden = true;
-      drag.dropCol = null;
+      if (drag.dropCol) {
+        drag.dropCol.classList.remove('is-drop-target');
+        drag.dropCol = null;
+      }
+      drag.lastSnapKey = '';
       return null;
     }
-    col.classList.add('is-drop-target');
-    drag.dropCol = col;
+
+    if (drag.dropCol !== col) {
+      if (drag.dropCol) drag.dropCol.classList.remove('is-drop-target');
+      col.classList.add('is-drop-target');
+      drag.dropCol = col;
+    }
+
     const target = slotAtPointer(col, clientY);
+    const snapKey = `${target.date}|${target.time}`;
+    if (snapKey === drag.lastSnapKey && drag.snapEl && drag.snapEl.parentElement === col) {
+      return target;
+    }
+    drag.lastSnapKey = snapKey;
+
     if (!drag.snapEl) {
       drag.snapEl = drag.active.el.cloneNode(true);
       drag.snapEl.classList.add('sched-drag-snap');
@@ -505,7 +532,7 @@
     return target;
   };
 
-  const moveBooking = async (bookingId, date, time, force = false) => {
+  const moveBooking = async (bookingId, date, time, force = false, applyUi = true) => {
     const res = await fetch(`${baseUrl}/${bookingId}/move`, {
       method: 'POST',
       headers: {
@@ -525,9 +552,7 @@
     });
     const json = await res.json().catch(() => ({}));
     if (res.status === 422 && json.double_book) {
-      pendingDoubleAction = () => moveBooking(bookingId, date, time, true).then((ok) => {
-        if (ok) applyMoveInUi(bookingId, date, time);
-      });
+      pendingDoubleAction = () => moveBooking(bookingId, date, time, true, true);
       openModal('doubleBookModal');
       return false;
     }
@@ -535,11 +560,13 @@
       alert(json.message || 'Could not move session.');
       return false;
     }
-    applyMoveInUi(bookingId, json.date || date, (json.time || time).slice(0, 5));
+    if (applyUi) {
+      applyMoveInUi(bookingId, json.date || date, (json.time || time).slice(0, 5));
+    }
     return true;
   };
 
-  const beginDrag = (el, e) => {
+  const beginDrag = (el, clientX, clientY) => {
     const rect = el.getBoundingClientRect();
     drag.active = {
       el,
@@ -548,137 +575,121 @@
       originDate: el.dataset.date || '',
       originTime: (el.dataset.time || '').slice(0, 5),
       originParent: el.parentElement,
-      originGridRow: el.style.gridRow,
-      offsetX: e.clientX - rect.left,
-      offsetY: e.clientY - rect.top,
-      width: rect.width,
-      height: rect.height,
+      originGridRow: el.style.gridRow || getComputedStyle(el).gridRow,
+      offsetX: clientX - rect.left,
+      offsetY: clientY - rect.top,
     };
 
     el.classList.add('is-drag-origin');
     document.body.classList.add('sched-is-dragging');
+    window.__schedSuppressSlotClickUntil = Date.now() + 800;
 
     drag.floatEl = el.cloneNode(true);
     drag.floatEl.classList.add('sched-drag-float');
     drag.floatEl.classList.remove('is-drag-origin', 'is-manageable');
     drag.floatEl.style.width = `${rect.width}px`;
     drag.floatEl.style.height = `${rect.height}px`;
-    drag.floatEl.style.left = '0';
-    drag.floatEl.style.top = '0';
     drag.floatEl.style.margin = '0';
     document.body.appendChild(drag.floatEl);
-    placeFloat(e.clientX, e.clientY);
-    updateSnap(e.clientX, e.clientY);
+    placeFloat(clientX, clientY);
+    updateSnap(clientX, clientY);
     didDrag = true;
   };
 
-  const endDrag = async (e) => {
+  const revertDrag = (finished) => {
+    if (!finished) return;
+    applyMoveInUi(finished.bookingId, finished.originDate, finished.originTime);
+    if (finished.originParent && finished.originGridRow) {
+      finished.el.style.gridRow = finished.originGridRow;
+      finished.originParent.appendChild(finished.el);
+    }
+    finished.el.classList.remove('is-drag-origin');
+  };
+
+  const endDrag = async (clientX, clientY) => {
     if (!drag.active) return;
-    const { bookingId, originDate, originTime, el } = drag.active;
-    const target = updateSnap(e.clientX, e.clientY);
-    teardownDragChrome();
-
     const finished = drag.active;
+    const { bookingId, originDate, originTime, el } = finished;
+    const target = updateSnap(clientX, clientY);
+    teardownDragChrome();
     drag.active = null;
+    window.__schedSuppressSlotClickUntil = Date.now() + 500;
 
-    if (!target || !target.date) {
+    if (!target || !target.date || (target.date === originDate && target.time === originTime)) {
       el.classList.remove('is-drag-origin');
       return;
     }
 
-    if (target.date === originDate && target.time === originTime) {
-      el.classList.remove('is-drag-origin');
-      return;
-    }
-
-    // Optimistic snap into place, revert if API fails
     applyMoveInUi(bookingId, target.date, target.time);
-    const ok = await moveBooking(bookingId, target.date, target.time, false);
-    if (!ok && !document.getElementById('doubleBookModal')?.classList.contains('is-open')) {
-      applyMoveInUi(bookingId, originDate, originTime);
-      if (finished.originParent && finished.originGridRow) {
-        finished.el.style.gridRow = finished.originGridRow;
-        finished.originParent.appendChild(finished.el);
-      }
-    } else if (!ok) {
-      // Double-book modal open — revert until they confirm
-      applyMoveInUi(bookingId, originDate, originTime);
-      if (finished.originParent && finished.originGridRow) {
-        finished.el.style.gridRow = finished.originGridRow;
-        finished.originParent.appendChild(finished.el);
-      }
+    const ok = await moveBooking(bookingId, target.date, target.time, false, false);
+    if (!ok) {
+      revertDrag(finished);
     }
   };
 
+  const paintDrag = () => {
+    drag.raf = 0;
+    if (!drag.active) return;
+    placeFloat(drag.latestX, drag.latestY);
+    updateSnap(drag.latestX, drag.latestY);
+  };
+
+  const onDocPointerMove = (e) => {
+    if (!drag.tracking || e.pointerId !== drag.pointerId) return;
+    if (!drag.active) {
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      beginDrag(drag.sourceEl, e.clientX, e.clientY);
+    }
+    if (drag.active) {
+      e.preventDefault();
+      drag.latestX = e.clientX;
+      drag.latestY = e.clientY;
+      if (!drag.raf) drag.raf = requestAnimationFrame(paintDrag);
+    }
+  };
+
+  const onDocPointerUp = async (e) => {
+    if (!drag.tracking || e.pointerId !== drag.pointerId) return;
+    drag.tracking = false;
+    document.removeEventListener('pointermove', onDocPointerMove);
+    document.removeEventListener('pointerup', onDocPointerUp);
+    document.removeEventListener('pointercancel', onDocPointerCancel);
+    try { drag.sourceEl?.releasePointerCapture(drag.pointerId); } catch (_) { /* ignore */ }
+    if (drag.active) {
+      await endDrag(e.clientX, e.clientY);
+    }
+    setTimeout(() => { didDrag = false; }, 0);
+  };
+
+  const onDocPointerCancel = () => {
+    if (!drag.tracking) return;
+    drag.tracking = false;
+    document.removeEventListener('pointermove', onDocPointerMove);
+    document.removeEventListener('pointerup', onDocPointerUp);
+    document.removeEventListener('pointercancel', onDocPointerCancel);
+    teardownDragChrome();
+    if (drag.active?.el) drag.active.el.classList.remove('is-drag-origin');
+    drag.active = null;
+    didDrag = false;
+  };
+
   document.querySelectorAll('.sched-event.is-manageable').forEach((el) => {
-    let pointerId = null;
-    let startX = 0;
-    let startY = 0;
-    let tracking = false;
-    let raf = 0;
-    let latestX = 0;
-    let latestY = 0;
-
-    const paintDrag = () => {
-      raf = 0;
-      if (!drag.active) return;
-      placeFloat(latestX, latestY);
-      updateSnap(latestX, latestY);
-    };
-
     el.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       if (e.target.closest('form, button, a')) return;
-      tracking = true;
-      pointerId = e.pointerId;
-      startX = e.clientX;
-      startY = e.clientY;
+      if (drag.tracking || drag.active) return;
+      drag.tracking = true;
+      drag.pointerId = e.pointerId;
+      drag.sourceEl = el;
+      drag.startX = e.clientX;
+      drag.startY = e.clientY;
       didDrag = false;
-      try { el.setPointerCapture(pointerId); } catch (_) { /* ignore */ }
-    });
-
-    el.addEventListener('pointermove', (e) => {
-      if (!tracking || e.pointerId !== pointerId) return;
-      if (!drag.active) {
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-        beginDrag(el, e);
-      }
-      if (drag.active) {
-        e.preventDefault();
-        latestX = e.clientX;
-        latestY = e.clientY;
-        if (!raf) raf = requestAnimationFrame(paintDrag);
-      }
-    });
-
-    const finishPointer = async (e) => {
-      if (!tracking || e.pointerId !== pointerId) return;
-      tracking = false;
-      if (raf) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      }
-      try { el.releasePointerCapture(pointerId); } catch (_) { /* ignore */ }
-      pointerId = null;
-      if (drag.active) {
-        await endDrag(e);
-      }
-      setTimeout(() => { didDrag = false; }, 0);
-    };
-
-    el.addEventListener('pointerup', finishPointer);
-    el.addEventListener('pointercancel', (e) => {
-      if (!tracking || e.pointerId !== pointerId) return;
-      tracking = false;
-      if (raf) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      }
-      teardownDragChrome();
-      drag.active = null;
-      didDrag = false;
+      try { el.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+      document.addEventListener('pointermove', onDocPointerMove, { passive: false });
+      document.addEventListener('pointerup', onDocPointerUp);
+      document.addEventListener('pointercancel', onDocPointerCancel);
     });
   });
 })();

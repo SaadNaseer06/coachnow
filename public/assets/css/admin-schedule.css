@@ -842,15 +842,16 @@ button.sched-calendar-slot:focus-visible::after {
   z-index: 10050;
   margin: 0;
   pointer-events: none;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
-  will-change: transform;
-  opacity: 0.96;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
+  will-change: left, top;
+  opacity: 0.97;
   cursor: grabbing;
+  transform: none;
 }
 
 .sched-drag-snap {
   pointer-events: none !important;
-  opacity: 0.55;
+  opacity: 0.5;
   outline: 2px dashed rgba(25, 22, 21, 0.35);
   outline-offset: -2px;
   box-shadow: none;
@@ -861,10 +862,19 @@ button.sched-calendar-slot:focus-visible::after {
   background: rgba(218, 2, 12, 0.03);
 }
 
-body.sched-is-dragging,
-body.sched-is-dragging * {
-  cursor: grabbing !important;
-  user-select: none !important;
+/* Avoid universal `*` rules — they thrash layout on live. */
+body.sched-is-dragging {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body.sched-is-dragging .sched-calendar-grid .sched-calendar-slot {
+  pointer-events: none;
+}
+
+body.sched-is-dragging .sched-event.is-manageable {
+  cursor: grabbing;
 }
 
 .sched-join-row {

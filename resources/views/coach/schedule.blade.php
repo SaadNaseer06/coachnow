@@ -1156,6 +1156,9 @@
     document.querySelectorAll('[data-slot-click]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
+        // Ignore click that follows a session drag-drop (common live glitch).
+        if (document.body.classList.contains('sched-is-dragging')) return;
+        if (window.__schedSuppressSlotClickUntil && Date.now() < window.__schedSuppressSlotClickUntil) return;
         pendingSlot = {
           date: btn.dataset.date || '',
           time: btn.dataset.time || '',
