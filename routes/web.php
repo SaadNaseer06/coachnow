@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Coach\CoachController;
+use App\Http\Controllers\Coach\CoachScheduleSessionController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\SessionRequestController;
 use Illuminate\Support\Facades\Route;
@@ -39,6 +40,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/api/session-requests/{reference}/join', [SessionRequestController::class, 'join'])->name('session-requests.join');
         Route::post('/api/session-requests/{reference}/cancel', [SessionRequestController::class, 'cancel'])->name('session-requests.cancel');
         Route::post('/api/bookings', [\App\Http\Controllers\BookingController::class, 'store'])->name('bookings.store');
+        Route::post('/api/group-sessions/{group}/join', [\App\Http\Controllers\BookingController::class, 'requestJoin'])->name('group-sessions.join');
     });
 
     Route::get('/api/session-requests', [SessionRequestController::class, 'index'])->name('session-requests.index');
@@ -75,7 +77,13 @@ Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach'])->grou
     Route::post('/schedule/availability', [CoachController::class, 'storeAvailability'])->name('schedule.availability.store');
     Route::patch('/schedule/availability/{slot}', [CoachController::class, 'updateAvailability'])->name('schedule.availability.update');
     Route::delete('/schedule/availability/{slot}', [CoachController::class, 'destroyAvailability'])->name('schedule.availability.destroy');
-    Route::post('/schedule/sessions', [CoachController::class, 'storeSession'])->name('schedule.sessions.store');
+    Route::post('/schedule/sessions', [CoachScheduleSessionController::class, 'store'])->name('schedule.sessions.store');
+    Route::get('/schedule/sessions/{booking}', [CoachScheduleSessionController::class, 'show'])->name('schedule.sessions.show');
+    Route::patch('/schedule/sessions/{booking}', [CoachScheduleSessionController::class, 'update'])->name('schedule.sessions.update');
+    Route::patch('/schedule/sessions/{booking}/move', [CoachScheduleSessionController::class, 'move'])->name('schedule.sessions.move');
+    Route::delete('/schedule/sessions/{booking}', [CoachScheduleSessionController::class, 'destroy'])->name('schedule.sessions.destroy');
+    Route::post('/schedule/joins/{join}/accept', [CoachScheduleSessionController::class, 'acceptJoin'])->name('schedule.joins.accept');
+    Route::post('/schedule/joins/{join}/decline', [CoachScheduleSessionController::class, 'declineJoin'])->name('schedule.joins.decline');
     Route::post('/schedule/blocks', [CoachController::class, 'storeTimeBlock'])->name('schedule.blocks.store');
     Route::delete('/schedule/blocks/{block}', [CoachController::class, 'destroyTimeBlock'])->name('schedule.blocks.destroy');
     Route::get('/dashboard', [CoachController::class, 'dashboard'])->name('dashboard');

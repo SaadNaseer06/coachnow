@@ -130,6 +130,37 @@
     </div>
   @endif
 
+  @if (($pendingJoins ?? collect())->isNotEmpty())
+    <div class="admin-card coach-panel-gap" style="margin-bottom:1rem">
+      <div class="admin-card-header">
+        <div>
+          <h2>Group join requests</h2>
+          <p>Parents asked to join a Small Group / Group / Camp — accept to add them.</p>
+        </div>
+      </div>
+      <div class="admin-card-body" style="display:grid;gap:10px">
+        @foreach ($pendingJoins as $join)
+          <div class="sched-join-row">
+            <div>
+              <strong>{{ $join->displayName() }}</strong>
+              <span>{{ $join->groupSession?->session_type }} · {{ $join->groupSession?->session_date?->format('D, M j') }} {{ $join->groupSession?->timeLabel() }} · {{ $join->groupSession?->capacityLabel() }}</span>
+            </div>
+            <div class="sched-join-row__actions">
+              <form method="POST" action="{{ route('coach.schedule.joins.accept', $join->id) }}">
+                @csrf
+                <button type="submit" class="admin-btn admin-btn-primary admin-btn-sm">Accept</button>
+              </form>
+              <form method="POST" action="{{ route('coach.schedule.joins.decline', $join->id) }}">
+                @csrf
+                <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm">Decline</button>
+              </form>
+            </div>
+          </div>
+        @endforeach
+      </div>
+    </div>
+  @endif
+
   <div class="sched-workspace {{ $viewMode === 'month' ? 'sched-workspace--month' : '' }}">
     <div class="sched-calendar-card">
       <div class="sched-card-header">
@@ -209,32 +240,32 @@
       @else
         <div
           class="sched-calendar-scroll {{ $viewMode === 'day' ? 'sched-calendar-scroll--day' : '' }}"
-          data-scroll-to-row="{{ $firstGridStart ?: '' }}"
+        data-scroll-to-row="{{ $firstGridStart ?: '' }}"
           data-row-height="{{ $viewMode === 'day' ? '64' : '48' }}"
-        >
+      >
           <div class="sched-calendar {{ $viewMode === 'day' ? 'sched-calendar--day' : '' }}" style="--sched-cols: {{ count($days) }}">
-            <div class="sched-calendar-corner"></div>
+          <div class="sched-calendar-corner"></div>
 
             <div class="sched-calendar-days" style="grid-template-columns: repeat({{ count($days) }}, minmax({{ $viewMode === 'day' ? '160px' : '100px' }}, 1fr))">
-              @foreach ($days as $day)
+            @foreach ($days as $day)
                 <a
                   href="{{ route('coach.schedule', ['view' => 'day', 'date' => $day['iso'] ?? $focusDate]) }}"
                   class="sched-calendar-dayhead {{ !empty($day['today']) ? 'is-today' : '' }}"
                 >
-                  <span class="sched-calendar-daylabel">{{ $day['name'] }}</span>
-                  <span class="sched-calendar-daynum">{{ $day['num'] }}</span>
+                <span class="sched-calendar-daylabel">{{ $day['name'] }}</span>
+                <span class="sched-calendar-daynum">{{ $day['num'] }}</span>
                 </a>
-              @endforeach
-            </div>
+            @endforeach
+          </div>
 
-            <div class="sched-calendar-times">
-              @foreach ($hours as $hour)
-                <div class="sched-calendar-time">{{ $hour <= 12 ? $hour : ($hour - 12) }} {{ $hour < 12 ? 'AM' : 'PM' }}</div>
-              @endforeach
-            </div>
+          <div class="sched-calendar-times">
+            @foreach ($hours as $hour)
+              <div class="sched-calendar-time">{{ $hour <= 12 ? $hour : ($hour - 12) }} {{ $hour < 12 ? 'AM' : 'PM' }}</div>
+            @endforeach
+          </div>
 
             <div class="sched-calendar-grid" style="grid-template-columns: repeat({{ count($days) }}, minmax({{ $viewMode === 'day' ? '160px' : '100px' }}, 1fr))">
-              @foreach ($days as $dayIndex => $day)
+            @foreach ($days as $dayIndex => $day)
                 @php $dow = (int) ($day['dow'] ?? 0); @endphp
                 <div class="sched-calendar-column {{ !empty($day['today']) ? 'is-today' : '' }}" data-date="{{ $day['iso'] ?? '' }}" data-dow="{{ $dow }}">
                   @for ($slot = 0; $slot < $slotCount; $slot++)
@@ -250,105 +281,116 @@
                       title="{{ $slotTimeDisplay($slot) }} — click to add"
                       aria-label="{{ ($day['iso'] ?? '').' '.$slotTimeDisplay($slot) }}"
                     ></button>
-                  @endfor
+                @endfor
 
-                  @if ($nowInRange && !empty($day['today']) && $nowTop !== null)
-                    <div class="sched-now-line" style="top: {{ number_format($nowTop, 2, '.', '') }}%;">
-                      <span class="sched-now-label">{{ now()->format('g:i A') }}</span>
-                    </div>
-                  @endif
+                @if ($nowInRange && !empty($day['today']) && $nowTop !== null)
+                  <div class="sched-now-line" style="top: {{ number_format($nowTop, 2, '.', '') }}%;">
+                    <span class="sched-now-label">{{ now()->format('g:i A') }}</span>
+                  </div>
+                @endif
 
-                  @foreach ($sessionsByDay->get($dayIndex, collect()) as $session)
-                    @php
-                      $eventTip = collect([
-                        $session['time_label'] ?? null,
-                        $session['title'] ?? null,
-                        $session['type'] ?? null,
-                        (($session['duration'] ?? null) ? ($session['duration'].' min') : null),
-                        $session['location'] ?? null,
-                      ])->filter()->implode(' · ');
+                @foreach ($sessionsByDay->get($dayIndex, collect()) as $session)
+                  @php
+                    $eventTip = collect([
+                      $session['time_label'] ?? null,
+                      $session['title'] ?? null,
+                      $session['type'] ?? null,
+                      (($session['duration'] ?? null) ? ($session['duration'].' min') : null),
+                      $session['location'] ?? null,
+                    ])->filter()->implode(' · ');
                       $tone = ($session['kind'] ?? '') === 'personal' ? 'personal' : ($session['tone'] ?? 'green');
-                    @endphp
-                    <article
-                      class="sched-event sched-event--{{ $tone }} {{ !empty($session['allDay']) ? 'is-all-day' : '' }}"
-                      style="grid-row: {{ $session['gridStart'] }} / {{ $session['gridEnd'] }};"
-                      title="{{ $eventTip }}"
-                      @if (($session['kind'] ?? '') === 'personal')
-                        data-personal-id="{{ $session['id'] }}"
-                      @endif
-                    >
-                      <p class="sched-event-title">
-                        <span class="sched-event-time">{{ $session['time_label'] ?? '' }}</span>
-                        {{ $session['title'] }}
-                      </p>
-                      <p class="sched-event-type">{{ $session['type'] }}</p>
-                      @if (($session['kind'] ?? '') === 'personal')
-                        <form method="POST" action="{{ route('coach.schedule.blocks.destroy', $session['id']) }}" class="sched-event-remove" onsubmit="return confirm('Remove this personal block?')">
-                          @csrf
-                          @method('DELETE')
-                          <input type="hidden" name="view" value="{{ $viewMode }}">
-                          <input type="hidden" name="week" value="{{ $weekStart ?? '' }}">
-                          <input type="hidden" name="date" value="{{ $focusDate ?? '' }}">
-                          <button type="submit" aria-label="Remove personal time">&times;</button>
-                        </form>
-                      @endif
-                    </article>
-                  @endforeach
-                </div>
-              @endforeach
-            </div>
+                  @endphp
+                  <article
+                    class="sched-event sched-event--{{ $tone }} {{ !empty($session['allDay']) ? 'is-all-day' : '' }} {{ ($session['kind'] ?? '') === 'booking' ? 'is-manageable' : '' }}"
+                    style="grid-row: {{ $session['gridStart'] }} / {{ $session['gridEnd'] }};"
+                    title="{{ $eventTip }}"
+                    @if (($session['kind'] ?? '') === 'personal')
+                      data-personal-id="{{ $session['id'] }}"
+                    @elseif (($session['kind'] ?? '') === 'booking')
+                      data-booking-id="{{ $session['id'] }}"
+                      data-group-id="{{ $session['group_session_id'] ?? '' }}"
+                      data-date="{{ $session['date'] ?? '' }}"
+                      data-time="{{ $session['start_hi'] ?? '' }}"
+                      data-duration="{{ $session['duration'] ?? 60 }}"
+                    @endif
+                  >
+                    <p class="sched-event-title">
+                      <span class="sched-event-time">{{ $session['time_label'] ?? '' }}</span>
+                      {{ $session['title'] }}
+                    </p>
+                    <p class="sched-event-type">{{ $session['type'] }}@if (!empty($session['max_players'])) · {{ $session['players'] }}/{{ $session['max_players'] }}@endif</p>
+                    @if (($session['kind'] ?? '') === 'personal')
+                      <form method="POST" action="{{ route('coach.schedule.blocks.destroy', $session['id']) }}" class="sched-event-remove" onsubmit="return confirm('Remove this personal block?')">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" name="view" value="{{ $viewMode }}">
+                        <input type="hidden" name="week" value="{{ $weekStart ?? '' }}">
+                        <input type="hidden" name="date" value="{{ $focusDate ?? '' }}">
+                        <button type="submit" aria-label="Remove personal time">&times;</button>
+                      </form>
+                    @endif
+                  </article>
+                @endforeach
+              </div>
+            @endforeach
           </div>
         </div>
+      </div>
 
-        <div class="sched-calendar-legend">
+      <div class="sched-calendar-legend">
           <span><i class="sched-legend-dot sched-legend-dot--open"></i> Working hours</span>
           <span><i class="sched-legend-dot sched-legend-dot--closed"></i> Closed</span>
-          <span><i class="sched-legend-dot sched-legend-dot--green"></i> Private</span>
-          <span><i class="sched-legend-dot sched-legend-dot--yellow"></i> Small Group</span>
-          <span><i class="sched-legend-dot sched-legend-dot--purple"></i> Group</span>
-          <span><i class="sched-legend-dot sched-legend-dot--orange"></i> Assessment</span>
+        <span><i class="sched-legend-dot sched-legend-dot--green"></i> Private</span>
+        <span><i class="sched-legend-dot sched-legend-dot--yellow"></i> Small Group</span>
+        <span><i class="sched-legend-dot sched-legend-dot--purple"></i> Group</span>
+        <span><i class="sched-legend-dot sched-legend-dot--orange"></i> Assessment</span>
           <span><i class="sched-legend-dot sched-legend-dot--personal"></i> Personal</span>
-        </div>
+      </div>
       @endif
     </div>
 
     @if ($viewMode !== 'month')
       <aside class="sched-agenda" aria-label="Agenda">
-        <div class="sched-agenda-header">
+      <div class="sched-agenda-header">
           <h2 class="sched-agenda-title">{{ $viewMode === 'day' ? 'This day' : 'This week' }}</h2>
-          <p class="sched-agenda-sub">
-            @if (count($sessions) === 0)
+        <p class="sched-agenda-sub">
+          @if (count($sessions) === 0)
               Nothing scheduled
-            @else
+          @else
               {{ count($sessions) }} item{{ count($sessions) === 1 ? '' : 's' }} — full details
-            @endif
-          </p>
-        </div>
+          @endif
+        </p>
+      </div>
 
-        @if (count($sessions) > 0)
-          <ul class="sched-agenda-list">
-            @foreach ($sessions as $session)
+      @if (count($sessions) > 0)
+        <ul class="sched-agenda-list">
+          @foreach ($sessions as $session)
               @php $tone = ($session['kind'] ?? '') === 'personal' ? 'personal' : ($session['tone'] ?? 'green'); @endphp
-              <li class="sched-agenda-item">
+            <li
+              class="sched-agenda-item {{ ($session['kind'] ?? '') === 'booking' ? 'is-manageable' : '' }}"
+              data-date="{{ $session['date'] ?? '' }}"
+              data-time="{{ $session['start_hi'] ?? ($session['start'] ?? '') }}"
+              @if (($session['kind'] ?? '') === 'booking') data-booking-id="{{ $session['id'] }}" role="button" tabindex="0" @endif
+            >
                 <span class="sched-agenda-tone sched-agenda-tone--{{ $tone }}" aria-hidden="true"></span>
-                <div class="sched-agenda-content">
-                  <div class="sched-agenda-when">
-                    <strong>{{ $session['date_label'] ?? '' }}</strong>
-                    <span>{{ $session['time_label'] ?? '' }}</span>
-                  </div>
-                  <p class="sched-agenda-name">{{ $session['title'] }}</p>
-                  <p class="sched-agenda-detail">
+              <div class="sched-agenda-content">
+                <div class="sched-agenda-when">
+                  <strong>{{ $session['date_label'] ?? '' }}</strong>
+                  <span>{{ $session['time_label'] ?? '' }}</span>
+                </div>
+                <p class="sched-agenda-name">{{ $session['title'] }}</p>
+                <p class="sched-agenda-detail">
                     {{ $session['type'] }}
                     @if (!empty($session['duration'])) · {{ $session['duration'] }} min @endif
-                    @if (! empty($session['location']))
-                      · {{ $session['location'] }}
-                    @endif
-                  </p>
-                </div>
-              </li>
-            @endforeach
-          </ul>
-        @else
+                  @if (! empty($session['location']))
+                    · {{ $session['location'] }}
+                  @endif
+                </p>
+              </div>
+            </li>
+          @endforeach
+        </ul>
+      @else
           <p class="sched-agenda-empty">Click a white or gray slot to book a player, block personal time, or edit working hours.</p>
         @endif
       </aside>
@@ -458,13 +500,14 @@
       </div>
       <button type="button" class="admin-modal__close" data-admin-modal-close aria-label="Close">&times;</button>
     </div>
-    <form method="POST" action="{{ route('coach.schedule.sessions.store') }}" class="admin-modal__body" id="bookPlayerForm">
+    <form method="POST" action="{{ route('coach.schedule.sessions.store') }}" class="admin-modal__body" id="bookPlayerForm" data-double-book="{{ $errors->has('double_book') ? '1' : '0' }}">
       @csrf
       <input type="hidden" name="week" value="{{ $weekStart ?? '' }}">
       <input type="hidden" name="view" value="{{ $viewMode }}">
       <input type="hidden" name="date" value="{{ $focusDate ?? '' }}">
+      <input type="hidden" name="force_double_book" id="bookForceDouble" value="0">
 
-      @if ($errors->hasAny(['player_name', 'athlete_id', 'session_date', 'session_time', 'location_id', 'session_type', 'time']))
+      @if ($errors->hasAny(['player_name', 'athlete_id', 'session_date', 'session_time', 'location_id', 'session_type', 'time', 'max_players']))
         <div class="admin-alert admin-alert--error" role="alert" style="margin-bottom:14px">
           <div class="admin-alert__body">
             <ul class="admin-alert__list">
@@ -475,6 +518,7 @@
               @foreach ($errors->get('time') as $error)<li>{{ $error }}</li>@endforeach
               @foreach ($errors->get('location_id') as $error)<li>{{ $error }}</li>@endforeach
               @foreach ($errors->get('session_type') as $error)<li>{{ $error }}</li>@endforeach
+              @foreach ($errors->get('max_players') as $error)<li>{{ $error }}</li>@endforeach
             </ul>
           </div>
         </div>
@@ -518,11 +562,15 @@
         </label>
         <label class="admin-field">
           <span>Session type</span>
-          <select class="admin-select" name="session_type" required>
+          <select class="admin-select" name="session_type" id="bookSessionType" required>
             @foreach ($sessionTypes ?? ['Private 1-on-1'] as $type)
               <option value="{{ $type }}" @selected(old('session_type', 'Private 1-on-1') === $type)>{{ $type }}</option>
             @endforeach
           </select>
+        </label>
+        <label class="admin-field" id="bookMaxPlayersField" hidden>
+          <span>Max players</span>
+          <input class="admin-input" type="number" name="max_players" id="bookMaxPlayers" value="{{ old('max_players', 4) }}" min="2" max="30">
         </label>
         <label class="admin-field admin-field--full">
           <span>Field / park</span>
@@ -535,6 +583,10 @@
             @endforeach
           </select>
         </label>
+        <label class="admin-field admin-field--full">
+          <span>Notes (optional)</span>
+          <textarea class="admin-textarea" name="notes" rows="2" maxlength="5000" placeholder="Private notes for this session">{{ old('notes') }}</textarea>
+        </label>
       </div>
 
       <div class="admin-modal__footer" style="margin-top:1rem;padding:0;border:0">
@@ -544,6 +596,119 @@
     </form>
   </div>
 </div>
+
+{{-- Manage existing session --}}
+<div class="admin-modal" id="sessionManageModal" aria-hidden="true" data-open-id="{{ $openManageId ?? '' }}">
+  <div class="admin-modal__backdrop" data-admin-modal-close></div>
+  <div class="admin-modal__panel" role="dialog" aria-modal="true" aria-labelledby="sessionManageTitle" style="max-width:560px;width:min(560px, calc(100vw - 2rem))">
+    <div class="admin-modal__header">
+      <div>
+        <h2 id="sessionManageTitle">Manage session</h2>
+        <p id="sessionManageSub">Edit notes, time, players, or cancel.</p>
+      </div>
+      <button type="button" class="admin-modal__close" data-admin-modal-close aria-label="Close">&times;</button>
+    </div>
+    <form class="admin-modal__body" id="sessionManageForm">
+      @csrf
+      <input type="hidden" name="_method" value="PATCH">
+      <input type="hidden" name="force_double_book" id="manageForceDouble" value="0">
+      <input type="hidden" name="view" value="{{ $viewMode }}">
+      <input type="hidden" name="week" value="{{ $weekStart ?? '' }}">
+      <div id="sessionManageError" class="admin-alert admin-alert--error" hidden style="margin-bottom:14px">
+        <div class="admin-alert__body"><p class="admin-alert__text" id="sessionManageErrorText"></p></div>
+      </div>
+      <div class="admin-form-grid">
+        <label class="admin-field admin-field--full">
+          <span>Notes</span>
+          <textarea class="admin-textarea" name="notes" id="manageNotes" rows="3" maxlength="5000" placeholder="Session notes"></textarea>
+        </label>
+        <label class="admin-field">
+          <span>Date</span>
+          <input class="admin-input" type="date" name="session_date" id="manageDate" required>
+        </label>
+        <label class="admin-field">
+          <span>Time</span>
+          <input class="admin-input" type="time" name="session_time" id="manageTime" required>
+        </label>
+        <label class="admin-field">
+          <span>Duration (min)</span>
+          <input class="admin-input" type="number" name="duration_minutes" id="manageDuration" min="30" max="180" step="15" value="60">
+        </label>
+        <label class="admin-field">
+          <span>Session type</span>
+          <select class="admin-select" name="session_type" id="manageType" required>
+            @foreach ($sessionTypes ?? ['Private 1-on-1'] as $type)
+              <option value="{{ $type }}">{{ $type }}</option>
+            @endforeach
+          </select>
+        </label>
+        <label class="admin-field" id="manageMaxField" hidden>
+          <span>Max players</span>
+          <input class="admin-input" type="number" name="max_players" id="manageMax" min="2" max="30" value="4">
+        </label>
+        <label class="admin-field admin-field--full">
+          <span>Field / park</span>
+          <select class="admin-select" name="location_id" id="manageLocation" required>
+            @foreach ($locations ?? [] as $location)
+              <option value="{{ $location->id }}">{{ $location->name }}{{ $location->area ? ' · '.$location->area : '' }}</option>
+            @endforeach
+          </select>
+        </label>
+      </div>
+      <div id="managePlayersWrap" class="sched-manage-players" hidden>
+        <strong>Players on this session</strong>
+        <ul id="managePlayersList" class="sched-manage-players__list"></ul>
+        <div class="sched-manage-players__add">
+          <select class="admin-select" id="manageAddRoster">
+            <option value="">Add from roster…</option>
+            @foreach ($roster ?? [] as $player)
+              @if (! empty($player['athlete_id']))
+                <option value="{{ $player['athlete_id'] }}" data-name="{{ $player['name'] }}">{{ $player['name'] }}</option>
+              @endif
+            @endforeach
+          </select>
+          <input type="text" class="admin-input" id="manageAddWalkIn" placeholder="Or walk-in name" maxlength="120" autocomplete="off">
+          <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" id="manageAddPlayerBtn">Add</button>
+        </div>
+      </div>
+      <div class="admin-modal__footer" style="margin-top:1rem;padding:0;border:0;display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="admin-btn admin-btn-ghost" id="manageCancelSession" style="margin-right:auto;color:#b91c1c">Cancel session</button>
+        <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-close>Close</button>
+        <button type="submit" class="admin-btn admin-btn-primary">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{{-- Double-book confirm --}}
+<div class="admin-modal" id="doubleBookModal" aria-hidden="true">
+  <div class="admin-modal__backdrop" data-admin-modal-close></div>
+  <div class="admin-modal__panel sched-action-sheet" role="dialog" aria-modal="true" aria-labelledby="doubleBookTitle">
+    <div class="admin-modal__header">
+      <div>
+        <h2 id="doubleBookTitle">Double-book this time?</h2>
+        <p id="doubleBookText">This session overlaps with an existing booking. Would you like to continue and double-book this time?</p>
+      </div>
+      <button type="button" class="admin-modal__close" data-admin-modal-close aria-label="Close">&times;</button>
+    </div>
+    <div class="admin-modal__footer" style="padding:0 20px 20px;border:0;display:flex;gap:8px;justify-content:flex-end">
+      <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-close>Cancel</button>
+      <button type="button" class="admin-btn admin-btn-primary" id="doubleBookConfirm">Book Anyway</button>
+    </div>
+  </div>
+</div>
+
+<div
+  id="coachScheduleApp"
+  hidden
+  data-csrf="{{ csrf_token() }}"
+  data-cal-start="{{ $calStartHour ?? 4 }}"
+  data-move-url="{{ url('/coach/schedule/sessions') }}"
+  data-show-url="{{ url('/coach/schedule/sessions') }}"
+  data-view="{{ $viewMode }}"
+  data-week="{{ $weekStart ?? '' }}"
+  data-open-manage="{{ $openManageId ?? '' }}"
+></div>
 
 @php
   $openAvailabilityClass = $openAvailabilityModal ? ' is-open' : '';
@@ -696,7 +861,7 @@
         @empty
           <p class="avail-list-empty">No working hours yet. Add Mon–Fri (or any days) above.</p>
         @endforelse
-      </div>
+  </div>
 
       <p class="avail-note">
         Open marketplace requests need CoachNow Plus. Direct Book works on every active plan.
@@ -937,10 +1102,10 @@
 
     const scroller = document.querySelector('.sched-calendar-scroll[data-scroll-to-row]');
     if (scroller) {
-      const row = parseInt(scroller.dataset.scrollToRow || '', 10);
-      const rowHeight = parseInt(scroller.dataset.rowHeight || '36', 10);
+    const row = parseInt(scroller.dataset.scrollToRow || '', 10);
+    const rowHeight = parseInt(scroller.dataset.rowHeight || '36', 10);
       if (row && row >= 1) {
-        const top = Math.max(0, (row - 2) * rowHeight);
+    const top = Math.max(0, (row - 2) * rowHeight);
         requestAnimationFrame(() => { scroller.scrollTop = top; });
       }
     }
@@ -1191,4 +1356,5 @@
     syncBookPlayer();
   })();
 </script>
+<script src="{{ asset('assets/js/coach-schedule.js') }}?v={{ @filemtime(public_path('assets/js/coach-schedule.js')) ?: time() }}"></script>
 @endpush

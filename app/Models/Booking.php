@@ -27,6 +27,9 @@ class Booking extends Model
         'duration_minutes',
         'amount',
         'status',
+        'notes',
+        'max_players',
+        'group_session_id',
     ];
 
     protected function casts(): array
@@ -35,6 +38,7 @@ class Booking extends Model
             'session_date' => 'date',
             'amount' => 'decimal:2',
             'duration_minutes' => 'integer',
+            'max_players' => 'integer',
         ];
     }
 
@@ -56,6 +60,17 @@ class Booking extends Model
     public function sessionRequest(): BelongsTo
     {
         return $this->belongsTo(SessionRequest::class);
+    }
+
+    public function groupSession(): BelongsTo
+    {
+        return $this->belongsTo(CoachGroupSession::class, 'group_session_id');
+    }
+
+    public function isGroupBooking(): bool
+    {
+        return $this->group_session_id !== null
+            || CoachGroupSession::isGroupType($this->session_type);
     }
 
     public static function generateReference(): string

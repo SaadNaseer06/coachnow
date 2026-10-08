@@ -4,6 +4,7 @@
 
   const slots = JSON.parse(root.dataset.slots || '[]');
   const bookUrl = root.dataset.bookUrl;
+  const joinUrlBase = root.dataset.joinUrl || '/api/group-sessions';
   const coachToken = root.dataset.coach;
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
@@ -78,30 +79,55 @@
     list.forEach((slot) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'book-chip' + (selected?.time === slot.time && selected?.date === slot.date ? ' is-selected' : '');
-      btn.textContent = slot.time_label;
-      btn.addEventListener('click', () => {
-        selected = slot;
-        renderTimes();
-        updateSummary();
-      });
+      const isFull = Boolean(slot.full) || (slot.group_session_id && !slot.joinable && Number(slot.spots_remaining) <= 0);
+      const selectedMatch = selected?.time === slot.time
+        && selected?.date === slot.date
+        && (selected?.group_session_id || null) === (slot.group_session_id || null);
+      btn.className = 'book-chip'
+        + (selectedMatch ? ' is-selected' : '')
+        + (slot.joinable ? ' is-group' : '')
+        + (isFull ? ' is-full' : '');
+      if (isFull) {
+        btn.textContent = `${String(slot.time_label || '').replace(' · Full', '').replace(' · Group', '')} · Full`;
+        btn.disabled = true;
+        btn.setAttribute('aria-disabled', 'true');
+      } else if (slot.joinable) {
+        btn.textContent = `${String(slot.time_label || '').replace(' · Group', '')} · ${slot.spots_remaining} left`;
+      } else {
+        btn.textContent = slot.time_label;
+      }
+      if (slot.label) btn.title = slot.label;
+      if (!isFull) {
+        btn.addEventListener('click', () => {
+          selected = slot;
+          renderTimes();
+          updateSummary();
+        });
+      }
       timesEl.appendChild(btn);
     });
   }
 
   function updateSummary() {
     sumDate.textContent = selectedDate ? formatDateLabel(selectedDate) : '—';
-    sumTime.textContent = selected?.time_label || '—';
+    sumTime.textContent = selected?.label || selected?.time_label || '—';
     const fieldLabel = selected
       ? `${selected.location_name}${selected.location_area ? ' · ' + selected.location_area : ''}`
       : '—';
     sumField.textContent = fieldLabel;
     if (selected) {
-      fieldEl.innerHTML = `<strong>${selected.location_name}</strong><span>${selected.location_area || 'Training location for this slot'}</span>`;
+      const extra = selected.joinable
+        ? `<span>${selected.label || 'Request to join this group session'}</span>`
+        : `<span>${selected.location_area || 'Training location for this slot'}</span>`;
+      fieldEl.innerHTML = `<strong>${selected.location_name}</strong>${extra}`;
     } else {
       fieldEl.innerHTML = `<strong>Pick a time</strong><span>Location appears when you choose a slot.</span>`;
     }
-    confirmBtn.disabled = !selected;
+    if (confirmBtn) {
+      const canBook = Boolean(selected) && !selected.full && (selected.joinable || !selected.group_session_id);
+      confirmBtn.disabled = !canBook;
+      confirmBtn.textContent = selected?.joinable ? 'Request to Join' : 'Confirm booking';
+    }
     errorEl.hidden = true;
   }
 
@@ -110,30 +136,47 @@
     confirmBtn.disabled = true;
     errorEl.hidden = true;
     try {
-      const res = await fetch(bookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          'X-CSRF-TOKEN': csrf,
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          coach: coachToken,
-          date: selected.date,
-          time: selected.time,
-          location_id: selected.location_id,
-          duration_minutes: selected.duration_minutes,
-        }),
-      });
+      let res;
+      if (selected.joinable && selected.group_session_id) {
+        res = await fetch(`${joinUrlBase}/${selected.group_session_id}/join`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({}),
+        });
+      } else {
+        res = await fetch(bookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            coach: coachToken,
+            date: selected.date,
+            time: selected.time,
+            location_id: selected.location_id,
+            duration_minutes: selected.duration_minutes,
+          }),
+        });
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data.message || 'Could not complete booking.');
       }
       document.querySelector('.book-summary')?.setAttribute('hidden', '');
       successEl.hidden = false;
-      successText.textContent = `Confirmed with ${data.data?.coach || 'your coach'} on ${data.data?.date || selected.date} at ${selected.time_label}${data.data?.location ? ' · ' + data.data.location : ''}.`;
+      successText.textContent = selected.joinable
+        ? (data.message || 'Request sent — your coach will confirm.')
+        : `Confirmed with ${data.data?.coach || 'your coach'} on ${data.data?.date || selected.date} at ${selected.time_label}${data.data?.location ? ' · ' + data.data.location : ''}.`;
     } catch (err) {
       errorEl.hidden = false;
       errorEl.textContent = err.message || 'Booking failed.';

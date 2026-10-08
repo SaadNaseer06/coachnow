@@ -4,25 +4,15 @@ namespace App\Services;
 
 use App\Models\Coach;
 use App\Models\CoachAvailabilitySlot;
+use App\Models\CoachGroupSession;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 
 class CoachAvailabilityService
 {
     /**
      * Expand weekly availability into bookable open slots between $from and $to (inclusive dates).
      *
-     * @return list<array{
-     *   date: string,
-     *   time: string,
-     *   time_label: string,
-     *   end_time: string,
-     *   duration_minutes: int,
-     *   location_id: int,
-     *   location_name: string,
-     *   location_area: string|null,
-     *   block_id: int
-     * }>
+     * @return list<array<string, mixed>>
      */
     public function openSlotsForCoach(Coach $coach, Carbon $from, Carbon $to, int $durationMinutes = 60): array
     {
@@ -47,10 +37,24 @@ class CoachAvailabilityService
         $occupancy = Coach::occupancyByCoachIds([$coach->id])[$coach->id] ?? [];
         $busy = $this->busyWindows($occupancy);
 
+        $groups = CoachGroupSession::query()
+            ->with('location')
+            ->where('coach_id', $coach->id)
+            ->whereIn('status', ['open', 'full'])
+            ->whereDate('session_date', '>=', $from->toDateString())
+            ->whereDate('session_date', '<=', $to->toDateString())
+            ->get();
+
+        $groupsByKey = [];
+        foreach ($groups as $group) {
+            $key = $group->session_date?->toDateString().'|'.substr((string) $group->session_time, 0, 5);
+            $groupsByKey[$key] = $group;
+        }
+
         $slots = [];
         $cursor = $from->copy();
         while ($cursor->lte($to)) {
-            $dayOfWeek = (int) $cursor->dayOfWeek; // 0 Sun … 6 Sat
+            $dayOfWeek = (int) $cursor->dayOfWeek;
             $dateStr = $cursor->toDateString();
 
             foreach ($blocks->where('day_of_week', $dayOfWeek) as $block) {
@@ -66,27 +70,61 @@ class CoachAvailabilityService
                 while ($slotStart->copy()->addMinutes($duration)->lte($windowEnd)) {
                     $slotEnd = $slotStart->copy()->addMinutes($duration);
                     $startKey = $slotStart->format('H:i');
+                    $groupKey = $dateStr.'|'.$startKey;
+                    $group = $groupsByKey[$groupKey] ?? null;
 
                     if ($slotStart->lt(now())) {
                         $slotStart->addMinutes($duration);
                         continue;
                     }
 
-                    if (! $this->overlapsBusy($dateStr, $startKey, $duration, $busy)) {
-                        $location = $block->location;
-                        $slots[] = [
-                            'date' => $dateStr,
-                            'time' => $startKey,
-                            'time_label' => $slotStart->format('g:i A'),
-                            'end_time' => $slotEnd->format('H:i'),
-                            'duration_minutes' => $duration,
-                            'location_id' => (int) $block->location_id,
-                            'location_name' => $location?->name ?? 'Field TBD',
-                            'location_area' => $location?->area,
-                            'block_id' => (int) $block->id,
-                        ];
+                    $busyHit = $this->overlapsBusy($dateStr, $startKey, $duration, $busy);
+                    if ($busyHit && ! $group) {
+                        $slotStart->addMinutes($duration);
+                        continue;
                     }
 
+                    $location = $group?->location ?: $block->location;
+                    $slot = [
+                        'date' => $dateStr,
+                        'time' => $startKey,
+                        'time_label' => $slotStart->format('g:i A'),
+                        'end_time' => $slotEnd->format('H:i'),
+                        'duration_minutes' => $group ? $group->durationMinutes() : $duration,
+                        'location_id' => (int) ($group?->location_id ?: $block->location_id),
+                        'location_name' => $location?->name ?? 'Field TBD',
+                        'location_area' => $location?->area,
+                        'block_id' => (int) $block->id,
+                        'group_session_id' => null,
+                        'session_type' => null,
+                        'booked_count' => null,
+                        'max_players' => null,
+                        'spots_remaining' => null,
+                        'label' => null,
+                        'joinable' => false,
+                    ];
+
+                    if ($group) {
+                        $booked = $group->bookedCount();
+                        $max = (int) $group->max_players;
+                        $spots = max(0, $max - $booked);
+                        $isFull = $spots <= 0 || $group->status === 'full';
+                        $slot['group_session_id'] = $group->id;
+                        $slot['session_type'] = $group->session_type;
+                        $slot['booked_count'] = $booked;
+                        $slot['max_players'] = $max;
+                        $slot['spots_remaining'] = $spots;
+                        $slot['full'] = $isFull;
+                        $slot['label'] = $isFull
+                            ? $group->session_type.' — '.$booked.' of '.$max.' booked / Full'
+                            : $group->session_type.' — '.$booked.' of '.$max.' booked / '.$spots.' spot'.($spots === 1 ? '' : 's').' remaining';
+                        $slot['joinable'] = ! $isFull;
+                        $slot['time_label'] = $isFull
+                            ? $slotStart->format('g:i A').' · Full'
+                            : $slotStart->format('g:i A').' · Group';
+                    }
+
+                    $slots[] = $slot;
                     $slotStart->addMinutes($duration);
                 }
             }

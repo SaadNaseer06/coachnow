@@ -17,6 +17,7 @@
   data-rate="{{ (float) $coach->rate }}"
   data-slots='@json($slotsJson)'
   data-book-url="{{ route('bookings.store') }}"
+  data-join-url="{{ url('/api/group-sessions') }}"
   data-dashboard-url="{{ route('player-dashboard') }}"
 >
   <section class="book-hero">

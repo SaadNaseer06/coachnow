@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Coach;
+use App\Models\CoachGroupSession;
 use App\Services\CoachAvailabilityService;
 use App\Services\SessionBookingService;
 use Illuminate\Http\JsonResponse;
@@ -92,6 +93,41 @@ class BookingController extends Controller
                 'time' => $booking->session_time,
                 'location' => $booking->location?->name,
                 'amount' => (float) $booking->amount,
+            ],
+        ], 201);
+    }
+
+    public function requestJoin(Request $request, CoachGroupSession $group, SessionBookingService $bookings): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user?->isAthlete()) {
+            return response()->json(['message' => 'Only athletes can request to join.'], 403);
+        }
+
+        $data = $request->validate([
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $coach = $group->coach;
+        if (! $coach || $coach->status !== 'active') {
+            return response()->json(['message' => 'That coach is not available.'], 422);
+        }
+
+        try {
+            $join = $bookings->requestJoinGroupSession($coach, $user, (int) $group->id, $data['notes'] ?? null);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => collect($e->errors())->flatten()->first() ?: 'Could not request to join.',
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Request sent — the coach will confirm your spot.',
+            'data' => [
+                'join_id' => $join->id,
+                'status' => $join->status,
+                'group_session_id' => $group->id,
+                'label' => $group->session_type.' · '.$group->capacityLabel(),
             ],
         ], 201);
     }

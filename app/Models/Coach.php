@@ -185,6 +185,11 @@ class Coach extends Model
         return $this->hasMany(CoachTimeBlock::class);
     }
 
+    public function groupSessions(): HasMany
+    {
+        return $this->hasMany(CoachGroupSession::class);
+    }
+
     public function isPlusPlan(): bool
     {
         return ($this->plan ?? 'standard') === 'plus';
@@ -457,9 +462,18 @@ class Coach extends Model
             ->where('status', '!=', 'cancelled')
             ->whereDate('session_date', '>=', $from)
             ->whereDate('session_date', '<=', $to)
-            ->get(['coach_id', 'session_date', 'session_time', 'duration_minutes']);
+            ->with(['groupSession:id,status,max_players'])
+            ->get(['coach_id', 'session_date', 'session_time', 'duration_minutes', 'group_session_id']);
 
         foreach ($bookings as $booking) {
+            // Joinable group sessions stay visible on Book Now — don't mark exclusive busy.
+            if ($booking->group_session_id) {
+                $group = $booking->groupSession;
+                if ($group && $group->status === 'open' && $group->spotsRemaining() > 0) {
+                    continue;
+                }
+            }
+
             $rows[$booking->coach_id][] = [
                 'date' => optional($booking->session_date)->toDateString(),
                 'time' => $booking->session_time ? substr((string) $booking->session_time, 0, 5) : null,

@@ -814,6 +814,135 @@ button.sched-calendar-slot:focus-visible::after {
   color: #78350f;
 }
 
+.sched-event.is-manageable,
+.sched-agenda-item.is-manageable {
+  cursor: pointer;
+}
+
+.sched-event.is-manageable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.sched-agenda-item.is-manageable:hover {
+  background: #fafafa;
+}
+
+.sched-event.is-manageable:hover {
+  outline: 1px solid rgba(25, 22, 21, 0.2);
+}
+
+.sched-event.is-drag-origin {
+  opacity: 0.28;
+  box-shadow: none;
+}
+
+.sched-drag-float {
+  position: fixed;
+  z-index: 10050;
+  margin: 0;
+  pointer-events: none;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+  will-change: transform;
+  opacity: 0.96;
+  cursor: grabbing;
+}
+
+.sched-drag-snap {
+  pointer-events: none !important;
+  opacity: 0.55;
+  outline: 2px dashed rgba(25, 22, 21, 0.35);
+  outline-offset: -2px;
+  box-shadow: none;
+  z-index: 3;
+}
+
+.sched-calendar-column.is-drop-target {
+  background: rgba(218, 2, 12, 0.03);
+}
+
+body.sched-is-dragging,
+body.sched-is-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+.sched-join-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f4f4f5;
+}
+
+.sched-join-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sched-join-row strong {
+  display: block;
+  font-size: 14px;
+}
+
+.sched-join-row span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #71717a;
+}
+
+.sched-join-row__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sched-manage-players {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f4f4f5;
+}
+
+.sched-manage-players strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.sched-manage-players__list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.sched-manage-players__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.sched-manage-players__add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.sched-manage-players__add .admin-select,
+.sched-manage-players__add .admin-input {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
 .sched-event-remove {
   position: absolute;
   top: 2px;

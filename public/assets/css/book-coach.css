@@ -208,9 +208,22 @@ body.book-flow #coachnowPreloader {
 }
 
 .book-chip.is-selected,
-.book-chip:hover {
+.book-chip:hover:not(:disabled) {
   border-color: #da020c;
   background: rgba(218, 2, 12, 0.12);
+}
+
+.book-chip.is-group {
+  border-color: rgba(167, 139, 250, 0.45);
+}
+
+.book-chip.is-full,
+.book-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: #15171a;
+  color: #a1a1aa;
 }
 
 .book-field {

@@ -68,9 +68,17 @@ class CoachController extends Controller
             ->confirmed()
             ->whereDate('session_date', '>=', $rangeStart->toDateString())
             ->whereDate('session_date', '<=', $rangeEnd->toDateString())
-            ->with(['athlete', 'location'])
+            ->with(['athlete', 'location', 'groupSession'])
             ->orderBy('session_date')
             ->orderBy('session_time')
+            ->get();
+
+        $pendingJoins = \App\Models\GroupJoinRequest::query()
+            ->where('status', 'pending')
+            ->whereHas('groupSession', fn ($q) => $q->where('coach_id', $coach->id))
+            ->with(['athlete', 'groupSession'])
+            ->latest()
+            ->limit(20)
             ->get();
 
         $timeBlocks = CoachTimeBlock::query()
@@ -166,7 +174,10 @@ class CoachController extends Controller
                 'Group',
                 'Assessment',
                 'Team Training',
+                'Camp',
             ],
+            'pendingJoins' => $pendingJoins,
+            'openManageId' => $request->integer('manage') ?: null,
             'summary' => [
                 ['label' => 'Sessions', 'value' => (string) $bookings->count(), 'note' => $viewMode === 'month' ? 'This month' : ($viewMode === 'day' ? 'This day' : 'Booked this week')],
                 ['label' => 'Players', 'value' => (string) $uniquePlayers, 'note' => 'Across sessions'],
@@ -1003,14 +1014,23 @@ class CoachController extends Controller
     private function mapBookingsToCalendar(Collection $bookings, Carbon $weekStart): array
     {
         $rows = (self::CAL_END_HOUR - self::CAL_START_HOUR) * 2;
+        $seenGroups = [];
+        $events = [];
 
-        return $bookings->map(function (Booking $booking) use ($weekStart, $rows) {
+        foreach ($bookings as $booking) {
+            if ($booking->group_session_id) {
+                if (isset($seenGroups[$booking->group_session_id])) {
+                    continue;
+                }
+                $seenGroups[$booking->group_session_id] = true;
+            }
+
             $sessionDay = $booking->session_date?->copy()->startOfDay();
             $weekDay = $weekStart->copy()->startOfDay();
             $dayIndex = $sessionDay
                 ? (int) $weekDay->diffInDays($sessionDay, false)
                 : 0;
-            $dayIndex = max(0, min(6, $dayIndex));
+            $dayIndex = max(0, min(31, $dayIndex));
             $time = $booking->session_time
                 ? Carbon::parse($booking->session_time)->format('G:i')
                 : '9:00';
@@ -1025,24 +1045,38 @@ class CoachController extends Controller
                 ? Carbon::parse($booking->session_time)->format('g:i A')
                 : '';
 
-            return [
+            $group = $booking->groupSession;
+            $playerCount = $group ? $group->bookedCount() : 1;
+            $title = $group
+                ? ($group->session_type.' · '.$group->capacityLabel())
+                : $booking->displayName();
+
+            $events[] = [
                 'kind' => 'booking',
                 'id' => $booking->id,
+                'group_session_id' => $booking->group_session_id,
                 'day' => $dayIndex,
                 'date' => $booking->session_date?->toDateString(),
                 'start' => $time,
+                'start_hi' => sprintf('%02d:%02d', $hours, $minutes),
                 'time_label' => $timeLabel,
                 'duration' => $duration,
-                'title' => $booking->displayName(),
+                'title' => $title,
                 'type' => $booking->session_type ?? 'Session',
-                'players' => 1,
+                'players' => $playerCount,
+                'max_players' => $group?->max_players,
+                'notes' => $booking->notes,
                 'tone' => $booking->tone(),
                 'location' => $booking->location?->name,
+                'location_id' => $booking->location_id,
                 'date_label' => $booking->session_date?->format('D, M j') ?? '',
                 'gridStart' => $start,
                 'gridEnd' => min($rows + 1, $start + $span),
+                'draggable' => true,
             ];
-        })->values()->all();
+        }
+
+        return $events;
     }
 
     /**
