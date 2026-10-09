@@ -26,6 +26,10 @@ class Booking extends Model
         'session_time',
         'duration_minutes',
         'amount',
+        'stripe_payment_intent_id',
+        'platform_fee_amount',
+        'coach_payout_amount',
+        'payment_status',
         'status',
         'notes',
         'max_players',
@@ -37,6 +41,8 @@ class Booking extends Model
         return [
             'session_date' => 'date',
             'amount' => 'decimal:2',
+            'platform_fee_amount' => 'decimal:2',
+            'coach_payout_amount' => 'decimal:2',
             'duration_minutes' => 'integer',
             'max_players' => 'integer',
         ];

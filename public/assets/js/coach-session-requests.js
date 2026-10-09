@@ -14,8 +14,9 @@
     const response = await fetch(url, { ...options, headers, credentials: 'same-origin' });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const message = payload.message || 'Request failed';
-      throw new Error(message);
+      const error = new Error(payload.message || 'Request failed');
+      error.payload = payload;
+      throw error;
     }
     return payload;
   }
@@ -450,6 +451,11 @@
       } catch (error) {
         window.CoachNowBusy?.clearBusy(btn);
         if (declineBtn) declineBtn.disabled = false;
+        if (error?.payload?.needs_payout_setup) {
+          const go = window.confirm(`${error.message}\n\nOpen payout setup now?`);
+          if (go) window.location.href = '/coach/stripe/onboard';
+          return;
+        }
         if (window.CoachNowDialog?.alert) {
           await window.CoachNowDialog.alert({
             title: 'Accept failed',
@@ -857,11 +863,11 @@
           console.warn('Pusher private channel error', err);
         });
     }
-    setInterval(loadLiveRequests, 60000);
+    setInterval(loadLiveRequests, 90000);
   } else {
     if (window.CoachNowRealtime?.reason) {
       console.warn('[CoachNow realtime disabled]', window.CoachNowRealtime.reason);
     }
-    setInterval(loadLiveRequests, 8000);
+    setInterval(loadLiveRequests, 30000);
   }
 })();

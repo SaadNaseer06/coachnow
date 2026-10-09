@@ -26,14 +26,18 @@ class SessionRequestChanged implements ShouldBroadcastNow
      */
     public function broadcastOn(): array
     {
-        $requested = ! empty($this->request['requested_coach_id'])
-            ? (int) $this->request['requested_coach_id']
-            : 0;
         $host = ! empty($this->request['host_coach_id'])
             ? (int) $this->request['host_coach_id']
             : 0;
+        $requested = ! empty($this->request['requested_coach_id'])
+            ? [(int) $this->request['requested_coach_id']]
+            : [];
+        $invited = collect($this->request['invited_coach_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->all();
 
-        $ids = array_values(array_unique(array_filter([$requested, $host])));
+        $ids = array_values(array_unique(array_filter(array_merge($requested, $invited, [$host]))));
 
         if ($ids !== []) {
             return array_map(

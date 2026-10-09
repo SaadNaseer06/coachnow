@@ -21,4 +21,11 @@ return [
         'model' => env('GROQ_MODEL', 'openai/gpt-oss-20b'),
         'timeout' => (int) env('GROQ_TIMEOUT', 90),
     ],
+
+    'payments' => [
+        'deposit_amount' => (float) env('COACHNOW_DEPOSIT_AMOUNT', 10),
+        'platform_fee_percent' => (float) env('COACHNOW_PLATFORM_FEE_PERCENT', 10),
+        'platform_fee_fixed' => (float) env('COACHNOW_PLATFORM_FEE_FIXED', 0),
+        'require_payouts_for_paid' => filter_var(env('COACHNOW_REQUIRE_PAYOUTS', true), FILTER_VALIDATE_BOOL),
+    ],
 ];

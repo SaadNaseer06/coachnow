@@ -131,14 +131,47 @@
     errorEl.hidden = true;
   }
 
+  const payPanel = document.getElementById('bookPayPanel');
+  const payMount = document.getElementById('bookStripeMount');
+  const payConfirmBtn = document.getElementById('bookPayConfirmBtn');
+  const payCancelBtn = document.getElementById('bookPayCancelBtn');
+  const payHint = document.getElementById('bookPayHint');
+  let activeCheckout = null;
+
+  const hidePayPanel = () => {
+    if (payPanel) payPanel.hidden = true;
+    if (confirmBtn) confirmBtn.hidden = false;
+    activeCheckout = null;
+  };
+
+  payCancelBtn?.addEventListener('click', () => {
+    hidePayPanel();
+    confirmBtn.disabled = false;
+  });
+
+  payConfirmBtn?.addEventListener('click', async () => {
+    if (!activeCheckout) return;
+    payConfirmBtn.disabled = true;
+    errorEl.hidden = true;
+    try {
+      const booking = await activeCheckout.confirm();
+      document.querySelector('.book-summary')?.setAttribute('hidden', '');
+      successEl.hidden = false;
+      successText.textContent = `Confirmed with ${booking.data?.coach || 'your coach'} on ${booking.data?.date || selected.date} at ${selected.time_label}${booking.data?.location ? ' · ' + booking.data.location : ''}.`;
+    } catch (err) {
+      errorEl.hidden = false;
+      errorEl.textContent = err.message || 'Payment failed.';
+      payConfirmBtn.disabled = false;
+    }
+  });
+
   confirmBtn?.addEventListener('click', async () => {
     if (!selected) return;
     confirmBtn.disabled = true;
     errorEl.hidden = true;
     try {
-      let res;
       if (selected.joinable && selected.group_session_id) {
-        res = await fetch(`${joinUrlBase}/${selected.group_session_id}/join`, {
+        const res = await fetch(`${joinUrlBase}/${selected.group_session_id}/join`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -149,34 +182,54 @@
           credentials: 'same-origin',
           body: JSON.stringify({}),
         });
-      } else {
-        res = await fetch(bookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'X-CSRF-TOKEN': csrf,
-            'X-Requested-With': 'XMLHttpRequest',
-          },
-          credentials: 'same-origin',
-          body: JSON.stringify({
-            coach: coachToken,
-            date: selected.date,
-            time: selected.time,
-            location_id: selected.location_id,
-            duration_minutes: selected.duration_minutes,
-          }),
-        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Could not complete booking.');
+        document.querySelector('.book-summary')?.setAttribute('hidden', '');
+        successEl.hidden = false;
+        successText.textContent = data.message || 'Request sent — your coach will confirm.';
+        return;
       }
+
+      const stripeOn = window.CoachNowStripe && await window.CoachNowStripe.enabled();
+      if (stripeOn && payMount && payPanel) {
+        activeCheckout = await window.CoachNowStripe.payAndBook({
+          coach: coachToken,
+          date: selected.date,
+          time: selected.time,
+          location_id: selected.location_id,
+          duration_minutes: selected.duration_minutes,
+        }, payMount);
+        if (payHint) {
+          payHint.textContent = `Pay $${Number(activeCheckout.amount).toFixed(0)} securely in CoachNow (platform fee $${Number(activeCheckout.platform_fee || 0).toFixed(2)}). Apple Pay appears when supported.`;
+        }
+        confirmBtn.hidden = true;
+        payPanel.hidden = false;
+        payConfirmBtn.disabled = false;
+        return;
+      }
+
+      const res = await fetch(bookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-CSRF-TOKEN': csrf,
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          coach: coachToken,
+          date: selected.date,
+          time: selected.time,
+          location_id: selected.location_id,
+          duration_minutes: selected.duration_minutes,
+        }),
+      });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.message || 'Could not complete booking.');
-      }
+      if (!res.ok) throw new Error(data.message || 'Could not complete booking.');
       document.querySelector('.book-summary')?.setAttribute('hidden', '');
       successEl.hidden = false;
-      successText.textContent = selected.joinable
-        ? (data.message || 'Request sent — your coach will confirm.')
-        : `Confirmed with ${data.data?.coach || 'your coach'} on ${data.data?.date || selected.date} at ${selected.time_label}${data.data?.location ? ' · ' + data.data.location : ''}.`;
+      successText.textContent = `Confirmed with ${data.data?.coach || 'your coach'} on ${data.data?.date || selected.date} at ${selected.time_label}${data.data?.location ? ' · ' + data.data.location : ''}.`;
     } catch (err) {
       errorEl.hidden = false;
       errorEl.textContent = err.message || 'Booking failed.';

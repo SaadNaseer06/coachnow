@@ -97,7 +97,7 @@ class DashboardController extends Controller
                 });
             })
             ->when(in_array($status, ['pending', 'active', 'paused'], true), fn ($query) => $query->where('status', $status))
-            ->when(in_array($plan, ['standard', 'plus'], true), fn ($query) => $query->where('plan', $plan))
+            ->when(in_array($plan, array_keys(Coach::PLANS), true), fn ($query) => $query->where('plan', $plan))
             ->when(in_array($approval, ['none', 'flagged', 'approved', 'rejected'], true), fn ($query) => $query->where('approval_status', $approval))
             ->when($locationId === 'none', fn ($query) => $query->whereNull('location_id'))
             ->when(is_numeric($locationId), fn ($query) => $query->where('location_id', (int) $locationId))
@@ -194,7 +194,7 @@ class DashboardController extends Controller
             'status' => ['required', Rule::in(['pending', 'active', 'paused'])],
             'experience' => ['nullable', 'string', Rule::in(Coach::EXPERIENCE_OPTIONS)],
             'bio' => ['nullable', 'string', 'max:2000'],
-            'plan' => ['required', Rule::in(['standard', 'plus'])],
+            'plan' => ['required', Rule::in(array_keys(Coach::PLANS))],
             'approval_status' => ['required', Rule::in(['none', 'flagged', 'approved', 'rejected'])],
             'background_check_status' => ['required', Rule::in(['none', 'pending', 'clear'])],
             'verified' => ['sometimes', 'boolean'],
@@ -239,7 +239,7 @@ class DashboardController extends Controller
     public function updateCoachApproval(Request $request, Coach $coach): RedirectResponse
     {
         $data = $request->validate([
-            'action' => ['required', Rule::in(['approve', 'reject', 'flag', 'verify', 'unverify', 'plus', 'standard'])],
+            'action' => ['required', Rule::in(['approve', 'reject', 'flag', 'verify', 'unverify', 'founding', 'trial', 'standard', 'plus', 'premium'])],
         ]);
 
         $message = match ($data['action']) {
@@ -280,15 +280,30 @@ class DashboardController extends Controller
 
                 return $coach->display_name.' verification was cleared.';
             })(),
+            'founding' => (function () use ($coach) {
+                $coach->forceFill(['plan' => 'founding'])->save();
+
+                return $coach->display_name.' is a Founding Coach (free).';
+            })(),
+            'trial' => (function () use ($coach) {
+                $coach->forceFill(['plan' => 'trial'])->save();
+
+                return $coach->display_name.' is on a Free Trial.';
+            })(),
             'plus' => (function () use ($coach) {
                 $coach->forceFill(['plan' => 'plus'])->save();
 
                 return $coach->display_name.' is on CoachNow Plus.';
             })(),
+            'premium' => (function () use ($coach) {
+                $coach->forceFill(['plan' => 'premium'])->save();
+
+                return $coach->display_name.' is on Premium.';
+            })(),
             'standard' => (function () use ($coach) {
                 $coach->forceFill(['plan' => 'standard'])->save();
 
-                return $coach->display_name.' is on the standard plan.';
+                return $coach->display_name.' is on the Standard plan.';
             })(),
         };
 

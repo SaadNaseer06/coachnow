@@ -6,6 +6,7 @@ use App\Models\Coach;
 use App\Models\CoachGroupSession;
 use App\Services\CoachAvailabilityService;
 use App\Services\SessionBookingService;
+use App\Services\StripeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -64,6 +65,24 @@ class BookingController extends Controller
         $coach = Coach::resolveFromPublicToken($data['coach']);
         if (! $coach || $coach->status !== 'active') {
             return response()->json(['message' => 'That coach is not available.'], 422);
+        }
+
+        $stripe = app(StripeService::class);
+        if (
+            $stripe->enabled()
+            && config('coachnow.payments.require_payouts_for_paid')
+            && (float) ($coach->rate ?? 0) > 0
+        ) {
+            if (! $coach->canReceivePayouts()) {
+                return response()->json([
+                    'message' => 'This coach has not finished payout setup yet.',
+                ], 422);
+            }
+
+            return response()->json([
+                'message' => 'Paid bookings must complete Stripe checkout on this page.',
+                'requires_stripe' => true,
+            ], 422);
         }
 
         try {

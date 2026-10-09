@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class CoachScheduleSessionController extends Controller
@@ -58,6 +59,7 @@ class CoachScheduleSessionController extends Controller
         }
 
         $coach->forceFill(['last_active_at' => now()])->save();
+        $this->forgetCoachCaches($coach);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -131,6 +133,7 @@ class CoachScheduleSessionController extends Controller
         }
 
         $coach->forceFill(['last_active_at' => now()])->save();
+        $this->forgetCoachCaches($coach);
 
         if ($request->expectsJson()) {
             $updated->load(['groupSession', 'location']);
@@ -194,6 +197,7 @@ class CoachScheduleSessionController extends Controller
         }
 
         $coach->forceFill(['last_active_at' => now()])->save();
+        $this->forgetCoachCaches($coach);
 
         return response()->json([
             'message' => 'Session moved.',
@@ -210,6 +214,7 @@ class CoachScheduleSessionController extends Controller
         $date = $booking->session_date?->toDateString();
 
         $bookings->cancelCoachBooking($coach, $booking);
+        $this->forgetCoachCaches($coach);
 
         if ($request->expectsJson()) {
             return response()->json(['message' => 'Session cancelled.']);
@@ -283,6 +288,8 @@ class CoachScheduleSessionController extends Controller
             return back()->with('error', collect($e->errors())->flatten()->first());
         }
 
+        $this->forgetCoachCaches($coach);
+
         if ($request->expectsJson()) {
             return response()->json(['message' => 'Player added to group.', 'booking_id' => $booking->id]);
         }
@@ -342,5 +349,11 @@ class CoachScheduleSessionController extends Controller
         abort_unless($coach, 403);
 
         return $coach;
+    }
+
+    private function forgetCoachCaches(Coach $coach): void
+    {
+        Cache::forget('coach.'.$coach->id.'.roster');
+        Cache::forget('coach.'.$coach->id.'.sync_missing_bookings');
     }
 }

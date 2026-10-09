@@ -16,15 +16,42 @@ class Coach extends Model
     use HasFactory;
 
     public const SPECIALTIES = [
+        '1-on-1 / Private Training',
+        'Small Group Training',
+        'Group Training',
+        'Team Training',
+        'Camps / Clinics',
+        'Speed & Agility',
+        // Legacy labels still accepted on existing profiles
         'Private Soccer Training',
         'Small Group Soccer',
-        'Team Training',
         '1-on-1 Skills',
         'Futsal',
         'Performance & Speed',
         'Youth Development',
         'Clinics & Camps',
     ];
+
+    /** Options shown on Become a Coach / profile pickers */
+    public const SPECIALTY_OPTIONS = [
+        '1-on-1 / Private Training',
+        'Small Group Training',
+        'Group Training',
+        'Team Training',
+        'Camps / Clinics',
+        'Speed & Agility',
+    ];
+
+    public const PLANS = [
+        'founding' => 'Founding Coach — Free',
+        'trial' => 'Free Trial',
+        'standard' => 'Standard Plan',
+        'plus' => 'Plus (legacy)',
+        'premium' => 'Premium Plan',
+    ];
+
+    /** Plans that can accept open marketplace session requests */
+    public const MARKETPLACE_PLANS = ['founding', 'trial', 'plus', 'premium'];
 
     public const EXPERIENCE_OPTIONS = [
         '1-3 years',
@@ -48,11 +75,18 @@ class Coach extends Model
         'display_name',
         'slug',
         'specialty',
+        'specialties',
         'sport',
+        'sports',
         'experience',
         'ages',
         'status',
         'plan',
+        'stripe_account_id',
+        'stripe_charges_enabled',
+        'stripe_payouts_enabled',
+        'stripe_details_submitted',
+        'stripe_onboarded_at',
         'rate',
         'rating',
         'reviews_count',
@@ -74,6 +108,12 @@ class Coach extends Model
             'rate' => 'decimal:2',
             'rating' => 'decimal:1',
             'credentials' => 'array',
+            'sports' => 'array',
+            'specialties' => 'array',
+            'stripe_charges_enabled' => 'boolean',
+            'stripe_payouts_enabled' => 'boolean',
+            'stripe_details_submitted' => 'boolean',
+            'stripe_onboarded_at' => 'datetime',
             'verified_at' => 'datetime',
             'approved_at' => 'datetime',
             'last_active_at' => 'datetime',
@@ -192,7 +232,64 @@ class Coach extends Model
 
     public function isPlusPlan(): bool
     {
-        return ($this->plan ?? 'standard') === 'plus';
+        return in_array($this->plan ?? 'standard', self::MARKETPLACE_PLANS, true);
+    }
+
+    public function canReceivePayouts(): bool
+    {
+        return filled($this->stripe_account_id)
+            && (bool) $this->stripe_charges_enabled
+            && (bool) $this->stripe_payouts_enabled;
+    }
+
+    public function planLabel(): string
+    {
+        $plan = $this->plan ?? 'standard';
+
+        return self::PLANS[$plan] ?? ucfirst($plan);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function sportsList(): array
+    {
+        $list = is_array($this->sports) ? $this->sports : [];
+        if ($list === [] && filled($this->sport)) {
+            $list = [(string) $this->sport];
+        }
+
+        return array_values(array_unique(array_filter(array_map('strval', $list))));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function specialtiesList(): array
+    {
+        $list = is_array($this->specialties) ? $this->specialties : [];
+        if ($list === [] && filled($this->specialty)) {
+            $list = [(string) $this->specialty];
+        }
+
+        return array_values(array_unique(array_filter(array_map('strval', $list))));
+    }
+
+    /**
+     * @param  list<string>  $sports
+     * @param  list<string>  $specialties
+     */
+    public function syncSportsAndSpecialties(array $sports, array $specialties): void
+    {
+        $sports = array_values(array_unique(array_filter(array_map('strval', $sports))));
+        $specialties = array_values(array_unique(array_filter(array_map('strval', $specialties))));
+
+        $this->forceFill([
+            'sports' => $sports,
+            'specialties' => $specialties,
+            'sport' => $sports[0] ?? $this->sport,
+            'specialty' => $specialties[0] ?? $this->specialty,
+        ])->save();
     }
 
     public function isCoachNowVerified(): bool
@@ -291,10 +388,12 @@ class Coach extends Model
 
     public function roleLabel(): string
     {
-        $specialty = trim((string) $this->specialty);
+        $specialties = $this->specialtiesList();
+        $specialty = trim((string) ($specialties[0] ?? $this->specialty));
 
         if ($specialty === '') {
-            $sport = trim((string) $this->sport);
+            $sports = $this->sportsList();
+            $sport = trim((string) ($sports[0] ?? $this->sport));
 
             return $sport !== '' ? $sport.' Coach' : 'Coach';
         }
@@ -357,8 +456,8 @@ class Coach extends Model
     public function isReadyForListing(): bool
     {
         return filled($this->display_name)
-            && filled($this->sport)
-            && filled($this->specialty)
+            && $this->sportsList() !== []
+            && $this->specialtiesList() !== []
             && filled($this->experience)
             && filled($this->ages)
             && filled($this->location_id)
@@ -375,10 +474,10 @@ class Coach extends Model
         if (! filled($this->display_name)) {
             $missing[] = 'Display name';
         }
-        if (! filled($this->sport)) {
+        if ($this->sportsList() === []) {
             $missing[] = 'Sport';
         }
-        if (! filled($this->specialty)) {
+        if ($this->specialtiesList() === []) {
             $missing[] = 'Specialty';
         }
         if (! filled($this->experience)) {

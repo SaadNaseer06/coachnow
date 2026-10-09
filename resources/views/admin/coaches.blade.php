@@ -36,8 +36,9 @@
     </select>
     <select class="admin-select" name="plan">
       <option value="">All plans</option>
-      <option value="standard" @selected(($filters['plan'] ?? '') === 'standard')>Standard</option>
-      <option value="plus" @selected(($filters['plan'] ?? '') === 'plus')>Plus</option>
+      @foreach (\App\Models\Coach::PLANS as $planValue => $planLabel)
+        <option value="{{ $planValue }}" @selected(($filters['plan'] ?? '') === $planValue)>{{ $planLabel }}</option>
+      @endforeach
     </select>
     <select class="admin-select" name="approval">
       <option value="">All trust</option>
@@ -101,7 +102,11 @@
             <td>{{ $locationName !== '' ? $locationName : '—' }}</td>
             <td>{{ $coach->specialty ?? '—' }}</td>
             <td>
-              <span class="admin-badge {{ ($coach->plan ?? 'standard') === 'plus' ? 'admin-badge-green' : 'admin-badge-zinc' }}">{{ ($coach->plan ?? 'standard') === 'plus' ? 'Plus' : 'Standard' }}</span>
+              @php
+                $planKey = $coach->plan ?? 'standard';
+                $planBadge = in_array($planKey, ['founding', 'trial', 'plus', 'premium'], true) ? 'admin-badge-green' : 'admin-badge-zinc';
+              @endphp
+              <span class="admin-badge {{ $planBadge }}">{{ $coach->planLabel() }}</span>
             </td>
             <td>
               @if ($coach->isCoachNowApproved())
@@ -249,11 +254,13 @@
             </select>
           </label>
           <label class="admin-field">
-            <span>Plan</span>
+            <span>Subscription plan</span>
             <select class="admin-select" name="plan" required>
-              <option value="standard" @selected(old('plan', $coach->plan ?? 'standard') === 'standard')>Standard</option>
-              <option value="plus" @selected(old('plan', $coach->plan ?? 'standard') === 'plus')>Plus (open marketplace)</option>
+              @foreach (\App\Models\Coach::PLANS as $planValue => $planLabel)
+                <option value="{{ $planValue }}" @selected(old('plan', $coach->plan ?? 'standard') === $planValue)>{{ $planLabel }}</option>
+              @endforeach
             </select>
+            <span class="admin-field-hint" style="display:block;margin-top:6px;font-size:12px;color:#71717a">Changing plan does not affect payout/bank setup.</span>
           </label>
           <label class="admin-field">
             <span>CoachNow Approved</span>
@@ -313,14 +320,26 @@
           <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}">
             @csrf
             @method('PATCH')
-            <input type="hidden" name="action" value="plus">
-            <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm">Upgrade to Plus</button>
+            <input type="hidden" name="action" value="founding">
+            <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm">Founding Free</button>
+          </form>
+          <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}">
+            @csrf
+            @method('PATCH')
+            <input type="hidden" name="action" value="trial">
+            <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm">Free Trial</button>
           </form>
           <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}">
             @csrf
             @method('PATCH')
             <input type="hidden" name="action" value="standard">
-            <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm">Set Standard</button>
+            <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm">Standard</button>
+          </form>
+          <form method="POST" action="{{ route('admin.coaches.approval', $coach) }}">
+            @csrf
+            @method('PATCH')
+            <input type="hidden" name="action" value="premium">
+            <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm">Premium</button>
           </form>
         </div>
       </div>

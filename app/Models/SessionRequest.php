@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -70,9 +71,43 @@ class SessionRequest extends Model
         return $this->belongsTo(Coach::class, 'requested_coach_id');
     }
 
+    public function invitedCoaches(): BelongsToMany
+    {
+        return $this->belongsToMany(Coach::class, 'session_request_coaches')
+            ->withTimestamps();
+    }
+
     public function players(): HasMany
     {
         return $this->hasMany(SessionRequestPlayer::class);
+    }
+
+    /**
+     * Request was sent to specific coach(es), not the open marketplace.
+     */
+    public function isTargeted(): bool
+    {
+        if ($this->requested_coach_id !== null) {
+            return true;
+        }
+
+        if ($this->relationLoaded('invitedCoaches')) {
+            return $this->invitedCoaches->isNotEmpty();
+        }
+
+        return $this->invitedCoaches()->exists();
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function invitedCoachIds(): array
+    {
+        if ($this->relationLoaded('invitedCoaches')) {
+            return $this->invitedCoaches->pluck('id')->map(fn ($id) => (int) $id)->all();
+        }
+
+        return $this->invitedCoaches()->pluck('coaches.id')->map(fn ($id) => (int) $id)->all();
     }
 
     /**
@@ -86,6 +121,11 @@ class SessionRequest extends Model
 
         if ($this->status !== 'open') {
             return $this->host_coach_id === $coach->id;
+        }
+
+        $invitedIds = $this->invitedCoachIds();
+        if ($invitedIds !== []) {
+            return in_array((int) $coach->id, $invitedIds, true);
         }
 
         if ($this->requested_coach_id === null) {
@@ -106,7 +146,11 @@ class SessionRequest extends Model
                     $open->where('status', 'open')
                         ->where(function ($target) use ($coach) {
                             $target->where('requested_coach_id', $coach->id)
-                                ->orWhereNull('requested_coach_id');
+                                ->orWhereHas('invitedCoaches', fn ($inv) => $inv->where('coaches.id', $coach->id))
+                                ->orWhere(function ($openMarket) {
+                                    $openMarket->whereNull('requested_coach_id')
+                                        ->whereDoesntHave('invitedCoaches');
+                                });
                         });
                 });
         });
@@ -527,8 +571,25 @@ class SessionRequest extends Model
             }
         }
 
+        $this->loadMissing('invitedCoaches');
+        $invitedNames = $this->invitedCoaches->pluck('display_name')->filter()->values();
         $coachName = $this->hostCoach?->display_name
-            ?? $this->requestedCoach?->display_name;
+            ?? ($invitedNames->count() === 1
+                ? $invitedNames->first()
+                : ($invitedNames->isNotEmpty()
+                    ? $invitedNames->take(2)->implode(', ').($invitedNames->count() > 2 ? '…' : '')
+                    : $this->requestedCoach?->display_name));
+
+        $waiting = 'Waiting for a coach';
+        if ($this->hostCoach) {
+            $waiting = 'Hosted by '.$this->hostCoach->display_name;
+        } elseif ($invitedNames->count() === 1) {
+            $waiting = 'Waiting for '.$invitedNames->first();
+        } elseif ($invitedNames->count() > 1) {
+            $waiting = 'Waiting for '.$invitedNames->count().' selected coaches';
+        } elseif ($this->requestedCoach) {
+            $waiting = 'Waiting for '.$this->requestedCoach->display_name;
+        }
 
         return [
             'reference' => $this->reference,
@@ -540,14 +601,11 @@ class SessionRequest extends Model
             'status_label' => $this->statusLabel(),
             'status_tone' => $this->statusTone(),
             'coach' => $coachName,
-            'requested_coach' => $this->requestedCoach?->display_name,
+            'requested_coach' => $coachName,
+            'invited_coach_ids' => $this->invitedCoachIds(),
             'role' => $role,
             'role_label' => $role === 'requester' ? 'You requested' : 'You joined',
-            'waiting_label' => $this->hostCoach
-                ? 'Hosted by '.$this->hostCoach->display_name
-                : ($this->requestedCoach
-                    ? 'Waiting for '.$this->requestedCoach->display_name
-                    : 'Waiting for a coach'),
+            'waiting_label' => $waiting,
             'can_cancel' => $this->canBeCancelledBy($viewer),
             'players_count' => $this->players->count(),
             'posted' => $this->postedLabel(),

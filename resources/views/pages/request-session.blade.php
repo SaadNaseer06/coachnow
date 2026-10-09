@@ -28,8 +28,8 @@
 
         <div class="req-main">
           <div class="req-banner">
-            <span class="req-banner__pill">Testing</span>
-            <p>Requests are in testing. Put a <strong>card on file</strong> to submit (no charge). When a coach accepts, a <strong>$10 deposit</strong> is charged automatically. Text alerts and subscriptions launch soon.</p>
+            <span class="req-banner__pill">How it works</span>
+            <p>Put a <strong>card on file</strong> to submit — you’re not charged yet. When a coach accepts, a <strong>$10 deposit</strong> is charged automatically so the session is locked in.</p>
           </div>
 
           <div class="req-progress" aria-hidden="true">
@@ -53,23 +53,40 @@
                   @if (! empty($requestedCoach))
                     <p class="req-lead">Requesting <strong>{{ $requestedCoach->display_name }}</strong>. Only this coach can accept — other coaches will not see it.</p>
                     <input type="hidden" id="reqRequestedCoachId" value="{{ $requestedCoach->id }}" data-coach-rate="{{ $requestedCoach->rate }}" data-coach-ages="{{ $requestedCoach->ages }}" data-coach-specialty="{{ $requestedCoach->specialty }}">
+                    <input type="hidden" id="reqCoachMode" value="locked">
                   @else
-                    <p class="req-lead">Choose a coach, or leave it open so any nearby coach can accept.</p>
+                    <p class="req-lead">Send this to every eligible coach, or pick the coaches you want notified.</p>
                     <div class="req-field">
-                      <label for="reqRequestedCoachId">Coach <span class="req-optional">(optional)</span></label>
-                      <select id="reqRequestedCoachId" name="requested_coach_id">
-                        <option value="" selected>Any available coach</option>
+                      <label>Who should receive this request?</label>
+                      <div class="req-chips" id="reqCoachModeChips" role="group" aria-label="Coach delivery options">
+                        <button type="button" class="req-chip is-active" data-coach-mode="any">Any Available Coach</button>
+                        <button type="button" class="req-chip" data-coach-mode="select">Select Coaches</button>
+                      </div>
+                      <input type="hidden" id="reqCoachMode" value="any">
+                      <input type="hidden" id="reqRequestedCoachId" value="">
+                      <div id="reqCoachMultiWrap" class="req-coach-multi" hidden>
                         @foreach ($coaches ?? [] as $coachOption)
-                          <option
-                            value="{{ $coachOption->id }}"
-                            data-coach-rate="{{ $coachOption->rate }}"
-                            data-coach-ages="{{ $coachOption->ages }}"
-                            data-coach-specialty="{{ $coachOption->specialty }}"
-                            data-park-id="{{ $coachOption->location?->slug }}"
-                          >{{ $coachOption->display_name }}@if($coachOption->location) · {{ $coachOption->location->name }}@endif</option>
+                          <label class="req-coach-multi__item">
+                            <input
+                              type="checkbox"
+                              name="requested_coach_ids[]"
+                              value="{{ $coachOption->id }}"
+                              data-coach-rate="{{ $coachOption->rate }}"
+                              data-coach-ages="{{ $coachOption->ages }}"
+                              data-coach-specialty="{{ $coachOption->specialty }}"
+                              data-park-id="{{ $coachOption->location?->slug }}"
+                              data-coach-name="{{ $coachOption->display_name }}"
+                            >
+                            <span>
+                              <strong>{{ $coachOption->display_name }}</strong>
+                              @if($coachOption->location)
+                                <em>{{ $coachOption->location->name }}</em>
+                              @endif
+                            </span>
+                          </label>
                         @endforeach
-                      </select>
-                      <p class="req-field-hint">Any available coach: every active coach can see it and accept. Pick a name to send it to that coach only.</p>
+                      </div>
+                      <p class="req-field-hint" id="reqCoachHint">Any Available Coach sends this to all eligible coaches. Select Coaches to notify only the ones you choose.</p>
                     </div>
                   @endif
                 </header>
@@ -273,10 +290,10 @@
                   </div>
 
                   <div class="req-field">
-                    <label for="reqPriceRange">Budget per player</label>
+                    <label for="reqPriceRange">Budget per player <span class="req-optional">(optional)</span></label>
                     <p class="req-help">This is what you’re willing to pay <strong>per player</strong> — not a total for the whole group.</p>
-                      <select id="reqPriceRange" name="price_range" required autocomplete="off">
-                      <option value="" disabled selected>Select budget per player</option>
+                      <select id="reqPriceRange" name="price_range" autocomplete="off">
+                      <option value="" selected>No preference</option>
                       <option value="Up to $25 / player">Up to $25 / player</option>
                       <option value="$25 – $50 / player">$25 – $50 / player</option>
                       <option value="$50 – $100 / player">$50 – $100 / player</option>
@@ -299,16 +316,17 @@
                   </div>
 
                   <div class="req-field">
-                    <label for="reqKnowBy">Need to know by</label>
-                    <p class="req-help">Tell coaches when you need an answer — they can accept anytime until this cutoff.</p>
+                    <label for="reqKnowBy">Need to know by <span class="req-optional">(optional)</span></label>
+                    <p class="req-help">Tell coaches when you need an answer — or choose Anytime if there’s no cutoff.</p>
                     <div class="req-chips" id="reqKnowByPresets" role="group" aria-label="Quick cutoff options">
+                      <button type="button" class="req-chip is-active" data-know-by="anytime">Anytime</button>
                       <button type="button" class="req-chip" data-know-by="2h">In 2 hours</button>
                       <button type="button" class="req-chip" data-know-by="tonight">Tonight 8 PM</button>
                       <button type="button" class="req-chip" data-know-by="tomorrow">Tomorrow 10 AM</button>
                     </div>
-                    <div class="req-input-wrap">
+                    <div class="req-input-wrap" id="reqKnowByWrap">
                       <svg class="req-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                      <input type="datetime-local" id="reqKnowBy" name="know_by" required>
+                      <input type="datetime-local" id="reqKnowBy" name="know_by">
                     </div>
                   </div>
 
@@ -407,7 +425,7 @@
                     @include('partials.payment-methods', ['payPrefix' => 'reqJoinPay'])
                     <button type="button" class="req-btn req-btn--primary" id="reqJoinPayBtn">Pay $10 &amp; join</button>
                     <button type="button" class="req-btn req-btn--ghost" id="reqJoinCancelBtn">Cancel</button>
-                    <p class="req-deposit__note">Testing only — no real charge.</p>
+                    <p class="req-deposit__note">Secure checkout — $10 deposit charged when you join.</p>
                   </div>
 
                   <div class="req-live-card__footer">
@@ -471,7 +489,7 @@
           </div>
 
           <div class="req-aside-note">
-            <p><strong>Coming soon:</strong> SMS alerts, live payments, and subscription plans. The $10 deposit is a prototype to stop fake requests.</p>
+            <p>The $10 deposit confirms real players and coaches. Full session balance is settled with your coach after training.</p>
           </div>
         </aside>
 
@@ -504,6 +522,7 @@
 @push('scripts')
   <script src="{{ asset('assets/js/search-draft.js') }}?v={{ @filemtime(public_path('assets/js/search-draft.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/coach-profile.js') }}"></script>
+  <script src="{{ asset('assets/js/stripe-checkout.js') }}?v={{ @filemtime(public_path('assets/js/stripe-checkout.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/payment-methods.js') }}?v={{ @filemtime(public_path('assets/js/payment-methods.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/request-session.js') }}?v={{ @filemtime(public_path('assets/js/request-session.js')) ?: time() }}"></script>
 @endpush

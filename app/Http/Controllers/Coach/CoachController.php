@@ -18,6 +18,7 @@ use App\Services\VideoCompressionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Carbon;
@@ -37,7 +38,11 @@ class CoachController extends Controller
     public function schedule(Request $request): View
     {
         $coach = $this->currentCoach();
-        app(SessionBookingService::class)->syncMissingForCoach($coach);
+        Cache::remember('coach.'.$coach->id.'.sync_missing_bookings', 300, function () use ($coach) {
+            app(SessionBookingService::class)->syncMissingForCoach($coach);
+
+            return true;
+        });
 
         $viewMode = in_array($request->query('view'), ['day', 'week', 'month'], true)
             ? $request->query('view')
@@ -106,10 +111,10 @@ class CoachController extends Controller
             ->upcoming()
             ->count();
 
-        $locations = Location::query()
+        $locations = Cache::remember('locations.live.list', 600, fn () => Location::query()
             ->where('status', 'live')
             ->orderBy('name')
-            ->get(['id', 'name', 'area']);
+            ->get(['id', 'name', 'area']));
 
         $availability = $coach->availabilitySlots()
             ->with('location')
@@ -126,7 +131,11 @@ class CoachController extends Controller
             ])->values()->all())
             ->all();
 
-        $roster = $this->rosterFromBookings($coach)->values();
+        $roster = Cache::remember(
+            'coach.'.$coach->id.'.roster',
+            120,
+            fn () => $this->rosterFromBookings($coach)->values()
+        );
 
         $monthCells = $viewMode === 'month'
             ? $this->monthCells($monthStart, $bookings, $timeBlocks)
@@ -389,7 +398,11 @@ class CoachController extends Controller
     public function dashboard(): View
     {
         $coach = $this->currentCoach();
-        app(SessionBookingService::class)->syncMissingForCoach($coach);
+        Cache::remember('coach.'.$coach->id.'.sync_missing_bookings', 300, function () use ($coach) {
+            app(SessionBookingService::class)->syncMissingForCoach($coach);
+
+            return true;
+        });
         $today = Carbon::today();
         $weekStart = $today->copy()->startOfWeek(Carbon::MONDAY);
 
@@ -842,7 +855,6 @@ class CoachController extends Controller
         return view('coach.profile', [
             'coach' => $coach,
             'locations' => Location::query()->where('status', 'live')->orderBy('name')->get(['id', 'name', 'area']),
-            'specialties' => Coach::SPECIALTIES,
             'experienceOptions' => Coach::EXPERIENCE_OPTIONS,
             'ageOptions' => Coach::AGE_OPTIONS,
             'missingFields' => $coach->missingProfileFields(),
@@ -881,8 +893,10 @@ class CoachController extends Controller
 
         $data = $request->validate([
             'display_name' => ['required', 'string', 'max:120'],
-            'specialty' => ['required', 'string', Rule::in(Coach::SPECIALTIES)],
-            'sport' => ['required', 'string', Rule::in(User::SPORTS)],
+            'sports' => ['required', 'array', 'min:1'],
+            'sports.*' => ['string', Rule::in(User::SPORTS)],
+            'specialties' => ['required', 'array', 'min:1'],
+            'specialties.*' => ['string', Rule::in(Coach::SPECIALTIES)],
             'experience' => ['required', 'string', Rule::in(Coach::EXPERIENCE_OPTIONS)],
             'ages' => ['required', 'string', 'max:80'],
             'location_id' => ['required', 'integer', 'exists:locations,id'],
@@ -897,6 +911,10 @@ class CoachController extends Controller
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'remove_photo' => ['nullable', 'boolean'],
         ]);
+
+        $sports = array_values(array_unique($data['sports']));
+        $specialties = array_values(array_unique($data['specialties']));
+        unset($data['sports'], $data['specialties']);
 
         if ($request->boolean('remove_photo') && ! $request->hasFile('photo')) {
             $coach->deleteStoredPhoto();
@@ -935,7 +953,8 @@ class CoachController extends Controller
         $data['last_active_at'] = now();
 
         $coach->update($data);
-        $coach->user?->update(['sport' => $data['sport']]);
+        $coach->syncSportsAndSpecialties($sports, $specialties);
+        $coach->user?->update(['sport' => $sports[0] ?? $coach->sport]);
         $coach->refresh();
 
         if ($coach->shouldFlagForApprovalReview()) {
@@ -1196,9 +1215,11 @@ class CoachController extends Controller
         $bookings = Booking::query()
             ->forCoach($coach->id)
             ->where('status', '!=', 'cancelled')
-            ->with(['athlete', 'location'])
-            ->orderBy('session_date')
-            ->orderBy('session_time')
+            ->whereDate('session_date', '>=', now()->subYear()->toDateString())
+            ->with(['athlete:id,name,sport', 'location:id,name'])
+            ->orderByDesc('session_date')
+            ->orderByDesc('session_time')
+            ->limit(250)
             ->get();
 
         return $bookings

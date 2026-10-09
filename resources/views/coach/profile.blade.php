@@ -129,25 +129,38 @@
       >
     </label>
 
-    <label class="admin-field">
-      <span>Sport</span>
-      <select class="admin-select" name="sport" id="coachFieldSport" required>
-        <option value="">Select sport…</option>
-        @foreach (\App\Models\User::SPORTS as $sport)
-          <option value="{{ $sport }}" @selected(old('sport', $coach->sport) === $sport)>{{ $sport }}</option>
-        @endforeach
-      </select>
-    </label>
+    @php
+      $selectedSports = collect(old('sports', $coach->sportsList()));
+      $selectedSpecialties = collect(old('specialties', $coach->specialtiesList()));
+      $specialtyChoices = collect(\App\Models\Coach::SPECIALTY_OPTIONS)
+        ->merge($selectedSpecialties)
+        ->unique()
+        ->values();
+    @endphp
 
-    <label class="admin-field">
-      <span>Specialty</span>
-      <select class="admin-select" name="specialty" id="coachFieldSpecialty" required>
-        <option value="">Select specialty…</option>
-        @foreach ($specialties as $specialty)
-          <option value="{{ $specialty }}" @selected(old('specialty', $coach->specialty) === $specialty)>{{ $specialty }}</option>
+    <div class="admin-field admin-field--full">
+      <span>Sports <span style="font-weight:400;color:#6b6560">(select all that apply)</span></span>
+      <div class="coach-multi-check" id="coachFieldSport">
+        @foreach (\App\Models\User::SPORTS as $sport)
+          <label class="coach-multi-check__item">
+            <input type="checkbox" name="sports[]" value="{{ $sport }}" @checked($selectedSports->contains($sport))>
+            <span>{{ $sport }}</span>
+          </label>
         @endforeach
-      </select>
-    </label>
+      </div>
+    </div>
+
+    <div class="admin-field admin-field--full">
+      <span>Specialties <span style="font-weight:400;color:#6b6560">(select all that apply)</span></span>
+      <div class="coach-multi-check" id="coachFieldSpecialty">
+        @foreach ($specialtyChoices as $specialty)
+          <label class="coach-multi-check__item">
+            <input type="checkbox" name="specialties[]" value="{{ $specialty }}" @checked($selectedSpecialties->contains($specialty))>
+            <span>{{ $specialty }}</span>
+          </label>
+        @endforeach
+      </div>
+    </div>
 
     <label class="admin-field">
       <span>Experience</span>
@@ -253,6 +266,42 @@
     <button type="submit" class="admin-btn admin-btn-primary" data-loading-text="Saving…">Save profile</button>
   </div>
 </form>
+
+<section class="admin-card coach-profile-card" style="margin-top:16px">
+  <div class="admin-card__header">
+    <div>
+      <h2>Payouts</h2>
+      <p>Connect your bank account so parent payments can reach you automatically. CoachNow keeps its platform fee; you receive the rest.</p>
+    </div>
+  </div>
+  <div class="admin-form-grid" style="gap:12px">
+    @php
+      $stripeReady = $coach->canReceivePayouts();
+      $stripeStarted = filled($coach->stripe_account_id);
+    @endphp
+    <div class="admin-field admin-field--full">
+      @if ($stripeReady)
+        <p class="admin-alert admin-alert--success" style="margin:0">
+          <span class="admin-alert__body"><span class="admin-alert__text">Payout setup complete — you can accept paid bookings and session requests.</span></span>
+        </p>
+      @elseif ($stripeStarted)
+        <p class="admin-alert admin-alert--warning" style="margin:0">
+          <span class="admin-alert__body"><span class="admin-alert__text">Stripe account started, but payouts are not fully enabled yet. Continue setup.</span></span>
+        </p>
+      @else
+        <p style="margin:0;font-size:13px;color:#52525b">Required before accepting paid Request-a-Session jobs or Book Now payments when Stripe is live.</p>
+      @endif
+    </div>
+    <div class="admin-field admin-field--full" style="display:flex;flex-wrap:wrap;gap:8px">
+      <a href="{{ route('coach.stripe.onboard') }}" class="admin-btn admin-btn-primary">
+        {{ $stripeReady ? 'Update payout details' : 'Set up payouts with Stripe' }}
+      </a>
+      @if ($stripeStarted)
+        <a href="{{ route('coach.stripe.dashboard') }}" class="admin-btn admin-btn-ghost">Open Stripe dashboard</a>
+      @endif
+    </div>
+  </div>
+</section>
 @endsection
 
 @push('scripts')
@@ -262,12 +311,15 @@
     const photoPreview = document.getElementById('coachPhotoPreview');
     const fileNameEl = document.getElementById('coachPhotoFileName');
     const nameInput = document.getElementById('coachFieldDisplayName');
-    const specialtySelect = document.getElementById('coachFieldSpecialty');
-    const sportSelect = document.getElementById('coachFieldSport');
+    const specialtyRoot = document.getElementById('coachFieldSpecialty');
+    const sportRoot = document.getElementById('coachFieldSport');
     const rateInput = document.getElementById('coachFieldRate');
     const previewName = document.getElementById('coachPreviewName');
     const previewSpecialty = document.getElementById('coachPreviewSpecialty');
     const previewRate = document.getElementById('coachPreviewRate');
+
+    const checkedValues = (root) =>
+      Array.from(root?.querySelectorAll('input[type="checkbox"]:checked') || []).map((el) => el.value);
 
     const syncPreview = () => {
       if (previewName && nameInput) {
@@ -275,10 +327,11 @@
         if (photoPreview) photoPreview.alt = nameInput.value.trim() || 'Profile photo';
       }
 
-      if (previewSpecialty && specialtySelect) {
-        const specialty = specialtySelect.value || '';
-        const sport = sportSelect?.value || '';
-        previewSpecialty.textContent = specialty || (sport ? sport + ' coach' : 'Specialty');
+      if (previewSpecialty) {
+        const specialties = checkedValues(specialtyRoot);
+        const sports = checkedValues(sportRoot);
+        previewSpecialty.textContent =
+          specialties[0] || (sports[0] ? sports[0] + ' coach' : 'Specialty');
       }
 
       if (previewRate && rateInput) {
@@ -288,10 +341,13 @@
       }
     };
 
-    [nameInput, specialtySelect, sportSelect, rateInput].forEach((el) => {
+    [nameInput, rateInput].forEach((el) => {
       if (!el) return;
       el.addEventListener('input', syncPreview);
       el.addEventListener('change', syncPreview);
+    });
+    [specialtyRoot, sportRoot].forEach((root) => {
+      root?.addEventListener('change', syncPreview);
     });
 
     if (photoInput && photoPreview) {

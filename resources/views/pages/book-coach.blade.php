@@ -66,6 +66,12 @@
             <div><dt>Price</dt><dd>${{ number_format((float) $coach->rate, 0) }}</dd></div>
           </dl>
           <p class="book-error" id="bookError" hidden></p>
+          <div id="bookPayPanel" class="book-pay-panel" hidden>
+            <p class="book-hint" id="bookPayHint">Pay securely in CoachNow — card and Apple Pay where supported.</p>
+            <div id="bookStripeMount" class="book-stripe-mount"></div>
+            <button type="button" class="book-btn" id="bookPayConfirmBtn">Pay & confirm</button>
+            <button type="button" class="book-link" id="bookPayCancelBtn">Cancel payment</button>
+          </div>
           <button type="button" class="book-btn" id="bookConfirmBtn" disabled>Confirm booking</button>
           <a href="{{ route('coach-profile', $coach) }}" class="book-link">Back to profile</a>
           <a href="{{ route('request-session', ['coach' => $coach->publicToken()]) }}" class="book-link">Or request an open session</a>
@@ -82,5 +88,6 @@
 @endsection
 
 @push('scripts')
+  <script src="{{ asset('assets/js/stripe-checkout.js') }}?v={{ @filemtime(public_path('assets/js/stripe-checkout.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/book-coach.js') }}?v={{ @filemtime(public_path('assets/js/book-coach.js')) ?: time() }}"></script>
 @endpush

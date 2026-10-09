@@ -10,12 +10,14 @@ use App\Models\SessionRequestPlayer;
 use App\Models\User;
 use App\Services\AppMailer;
 use App\Services\SessionBookingService;
+use App\Services\StripeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Stripe\Exception\ApiErrorException;
 
 class SessionRequestController extends Controller
 {
@@ -85,6 +87,9 @@ class SessionRequestController extends Controller
             'card_on_file' => ['nullable', 'string', 'max:120'],
             'deposit' => ['nullable', 'numeric', 'min:0'],
             'requested_coach_id' => ['nullable', 'integer', 'exists:coaches,id'],
+            'requested_coach_ids' => ['nullable', 'array', 'max:8'],
+            'requested_coach_ids.*' => ['integer', 'exists:coaches,id'],
+            'stripe_payment_method_id' => ['nullable', 'string', 'max:120'],
         ]);
 
         $user = $request->user();
@@ -100,20 +105,29 @@ class SessionRequestController extends Controller
                 ->first();
         }
 
-        $requestedCoach = null;
-        if (! empty($data['requested_coach_id'])) {
-            $requestedCoach = Coach::query()
-                ->where('id', $data['requested_coach_id'])
-                ->where('status', 'active')
-                ->first();
+        $requestedCoachIds = collect($data['requested_coach_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
 
-            if (! $requestedCoach) {
-                return response()->json(['message' => 'That coach is not available for booking.'], 422);
-            }
-        } else {
-            // Open marketplace requests — coaches need Plus to accept; athletes can still post.
-            // (Gating accept is the subscription control surface.)
+        if ($requestedCoachIds->isEmpty() && ! empty($data['requested_coach_id'])) {
+            $requestedCoachIds = collect([(int) $data['requested_coach_id']]);
         }
+
+        $invitedCoaches = collect();
+        if ($requestedCoachIds->isNotEmpty()) {
+            $invitedCoaches = Coach::query()
+                ->whereIn('id', $requestedCoachIds->all())
+                ->where('status', 'active')
+                ->get();
+
+            if ($invitedCoaches->count() !== $requestedCoachIds->count()) {
+                return response()->json(['message' => 'One or more selected coaches are not available.'], 422);
+            }
+        }
+
+        $requestedCoach = $invitedCoaches->first();
 
         $time = null;
         if (! empty($data['session_time'])) {
@@ -134,7 +148,7 @@ class SessionRequestController extends Controller
             return response()->json(['message' => $conflict], 422);
         }
 
-        $session = DB::transaction(function () use ($data, $user, $location, $time, $requestedCoach) {
+        $session = DB::transaction(function () use ($data, $user, $location, $time, $requestedCoach, $invitedCoaches) {
             $session = SessionRequest::query()->create([
                 'reference' => SessionRequest::generateReference(),
                 'requester_id' => $user->id,
@@ -159,6 +173,10 @@ class SessionRequestController extends Controller
                 'status' => 'open',
             ]);
 
+            if ($invitedCoaches->isNotEmpty()) {
+                $session->invitedCoaches()->sync($invitedCoaches->pluck('id')->all());
+            }
+
             $initials = Str::of($user->name)->explode(' ')->map(fn ($p) => strtoupper(substr($p, 0, 1)))->take(2)->implode('');
 
             SessionRequestPlayer::query()->create([
@@ -169,12 +187,14 @@ class SessionRequestController extends Controller
                 'role' => 'requester',
                 'paid' => false,
                 'card_on_file' => $data['card_on_file'] ?? null,
+                'stripe_payment_method_id' => $data['stripe_payment_method_id'] ?? null,
             ]);
 
-            return $session->load(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location']);
+            return $session->load(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'invitedCoaches', 'location']);
         });
 
         $payload = $session->toPortalArray();
+        $payload['invited_coach_ids'] = $session->invitedCoachIds();
         $this->broadcastSessionRequest($payload, 'created');
         app(AppMailer::class)->sendSessionRequestConfirmation($session);
 
@@ -213,15 +233,27 @@ class SessionRequestController extends Controller
             return response()->json(['message' => 'Only active coaches can accept session requests.'], 422);
         }
 
-        // Open marketplace (no targeted coach) requires Plus plan
-        if (! $session->requested_coach_id && ! $coach->isPlusPlan()) {
+        // Open marketplace (not targeted to specific coaches) requires a paid/comp marketplace plan
+        if (! $session->isTargeted() && ! $coach->isPlusPlan()) {
             return response()->json([
-                'message' => 'Open session requests require a CoachNow Plus plan. Ask an admin to upgrade your plan, or wait for a request sent directly to you.',
+                'message' => 'Open session requests require a CoachNow plan with marketplace access. Ask an admin to update your plan, or wait for a request sent directly to you.',
             ], 403);
         }
 
         if (! $session->isVisibleToCoach($coach)) {
             return response()->json(['message' => 'This request was sent to a different coach.'], 403);
+        }
+
+        $stripe = app(StripeService::class);
+        if (
+            $stripe->enabled()
+            && config('coachnow.payments.require_payouts_for_paid')
+            && ! $coach->canReceivePayouts()
+        ) {
+            return response()->json([
+                'message' => 'Finish payout setup on My Profile before accepting paid session requests.',
+                'needs_payout_setup' => true,
+            ], 403);
         }
 
         $time = $session->session_time
@@ -243,38 +275,55 @@ class SessionRequestController extends Controller
             }
         }
 
-        DB::transaction(function () use ($session, $coach) {
-            $session->update([
-                'status' => 'hosted',
-                'host_coach_id' => $coach->id,
-                'accepted_at' => now(),
-            ]);
-
-            $coach->forceFill(['last_active_at' => now()])->save();
-            if ($coach->shouldFlagForApprovalReview()) {
-                $coach->forceFill(['approval_status' => 'flagged'])->save();
-            }
-
-            $requester = $session->players()->where('role', 'requester')->first();
-            if ($requester && $requester->card_on_file) {
-                $requester->update([
-                    'paid' => true,
-                    'paid_with' => $requester->card_on_file,
-                ]);
-            }
-
-            if ($session->looking_for === null && $session->max_players !== null) {
-                $joined = $session->players()->count();
+        try {
+            DB::transaction(function () use ($session, $coach, $stripe) {
                 $session->update([
-                    'looking_for' => max(0, $session->max_players - $joined),
+                    'status' => 'hosted',
+                    'host_coach_id' => $coach->id,
+                    'accepted_at' => now(),
                 ]);
-            }
 
-            app(SessionBookingService::class)->createFromAcceptedSession(
-                $session->fresh(['players', 'requester']),
-                $coach
-            );
-        });
+                $coach->forceFill(['last_active_at' => now()])->save();
+                if ($coach->shouldFlagForApprovalReview()) {
+                    $coach->forceFill(['approval_status' => 'flagged'])->save();
+                }
+
+                $requester = $session->players()->where('role', 'requester')->first();
+                if ($requester) {
+                    $this->chargeRequesterDeposit($stripe, $session, $coach, $requester);
+                }
+
+                if ($session->looking_for === null && $session->max_players !== null) {
+                    $joined = $session->players()->count();
+                    $session->update([
+                        'looking_for' => max(0, $session->max_players - $joined),
+                    ]);
+                }
+
+                app(SessionBookingService::class)->createFromAcceptedSession(
+                    $session->fresh(['players', 'requester']),
+                    $coach
+                );
+
+                if ($requester?->stripe_payment_intent_id && $stripe->enabled()) {
+                    try {
+                        $intent = $stripe->retrievePaymentIntent($requester->stripe_payment_intent_id);
+                        \App\Models\Booking::query()
+                            ->where('session_request_id', $session->id)
+                            ->get()
+                            ->each(fn ($booking) => $stripe->applyPaymentToBooking($booking, $intent));
+                    } catch (\Throwable) {
+                        // Booking exists; webhook can still reconcile payment status.
+                    }
+                }
+            });
+        } catch (ApiErrorException $e) {
+            return response()->json([
+                'message' => 'Could not charge the player deposit: '.$e->getMessage(),
+            ], 422);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         $session->refresh()->load(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location']);
         $payload = $session->toPortalArray();
@@ -330,17 +379,18 @@ class SessionRequestController extends Controller
         ]);
     }
 
-    public function join(Request $request, string $reference): JsonResponse
+    public function join(Request $request, string $reference, StripeService $stripe): JsonResponse
     {
         $data = $request->validate([
             'paid' => ['sometimes', 'boolean'],
             'paid_with' => ['nullable', 'string', 'max:120'],
             'card_on_file' => ['nullable', 'string', 'max:120'],
+            'stripe_payment_method_id' => ['nullable', 'string', 'max:120'],
             'name' => ['nullable', 'string', 'max:120'],
         ]);
 
         $session = SessionRequest::query()
-            ->with('players')
+            ->with(['players', 'hostCoach'])
             ->where('reference', $reference)
             ->firstOrFail();
 
@@ -361,26 +411,52 @@ class SessionRequestController extends Controller
             return response()->json(['message' => 'You already joined this request.'], 422);
         }
 
+        $coach = $session->hostCoach;
+        if ($stripe->enabled() && (! $coach || ! $coach->canReceivePayouts())) {
+            return response()->json([
+                'message' => 'This coach is still finishing payout setup. Try again shortly.',
+            ], 422);
+        }
+
+        if ($stripe->enabled() && blank($data['stripe_payment_method_id'] ?? null)) {
+            return response()->json([
+                'message' => 'Add a card to pay the $10 join deposit.',
+            ], 422);
+        }
+
         $name = $data['name'] ?? $user->name;
         $initials = Str::of($name)->explode(' ')->map(fn ($p) => strtoupper(substr($p, 0, 1)))->take(2)->implode('');
 
-        DB::transaction(function () use ($session, $user, $name, $initials, $data) {
-            SessionRequestPlayer::query()->create([
-                'session_request_id' => $session->id,
-                'user_id' => $user->id,
-                'name' => $name,
-                'initials' => $initials ?: 'PL',
-                'role' => 'joiner',
-                'paid' => (bool) ($data['paid'] ?? false),
-                'paid_with' => $data['paid_with'] ?? null,
-                'card_on_file' => $data['card_on_file'] ?? null,
-            ]);
+        try {
+            DB::transaction(function () use ($session, $user, $name, $initials, $data, $stripe, $coach) {
+                $player = SessionRequestPlayer::query()->create([
+                    'session_request_id' => $session->id,
+                    'user_id' => $user->id,
+                    'name' => $name,
+                    'initials' => $initials ?: 'PL',
+                    'role' => 'joiner',
+                    'paid' => false,
+                    'paid_with' => $data['paid_with'] ?? null,
+                    'card_on_file' => $data['card_on_file'] ?? null,
+                    'stripe_payment_method_id' => $data['stripe_payment_method_id'] ?? null,
+                ]);
 
-            $joined = $session->players()->count();
-            if ($session->max_players !== null) {
-                $session->update(['looking_for' => max(0, $session->max_players - $joined)]);
-            }
-        });
+                if ($coach) {
+                    $this->chargeRequesterDeposit($stripe, $session, $coach, $player);
+                }
+
+                $joined = $session->players()->count();
+                if ($session->max_players !== null) {
+                    $session->update(['looking_for' => max(0, $session->max_players - $joined)]);
+                }
+            });
+        } catch (ApiErrorException $e) {
+            return response()->json([
+                'message' => 'Could not charge the join deposit: '.$e->getMessage(),
+            ], 422);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         $session->refresh()->load(['players', 'requester', 'hostCoach.user', 'location']);
         $payload = $session->toPortalArray();
@@ -496,5 +572,56 @@ class SessionRequestController extends Controller
         }
 
         return Coach::query()->where('user_id', $user->id)->first();
+    }
+
+    private function chargeRequesterDeposit(
+        StripeService $stripe,
+        SessionRequest $session,
+        Coach $coach,
+        SessionRequestPlayer $requester,
+    ): void {
+        if ($requester->paid) {
+            return;
+        }
+
+        if ($stripe->enabled() && filled($requester->stripe_payment_method_id)) {
+            $payer = User::query()->whereKey($requester->user_id)->first();
+            if (! $payer) {
+                throw new \RuntimeException('Player account missing for deposit charge.');
+            }
+
+            $intent = $stripe->createDestinationPaymentIntent(
+                $payer,
+                $coach,
+                $stripe->depositAmountCents(),
+                [
+                    'purpose' => 'session_request_deposit',
+                    'session_request_reference' => (string) $session->reference,
+                ],
+                $requester->stripe_payment_method_id,
+                true,
+                true
+            );
+
+            if ($intent->status !== 'succeeded') {
+                throw new \RuntimeException('Deposit payment was not completed.');
+            }
+
+            $requester->update([
+                'paid' => true,
+                'paid_with' => $stripe->paymentMethodLabel($requester->stripe_payment_method_id) ?: $requester->card_on_file,
+                'stripe_payment_intent_id' => $intent->id,
+            ]);
+
+            return;
+        }
+
+        // Demo / offline path when Stripe is not configured
+        if ($requester->card_on_file) {
+            $requester->update([
+                'paid' => true,
+                'paid_with' => $requester->card_on_file,
+            ]);
+        }
     }
 }

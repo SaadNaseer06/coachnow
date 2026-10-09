@@ -42,7 +42,9 @@
     priceRange: '',
     sessionType: '',
     knowByAt: null,
+    coachMode: document.getElementById('reqCoachMode')?.value || (coachFromPage ? 'locked' : 'any'),
     requestedCoachId: String(coachFromPage || coachFromQuery || ''),
+    requestedCoachIds: coachFromPage ? [Number(coachFromPage)] : [],
     preferredLocationId: document.getElementById('reqStage')?.dataset.preferredLocation || '',
     sortByNearest: false,
     origin: null,
@@ -459,9 +461,47 @@
     countdownTimer = setInterval(tick, 1000);
   }
 
+  function selectedCoachCheckboxes() {
+    return [...document.querySelectorAll('#reqCoachMultiWrap input[type="checkbox"]:checked')];
+  }
+
+  function syncCoachSelectionFromUi() {
+    const modeEl = document.getElementById('reqCoachMode');
+    const mode = modeEl?.value || state.coachMode || 'any';
+    state.coachMode = mode;
+    if (mode === 'locked') {
+      const id = Number(document.getElementById('reqRequestedCoachId')?.value || 0);
+      state.requestedCoachIds = id ? [id] : [];
+      state.requestedCoachId = id ? String(id) : '';
+      return;
+    }
+    if (mode === 'select') {
+      const ids = selectedCoachCheckboxes().map((box) => Number(box.value)).filter(Boolean);
+      state.requestedCoachIds = ids;
+      state.requestedCoachId = ids[0] ? String(ids[0]) : '';
+      const hidden = document.getElementById('reqRequestedCoachId');
+      if (hidden) hidden.value = state.requestedCoachId;
+      return;
+    }
+    state.requestedCoachIds = [];
+    state.requestedCoachId = '';
+    const hidden = document.getElementById('reqRequestedCoachId');
+    if (hidden) hidden.value = '';
+  }
+
   function selectedCoachMeta() {
     const el = document.getElementById('reqRequestedCoachId');
     if (!el) return {};
+    if (state.coachMode === 'select') {
+      const first = selectedCoachCheckboxes()[0];
+      if (!first) return {};
+      return {
+        rate: Number(first.dataset.coachRate || 0),
+        ages: first.dataset.coachAges || '',
+        specialty: first.dataset.coachSpecialty || '',
+        parkId: first.dataset.parkId || '',
+      };
+    }
     if (el.tagName === 'SELECT') {
       const opt = el.selectedOptions?.[0];
       return {
@@ -605,7 +645,7 @@
     extra.push(`<div><dt>Time</dt><dd>${escapeHtml(state.selectedTime)}</dd></div>`);
     extra.push(`<div><dt>Session</dt><dd>${escapeHtml(state.sessionType)}</dd></div>`);
     extra.push(`<div><dt>Age range</dt><dd>${escapeHtml(state.ageRange)}</dd></div>`);
-    extra.push(`<div><dt>Budget / player</dt><dd>${escapeHtml(state.priceRange)}</dd></div>`);
+    extra.push(`<div><dt>Budget / player</dt><dd>${escapeHtml(state.priceRange || 'No preference')}</dd></div>`);
     if (playersLabel()) extra.push(`<div><dt>Players</dt><dd>${escapeHtml(playersLabel())}</dd></div>`);
     if (state.playerLevel) extra.push(`<div><dt>Level</dt><dd>${escapeHtml(state.playerLevel)}</dd></div>`);
     extra.push(`<div><dt>Deposit</dt><dd>Card on file · $${DEPOSIT_AMOUNT} charged when a coach accepts</dd></div>`);
@@ -614,6 +654,7 @@
 
   function cutoffFromPreset(kind) {
     const now = new Date();
+    if (kind === 'anytime') return null;
     if (kind === '2h') return new Date(now.getTime() + 2 * 60 * 60 * 1000);
     if (kind === 'tonight') {
       const d = new Date();
@@ -644,7 +685,12 @@
 
   function applyKnowBy(date, preset) {
     state.knowByAt = date;
-    if (els.knowByInput) els.knowByInput.value = toDateTimeLocal(date);
+    if (els.knowByInput) {
+      els.knowByInput.value = date ? toDateTimeLocal(date) : '';
+      els.knowByInput.required = false;
+    }
+    const wrap = document.getElementById('reqKnowByWrap');
+    if (wrap) wrap.hidden = preset === 'anytime';
     document.querySelectorAll('#reqKnowByPresets .req-chip').forEach((chip) => {
       chip.classList.toggle('is-active', chip.dataset.knowBy === preset);
     });
@@ -751,9 +797,11 @@
         return;
       }
 
-      const coachEl = document.getElementById('reqRequestedCoachId');
-      const selectedCoachId = coachEl?.value || '';
-      state.requestedCoachId = String(selectedCoachId || '');
+      syncCoachSelectionFromUi();
+      if (state.coachMode === 'select' && state.requestedCoachIds.length === 0) {
+        notify('Select at least one coach, or switch to Any Available Coach.', 'Choose coaches');
+        return;
+      }
       const coachMeta = selectedCoachMeta();
       if (coachMeta.parkId) state.preferredLocationId = coachMeta.parkId;
 
@@ -868,15 +916,50 @@
     });
   }
 
+  document.querySelectorAll('#reqCoachModeChips .req-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const mode = chip.dataset.coachMode || 'any';
+      const modeEl = document.getElementById('reqCoachMode');
+      if (modeEl) modeEl.value = mode;
+      state.coachMode = mode;
+      document.querySelectorAll('#reqCoachModeChips .req-chip').forEach((c) => {
+        c.classList.toggle('is-active', c.dataset.coachMode === mode);
+      });
+      const wrap = document.getElementById('reqCoachMultiWrap');
+      if (wrap) wrap.hidden = mode !== 'select';
+      const hint = document.getElementById('reqCoachHint');
+      if (hint) {
+        hint.textContent = mode === 'select'
+          ? 'Only the coaches you check will receive this request.'
+          : 'Any Available Coach sends this to all eligible coaches.';
+      }
+      syncCoachSelectionFromUi();
+    });
+  });
+
+  document.querySelectorAll('#reqCoachMultiWrap input[type="checkbox"]').forEach((box) => {
+    box.addEventListener('change', syncCoachSelectionFromUi);
+  });
+
   document.querySelectorAll('#reqKnowByPresets .req-chip').forEach((chip) => {
     chip.addEventListener('click', () => {
       applyKnowBy(cutoffFromPreset(chip.dataset.knowBy), chip.dataset.knowBy);
     });
   });
 
+  // Default Need to Know By = Anytime
+  applyKnowBy(null, 'anytime');
+
   els.knowByInput?.addEventListener('change', () => {
     document.querySelectorAll('#reqKnowByPresets .req-chip').forEach((chip) => chip.classList.remove('is-active'));
-    if (els.knowByInput.value) state.knowByAt = new Date(els.knowByInput.value);
+    if (els.knowByInput.value) {
+      state.knowByAt = new Date(els.knowByInput.value);
+      const wrap = document.getElementById('reqKnowByWrap');
+      if (wrap) wrap.hidden = false;
+    } else {
+      state.knowByAt = null;
+      applyKnowBy(null, 'anytime');
+    }
   });
 
   if (els.form4) {
@@ -901,25 +984,23 @@
       }
 
       const knowByValue = els.knowByInput?.value;
-      if (!knowByValue) {
-        els.knowByInput?.reportValidity();
-        return;
-      }
-
-      const knowByAt = new Date(knowByValue);
-      const now = Date.now();
-      const session = sessionDateTime();
-      if (knowByAt.getTime() <= now) {
-        els.knowByInput?.setCustomValidity('Choose a cutoff in the future.');
-        els.form4.reportValidity();
-        els.knowByInput?.setCustomValidity('');
-        return;
-      }
-      if (session && knowByAt.getTime() >= session.getTime()) {
-        els.knowByInput?.setCustomValidity('Need-to-know-by must be before the session starts.');
-        els.form4.reportValidity();
-        els.knowByInput?.setCustomValidity('');
-        return;
+      let knowByAt = null;
+      if (knowByValue) {
+        knowByAt = new Date(knowByValue);
+        const now = Date.now();
+        const session = sessionDateTime();
+        if (knowByAt.getTime() <= now) {
+          els.knowByInput?.setCustomValidity('Choose a cutoff in the future.');
+          els.form4.reportValidity();
+          els.knowByInput?.setCustomValidity('');
+          return;
+        }
+        if (session && knowByAt.getTime() >= session.getTime()) {
+          els.knowByInput?.setCustomValidity('Need-to-know-by must be before the session starts.');
+          els.form4.reportValidity();
+          els.knowByInput?.setCustomValidity('');
+          return;
+        }
       }
 
       state.ageRange = document.getElementById('reqAgeRange')?.value || '';
@@ -958,14 +1039,10 @@
     window.coachNowLenis?.start();
   }
 
-  async function publishRequest(cardLabel) {
+  async function publishRequest(cardLabel, stripePaymentMethodId = null) {
     state.cardOnFile = cardLabel;
     // Re-read in case the hidden field was rendered after init.
-    const liveCoachId = document.getElementById('reqRequestedCoachId')?.value
-      || new URLSearchParams(window.location.search).get('coach')
-      || state.requestedCoachId
-      || '';
-    state.requestedCoachId = String(liveCoachId || '');
+    syncCoachSelectionFromUi();
 
     window.CoachNowBusy?.setBusy(els.cardConfirmBtn, { label: 'Publishing…' });
     try {
@@ -987,8 +1064,10 @@
           max_players: state.maxPlayers ? Number(state.maxPlayers) : null,
           know_by_at: state.knowByAt ? state.knowByAt.toISOString() : null,
           card_on_file: cardLabel,
+          stripe_payment_method_id: stripePaymentMethodId,
           deposit: DEPOSIT_AMOUNT,
-          requested_coach_id: state.requestedCoachId ? Number(state.requestedCoachId) : null,
+          requested_coach_id: state.requestedCoachIds[0] || null,
+          requested_coach_ids: state.requestedCoachIds.length ? state.requestedCoachIds : [],
         }),
       });
 
@@ -999,15 +1078,22 @@
       renderLiveSummary();
       const successLead = document.getElementById('reqSuccessLead');
       if (successLead) {
-        successLead.textContent = request.requested_coach
-          ? `${request.requested_coach} has been notified. You’ll get an update as soon as they accept.`
-          : 'Nearby coaches have been notified. The first coach to accept hosts this session.';
+        const invitedCount = (request.invited_coach_ids || state.requestedCoachIds || []).length;
+        successLead.textContent = invitedCount > 1
+          ? `${invitedCount} selected coaches have been notified. You’ll get an update as soon as one accepts.`
+          : (request.requested_coach
+            ? `${request.requested_coach} has been notified. You’ll get an update as soon as they accept.`
+            : 'Nearby coaches have been notified. The first coach to accept hosts this session.');
       }
-      if (els.countdownHint && state.knowByAt) {
-        els.countdownHint.textContent = request.requested_coach
-          ? `${request.requested_coach} can accept until ${formatKnowBy(state.knowByAt)}`
-          : `Coaches can accept until ${formatKnowBy(state.knowByAt)}`;
-        startCutoffCountdown(state.knowByAt.getTime());
+      if (els.countdownHint) {
+        if (state.knowByAt) {
+          els.countdownHint.textContent = request.requested_coach
+            ? `${request.requested_coach} can accept until ${formatKnowBy(state.knowByAt)}`
+            : `Coaches can accept until ${formatKnowBy(state.knowByAt)}`;
+          startCutoffCountdown(state.knowByAt.getTime());
+        } else {
+          els.countdownHint.textContent = 'No deadline — coaches can accept anytime before the session.';
+        }
       }
       showDepositState('open', request);
       if (els.waitingCoach) els.waitingCoach.hidden = false;
@@ -1024,11 +1110,18 @@
 
   function saveSessionRequest() {}
 
-  els.cardConfirmBtn?.addEventListener('click', () => {
+  els.cardConfirmBtn?.addEventListener('click', async () => {
     const wallet = window.CoachNowPayment?.api(document.querySelector('#reqCardOnFileBox [data-payment-root]'));
-    const authorized = wallet?.authorize();
-    if (!authorized?.ok) return;
-    publishRequest(`${authorized.method.brand} ···· ${authorized.method.last4}`);
+    window.CoachNowBusy?.setBusy(els.cardConfirmBtn, { label: 'Saving card…' });
+    try {
+      const authorized = await wallet?.authorize?.();
+      if (!authorized?.ok) return;
+      const label = authorized.method?.label
+        || `${authorized.method?.brand || 'Card'} ···· ${authorized.method?.last4 || '••••'}`;
+      await publishRequest(label, authorized.stripe_payment_method_id || null);
+    } finally {
+      window.CoachNowBusy?.clearBusy(els.cardConfirmBtn);
+    }
   });
 
   document.querySelectorAll('[data-close-card-modal]').forEach((btn) => {
@@ -1056,18 +1149,21 @@
   els.joinPayBtn?.addEventListener('click', async () => {
     if (!state.requestId) return;
     const wallet = window.CoachNowPayment?.api(document.querySelector('#reqJoinDepositPanel [data-payment-root]'));
-    const result = wallet?.charge();
-    if (!result?.ok) return;
-
-    const paidWith = `${result.method.brand} ···· ${result.method.last4}`;
-    window.CoachNowBusy?.setBusy(els.joinPayBtn, { label: 'Joining…' });
+    window.CoachNowBusy?.setBusy(els.joinPayBtn, { label: 'Processing…' });
     try {
+      const result = await wallet?.authorize?.();
+      if (!result?.ok) return;
+
+      const paidWith = result.method?.label
+        || `${result.method?.brand || 'Card'} ···· ${result.method?.last4 || '••••'}`;
+      window.CoachNowBusy?.setBusy(els.joinPayBtn, { label: 'Joining…' });
       const payload = await apiFetch(`/api/session-requests/${encodeURIComponent(state.requestId)}/join`, {
         method: 'POST',
         body: JSON.stringify({
           paid: true,
           paid_with: paidWith,
           card_on_file: paidWith,
+          stripe_payment_method_id: result.stripe_payment_method_id || null,
         }),
       });
       const match = payload.data || {};

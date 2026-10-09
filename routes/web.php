@@ -3,6 +3,9 @@
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Coach\CoachController;
+use App\Http\Controllers\StripeConnectController;
+use App\Http\Controllers\StripePaymentController;
+use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\Coach\CoachScheduleSessionController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\SessionRequestController;
@@ -30,8 +33,15 @@ Route::post('/contact', [PageController::class, 'submitContact'])->name('contact
 Route::get('/coach-profile', fn () => redirect()->route('find-a-coach'));
 Route::get('/coaches/{coach}', [PageController::class, 'coachProfile'])->name('coach-profile');
 Route::get('/api/coaches/{coach}/slots', [\App\Http\Controllers\BookingController::class, 'slots'])->name('coaches.slots');
+Route::get('/api/stripe/config', [StripePaymentController::class, 'config'])->name('stripe.config');
+Route::post('/api/stripe/webhook', StripeWebhookController::class)->name('stripe.webhook');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/api/stripe/setup-intent', [StripePaymentController::class, 'setupIntent'])->name('stripe.setup-intent');
+    Route::post('/api/stripe/deposit-intent', [StripePaymentController::class, 'createDepositIntent'])->name('stripe.deposit-intent');
+    Route::post('/api/stripe/booking-intent', [StripePaymentController::class, 'createBookingIntent'])->name('stripe.booking-intent');
+    Route::post('/api/stripe/confirm-booking', [StripePaymentController::class, 'confirmBooking'])->name('stripe.confirm-booking');
+
     Route::middleware('role:athlete')->group(function () {
         Route::get('/player-dashboard', [PageController::class, 'playerDashboard'])->name('player-dashboard');
         Route::get('/book/{coach}', [PageController::class, 'bookCoach'])->name('book-coach');
@@ -90,6 +100,11 @@ Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach'])->grou
     Route::get('/profile', [CoachController::class, 'profile'])->name('profile');
     Route::get('/api/status', [CoachController::class, 'status'])->name('status');
     Route::put('/profile', [CoachController::class, 'updateProfile'])->name('profile.update');
+    Route::get('/stripe/status', [StripeConnectController::class, 'status'])->name('stripe.status');
+    Route::get('/stripe/onboard', [StripeConnectController::class, 'onboard'])->name('stripe.onboard');
+    Route::get('/stripe/dashboard', [StripeConnectController::class, 'dashboard'])->name('stripe.dashboard');
+    Route::get('/stripe/return', [StripeConnectController::class, 'returnFromStripe'])->name('stripe.return');
+    Route::get('/stripe/refresh', [StripeConnectController::class, 'refresh'])->name('stripe.refresh');
     Route::get('/player-overview', [CoachController::class, 'playerOverview'])->name('player-overview');
     Route::get('/players/{player}', [CoachController::class, 'playerShow'])->name('players.show');
     Route::post('/players/{player}/videos', [CoachController::class, 'storeVideo'])->name('players.videos.store');

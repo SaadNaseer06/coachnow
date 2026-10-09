@@ -381,18 +381,25 @@ class PageController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'sport' => ['required', 'string', Rule::in(User::SPORTS)],
-            'specialty' => ['required', 'string', Rule::in(Coach::SPECIALTIES)],
+            'phone' => ['required', 'string', 'max:40'],
+            'sports' => ['required', 'array', 'min:1'],
+            'sports.*' => ['string', Rule::in(User::SPORTS)],
+            'specialties' => ['required', 'array', 'min:1'],
+            'specialties.*' => ['string', Rule::in(Coach::SPECIALTIES)],
             'experience' => ['required', 'string', Rule::in(Coach::EXPERIENCE_OPTIONS)],
             'bio' => ['required', 'string', 'max:2000'],
             'password' => ['required', 'confirmed', Password::min(8)],
         ]);
 
-        $user = DB::transaction(function () use ($data) {
+        $sports = array_values(array_unique($data['sports']));
+        $specialties = array_values(array_unique($data['specialties']));
+
+        $user = DB::transaction(function () use ($data, $sports, $specialties) {
             $user = User::query()->create([
                 'name' => $data['name'],
                 'email' => $data['email'],
-                'sport' => $data['sport'],
+                'phone' => $data['phone'],
+                'sport' => $sports[0],
                 'password' => $data['password'],
                 'role' => 'coach',
             ]);
@@ -405,10 +412,13 @@ class PageController extends Controller
                 'user_id' => $user->id,
                 'display_name' => $displayName,
                 'status' => 'pending',
-                'sport' => $data['sport'],
-                'specialty' => $data['specialty'],
+                'sport' => $sports[0],
+                'sports' => $sports,
+                'specialty' => $specialties[0],
+                'specialties' => $specialties,
                 'experience' => $data['experience'],
                 'bio' => $data['bio'],
+                'plan' => 'trial',
             ]);
 
             $user->setRelation('coach', $coach);

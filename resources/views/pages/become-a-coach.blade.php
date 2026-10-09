@@ -54,23 +54,31 @@
                 <input type="email" name="email" value="{{ old('email') }}" required placeholder="you@email.com" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
               </label>
               <label class="block">
-                <span class="block text-[12px] font-medium text-[#191615] mb-2">Sport</span>
-                <select name="sport" required class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none">
-                  <option value="" disabled {{ old('sport') ? '' : 'selected' }}>Select sport</option>
+                <span class="block text-[12px] font-medium text-[#191615] mb-2">Phone number</span>
+                <input type="tel" name="phone" value="{{ old('phone') }}" required placeholder="(555) 123-4567" class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/10">
+              </label>
+              <fieldset class="block">
+                <legend class="block text-[12px] font-medium text-[#191615] mb-2">Sports <span class="text-zinc-400 font-normal">(select all that apply)</span></legend>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-[10px] border border-zinc-300 p-3">
                   @foreach (\App\Models\User::SPORTS as $sport)
-                    <option value="{{ $sport }}" @selected(old('sport') === $sport)>{{ $sport }}</option>
+                    <label class="flex items-center gap-2 text-[13px] text-[#191615] cursor-pointer">
+                      <input type="checkbox" name="sports[]" value="{{ $sport }}" @checked(collect(old('sports', []))->contains($sport)) class="rounded border-zinc-300 text-brand-red focus:ring-brand-red/20">
+                      <span>{{ $sport }}</span>
+                    </label>
                   @endforeach
-                </select>
-              </label>
-              <label class="block">
-                <span class="block text-[12px] font-medium text-[#191615] mb-2">Specialty</span>
-                <select name="specialty" required class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none">
-                  <option value="" disabled {{ old('specialty') ? '' : 'selected' }}>Select specialty</option>
-                  @foreach (\App\Models\Coach::SPECIALTIES as $specialty)
-                    <option value="{{ $specialty }}" @selected(old('specialty') === $specialty)>{{ $specialty }}</option>
+                </div>
+              </fieldset>
+              <fieldset class="block">
+                <legend class="block text-[12px] font-medium text-[#191615] mb-2">Specialties <span class="text-zinc-400 font-normal">(select all that apply)</span></legend>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-[10px] border border-zinc-300 p-3">
+                  @foreach (\App\Models\Coach::SPECIALTY_OPTIONS as $specialty)
+                    <label class="flex items-center gap-2 text-[13px] text-[#191615] cursor-pointer">
+                      <input type="checkbox" name="specialties[]" value="{{ $specialty }}" @checked(collect(old('specialties', []))->contains($specialty)) class="rounded border-zinc-300 text-brand-red focus:ring-brand-red/20">
+                      <span>{{ $specialty }}</span>
+                    </label>
                   @endforeach
-                </select>
-              </label>
+                </div>
+              </fieldset>
               <label class="block">
                 <span class="block text-[12px] font-medium text-[#191615] mb-2">Years of Experience</span>
                 <select name="experience" required class="w-full h-11 rounded-[10px] border border-zinc-300 px-4 text-[13px] outline-none focus:border-brand-red appearance-none">

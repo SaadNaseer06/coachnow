@@ -16,6 +16,8 @@ class SessionRequestPlayer extends Model
         'paid',
         'paid_with',
         'card_on_file',
+        'stripe_payment_method_id',
+        'stripe_payment_intent_id',
     ];
 
     protected function casts(): array

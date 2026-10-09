@@ -420,6 +420,50 @@
 
 /* ---------- Locations ---------- */
 
+.req-coach-multi {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  max-height: 240px;
+  overflow: auto;
+  padding: 0.65rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.req-coach-multi__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.req-coach-multi__item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.req-coach-multi__item input {
+  margin-top: 0.2rem;
+}
+
+.req-coach-multi__item strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  color: #f4f4f5;
+}
+
+.req-coach-multi__item em {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 11px;
+  font-style: normal;
+  color: #a1a1aa;
+}
+
 .req-field-hint {
   margin: 0.55rem 0 0;
   font-size: 12.5px;
