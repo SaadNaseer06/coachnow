@@ -54,7 +54,11 @@ class StripeConnectController extends Controller
             $url = $stripe->createAccountOnboardingLink($coach);
         } catch (\Throwable $e) {
             report($e);
+            $detail = trim($e->getMessage());
             $message = 'Could not start payout setup. Please try again.';
+            if ($detail !== '' && (config('app.debug') || str_contains(strtolower($detail), 'connect'))) {
+                $message .= ' ('.$detail.')';
+            }
             if ($request->expectsJson()) {
                 return response()->json(['message' => $message], 422);
             }
