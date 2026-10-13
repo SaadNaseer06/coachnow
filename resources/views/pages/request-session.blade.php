@@ -64,7 +64,7 @@
                       </div>
                       <input type="hidden" id="reqCoachMode" value="any">
                       <input type="hidden" id="reqRequestedCoachId" value="">
-                      <div id="reqCoachMultiWrap" class="req-coach-multi" hidden>
+                      <div id="reqCoachMultiWrap" class="req-coach-multi" hidden data-lenis-prevent>
                         @foreach ($coaches ?? [] as $coachOption)
                           <label class="req-coach-multi__item">
                             <input
