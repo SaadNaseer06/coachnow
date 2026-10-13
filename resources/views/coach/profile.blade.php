@@ -271,16 +271,25 @@
   <div class="admin-card__header">
     <div>
       <h2>Payouts</h2>
-      <p>Connect your bank account so parent payments can reach you automatically. CoachNow keeps its platform fee; you receive the rest.</p>
+      @if (config('coachnow.payments.sample_mode'))
+        <p>Sample mode is on — bookings and session requests work without Stripe for now. Live bank payouts will connect here when Stripe goes live.</p>
+      @else
+        <p>Connect your bank account so parent payments can reach you automatically. CoachNow keeps its platform fee; you receive the rest.</p>
+      @endif
     </div>
   </div>
   <div class="admin-form-grid" style="gap:12px">
     @php
+      $samplePayments = (bool) config('coachnow.payments.sample_mode');
       $stripeReady = $coach->canReceivePayouts();
       $stripeStarted = filled($coach->stripe_account_id);
     @endphp
     <div class="admin-field admin-field--full">
-      @if ($stripeReady)
+      @if ($samplePayments)
+        <p class="admin-alert admin-alert--success" style="margin:0">
+          <span class="admin-alert__body"><span class="admin-alert__text">Sample payouts active — you can accept bookings and requests without Stripe Connect.</span></span>
+        </p>
+      @elseif ($stripeReady)
         <p class="admin-alert admin-alert--success" style="margin:0">
           <span class="admin-alert__body"><span class="admin-alert__text">Payout setup complete — you can accept paid bookings and session requests.</span></span>
         </p>
@@ -292,14 +301,16 @@
         <p style="margin:0;font-size:13px;color:#52525b">Required before accepting paid Request-a-Session jobs or Book Now payments when Stripe is live.</p>
       @endif
     </div>
-    <div class="admin-field admin-field--full" style="display:flex;flex-wrap:wrap;gap:8px">
-      <a href="{{ route('coach.stripe.onboard') }}" class="admin-btn admin-btn-primary">
-        {{ $stripeReady ? 'Update payout details' : 'Set up payouts with Stripe' }}
-      </a>
-      @if ($stripeStarted)
-        <a href="{{ route('coach.stripe.dashboard') }}" class="admin-btn admin-btn-ghost">Open Stripe dashboard</a>
-      @endif
-    </div>
+    @unless ($samplePayments)
+      <div class="admin-field admin-field--full" style="display:flex;flex-wrap:wrap;gap:8px">
+        <a href="{{ route('coach.stripe.onboard') }}" class="admin-btn admin-btn-primary">
+          {{ $stripeReady ? 'Update payout details' : 'Set up payouts with Stripe' }}
+        </a>
+        @if ($stripeStarted)
+          <a href="{{ route('coach.stripe.dashboard') }}" class="admin-btn admin-btn-ghost">Open Stripe dashboard</a>
+        @endif
+      </div>
+    @endunless
   </div>
 </section>
 @endsection

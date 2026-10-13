@@ -38,7 +38,7 @@
     <footer class="coach-req-modal__footer">
       <p class="coach-req-footnote">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
-        New open requests appear here. Accept to host — the parent’s $10 deposit is charged automatically when you’re set up for payouts.
+        New open requests appear here. Accept to host — sample mode records the $10 deposit without a live Stripe charge for now.
       </p>
     </footer>
   </div>

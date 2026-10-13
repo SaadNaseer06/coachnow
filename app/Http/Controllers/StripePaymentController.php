@@ -18,7 +18,8 @@ class StripePaymentController extends Controller
     {
         return response()->json([
             'enabled' => $stripe->enabled(),
-            'publishable_key' => $stripe->publishableKey(),
+            'sample_mode' => $stripe->sampleMode(),
+            'publishable_key' => $stripe->enabled() ? $stripe->publishableKey() : null,
             'deposit_amount' => (float) config('coachnow.payments.deposit_amount', 10),
             'currency' => config('services.stripe.currency', 'usd'),
         ]);

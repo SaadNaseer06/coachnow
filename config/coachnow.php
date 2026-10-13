@@ -23,9 +23,14 @@ return [
     ],
 
     'payments' => [
+        // When true: skip live Stripe Connect/checkout and use sample bookings + card-on-file.
+        'sample_mode' => filter_var(env('COACHNOW_SAMPLE_PAYMENTS', false), FILTER_VALIDATE_BOOL),
         'deposit_amount' => (float) env('COACHNOW_DEPOSIT_AMOUNT', 10),
         'platform_fee_percent' => (float) env('COACHNOW_PLATFORM_FEE_PERCENT', 10),
         'platform_fee_fixed' => (float) env('COACHNOW_PLATFORM_FEE_FIXED', 0),
-        'require_payouts_for_paid' => filter_var(env('COACHNOW_REQUIRE_PAYOUTS', true), FILTER_VALIDATE_BOOL),
+        'require_payouts_for_paid' => filter_var(
+            env('COACHNOW_REQUIRE_PAYOUTS', env('COACHNOW_SAMPLE_PAYMENTS', false) ? false : true),
+            FILTER_VALIDATE_BOOL
+        ),
     ],
 ];

@@ -425,7 +425,7 @@
                     @include('partials.payment-methods', ['payPrefix' => 'reqJoinPay'])
                     <button type="button" class="req-btn req-btn--primary" id="reqJoinPayBtn">Pay $10 &amp; join</button>
                     <button type="button" class="req-btn req-btn--ghost" id="reqJoinCancelBtn">Cancel</button>
-                    <p class="req-deposit__note">Secure checkout — $10 deposit charged when you join.</p>
+                    <p class="req-deposit__note">Sample checkout — $10 deposit is recorded (no live Stripe charge yet).</p>
                   </div>
 
                   <div class="req-live-card__footer">

@@ -15,8 +15,17 @@ class StripeService
 
     public function enabled(): bool
     {
+        if (config('coachnow.payments.sample_mode')) {
+            return false;
+        }
+
         return filled(config('services.stripe.secret'))
             && filled(config('services.stripe.key'));
+    }
+
+    public function sampleMode(): bool
+    {
+        return (bool) config('coachnow.payments.sample_mode');
     }
 
     public function client(): StripeClient
