@@ -239,7 +239,7 @@
   background: rgba(218, 2, 12, 0.18);
 }
 
-.req-field label {
+.req-field > label {
   display: block;
   font-size: 12px;
   font-weight: 600;
@@ -292,7 +292,7 @@
 }
 
 .req-input-wrap input {
-  padding-left: 2.6rem;
+  padding-left: 2.85rem;
   appearance: none;
 }
 
@@ -421,70 +421,117 @@
 /* ---------- Locations ---------- */
 
 .req-coach-multi {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.35rem;
   margin-top: 0.75rem;
-  max-height: 240px;
-  overflow: auto;
-  padding: 0.5rem;
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.45rem;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.03);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
 }
 
-.req-coach-multi__item {
+.req-coach-multi::-webkit-scrollbar {
+  width: 6px;
+}
+
+.req-coach-multi::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.req-coach-multi::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+}
+
+.req-field .req-coach-multi__item {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.65rem 0.75rem;
+  margin: 0;
+  padding: 0.7rem 0.8rem;
   border-radius: 10px;
   cursor: pointer;
   width: 100%;
   box-sizing: border-box;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
 }
 
-.req-coach-multi__item:hover {
-  background: rgba(255, 255, 255, 0.04);
+.req-field .req-coach-multi__item:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.req-coach-multi__item input[type="checkbox"] {
-  appearance: auto;
-  -webkit-appearance: checkbox;
-  width: 16px;
-  height: 16px;
-  min-width: 16px;
-  max-width: 16px;
+.req-field .req-coach-multi__item:has(input:checked) {
+  background: rgba(218, 2, 12, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(218, 2, 12, 0.28);
+}
+
+.req-field .req-coach-multi__item input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
   margin: 0;
   padding: 0;
-  flex: 0 0 16px;
-  border: none;
-  border-radius: 3px;
-  background: transparent;
-  accent-color: #da020c;
+  flex: 0 0 18px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 5px;
+  background: #121417;
   cursor: pointer;
   box-shadow: none;
+  position: relative;
 }
 
-.req-coach-multi__item > span {
+.req-field .req-coach-multi__item input[type="checkbox"]:checked {
+  border-color: #da020c;
+  background: #da020c;
+}
+
+.req-field .req-coach-multi__item input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.req-field .req-coach-multi__item > span {
   display: block;
   min-width: 0;
   flex: 1 1 auto;
   line-height: 1.35;
 }
 
-.req-coach-multi__item strong {
+.req-field .req-coach-multi__item strong {
   display: block;
   font-size: 13px;
   font-weight: 650;
   color: #f4f4f5;
 }
 
-.req-coach-multi__item em {
+.req-field .req-coach-multi__item em {
   display: block;
   margin-top: 0.15rem;
   font-size: 11px;
   font-style: normal;
   color: #a1a1aa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .req-field-hint {
