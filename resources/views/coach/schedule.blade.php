@@ -765,6 +765,24 @@
   </div>
 </div>
 
+{{-- Cancel session confirm --}}
+<div class="admin-modal" id="cancelSessionModal" aria-hidden="true" style="z-index:90">
+  <div class="admin-modal__backdrop" data-admin-modal-close></div>
+  <div class="admin-modal__panel sched-action-sheet" role="dialog" aria-modal="true" aria-labelledby="cancelSessionTitle">
+    <div class="admin-modal__header">
+      <div>
+        <h2 id="cancelSessionTitle">Cancel this session?</h2>
+        <p id="cancelSessionText">Players will be removed from the calendar. This can’t be undone.</p>
+      </div>
+      <button type="button" class="admin-modal__close" data-admin-modal-close aria-label="Close">&times;</button>
+    </div>
+    <div class="admin-modal__footer" style="padding:0 20px 20px;border:0;display:flex;gap:8px;justify-content:flex-end">
+      <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-close>Keep session</button>
+      <button type="button" class="admin-btn admin-btn-danger-solid" id="cancelSessionConfirm">Cancel session</button>
+    </div>
+  </div>
+</div>
+
 <div class="admin-modal" id="moveConfirmModal" aria-hidden="true">
   <div class="admin-modal__backdrop" data-move-undo></div>
   <div class="admin-modal__panel sched-action-sheet" role="dialog" aria-modal="true" aria-labelledby="moveConfirmTitle">

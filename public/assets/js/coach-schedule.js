@@ -325,30 +325,54 @@
     }
   });
 
-  document.getElementById('manageCancelSession')?.addEventListener('click', async () => {
-    if (!currentBookingId) return;
-    if (!confirm('Cancel this session? Players will be removed from the calendar.')) return;
+  const cancelConfirmBtn = document.getElementById('cancelSessionConfirm');
+  let cancelInFlight = false;
+
+  document.getElementById('manageCancelSession')?.addEventListener('click', () => {
+    if (!currentBookingId || cancelInFlight) return;
+    openModal('cancelSessionModal');
+  });
+
+  cancelConfirmBtn?.addEventListener('click', async () => {
+    if (!currentBookingId || cancelInFlight) return;
+    cancelInFlight = true;
     const bookingId = currentBookingId;
     const groupId = currentGroupId;
-    const res = await fetch(`${baseUrl}/${bookingId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'X-CSRF-TOKEN': csrf,
-        'X-HTTP-Method-Override': 'DELETE',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      credentials: 'same-origin',
-      body: JSON.stringify({ _method: 'DELETE', view, week }),
-    });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      alert(json.message || 'Could not cancel.');
-      return;
+    const prevLabel = cancelConfirmBtn.textContent;
+    cancelConfirmBtn.disabled = true;
+    cancelConfirmBtn.textContent = 'Cancelling…';
+    try {
+      const res = await fetch(`${baseUrl}/${bookingId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-CSRF-TOKEN': csrf,
+          'X-HTTP-Method-Override': 'DELETE',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ _method: 'DELETE', view, week }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        closeModal('cancelSessionModal');
+        manageError.hidden = false;
+        manageErrorText.textContent = json.message || 'Could not cancel.';
+        return;
+      }
+      removeBookingFromUi(bookingId, groupId);
+      closeModal('cancelSessionModal');
+      closeModal('sessionManageModal');
+    } catch (err) {
+      closeModal('cancelSessionModal');
+      manageError.hidden = false;
+      manageErrorText.textContent = err?.message || 'Could not cancel.';
+    } finally {
+      cancelInFlight = false;
+      cancelConfirmBtn.disabled = false;
+      cancelConfirmBtn.textContent = prevLabel || 'Cancel session';
     }
-    removeBookingFromUi(bookingId, groupId);
-    closeModal('sessionManageModal');
   });
 
   // —— Shared calendar UI helpers + smooth pointer drag ——
