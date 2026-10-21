@@ -501,11 +501,20 @@
     }
   };
 
+  const getCalendarScroller = () => document.querySelector('.sched-calendar-scroll');
+
   const hitColumn = (x, y) => {
     const cols = document.querySelectorAll('.sched-calendar-column');
+    const scroller = getCalendarScroller();
+    const port = scroller?.getBoundingClientRect();
+    // Prefer the visible calendar viewport so edge-drag still hits a day column.
+    const yInPort = port
+      ? Math.max(port.top + 2, Math.min(port.bottom - 2, y))
+      : y;
+
     for (const col of cols) {
       const r = col.getBoundingClientRect();
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+      if (x >= r.left && x <= r.right && yInPort >= r.top && yInPort <= r.bottom) {
         return col;
       }
     }
@@ -513,9 +522,10 @@
     let bestDist = Infinity;
     cols.forEach((col) => {
       const r = col.getBoundingClientRect();
-      if (y < r.top - 24 || y > r.bottom + 24) return;
       const mid = (r.left + r.right) / 2;
       const dist = Math.abs(x - mid);
+      // If the pointer is inside the scrollport, keep the nearest day by X.
+      if (port && (y < port.top - 8 || y > port.bottom + 8)) return;
       if (dist < bestDist) {
         bestDist = dist;
         best = col;
@@ -546,6 +556,7 @@
     dropCol: null,
     lastSnapKey: '',
     raf: 0,
+    scrollRaf: 0,
     latestX: 0,
     latestY: 0,
     tracking: false,
@@ -556,6 +567,71 @@
     isTouch: false,
     armed: false,
     holdTimer: 0,
+  };
+
+  // While dragging near the edges of the calendar scroller, auto-scroll so
+  // coaches can drop onto any time of day — not only the currently visible rows.
+  const EDGE_PX = 56;
+  const MAX_SCROLL_PX = 28;
+
+  const stopAutoScroll = () => {
+    if (drag.scrollRaf) {
+      cancelAnimationFrame(drag.scrollRaf);
+      drag.scrollRaf = 0;
+    }
+    getCalendarScroller()?.classList.remove('is-drag-scrolling');
+  };
+
+  const edgeScrollDelta = (pos, start, end) => {
+    if (pos < start + EDGE_PX) {
+      const t = Math.min(1, (start + EDGE_PX - pos) / EDGE_PX);
+      return -Math.ceil(MAX_SCROLL_PX * t * t);
+    }
+    if (pos > end - EDGE_PX) {
+      const t = Math.min(1, (pos - (end - EDGE_PX)) / EDGE_PX);
+      return Math.ceil(MAX_SCROLL_PX * t * t);
+    }
+    return 0;
+  };
+
+  const tickAutoScroll = () => {
+    drag.scrollRaf = 0;
+    if (!drag.active) return;
+    const scroller = getCalendarScroller();
+    if (!scroller) return;
+
+    const port = scroller.getBoundingClientRect();
+    const dy = edgeScrollDelta(drag.latestY, port.top, port.bottom);
+    const dx = edgeScrollDelta(drag.latestX, port.left, port.right);
+    let moved = false;
+
+    if (dy) {
+      const before = scroller.scrollTop;
+      scroller.scrollTop = before + dy;
+      moved = scroller.scrollTop !== before;
+    }
+    if (dx) {
+      const before = scroller.scrollLeft;
+      scroller.scrollLeft = before + dx;
+      moved = moved || scroller.scrollLeft !== before;
+    }
+
+    if (moved) {
+      placeFloat(drag.latestX, drag.latestY);
+      updateSnap(drag.latestX, drag.latestY);
+    }
+
+    // Keep scrolling while the pointer sits in an edge zone.
+    if (dy || dx) {
+      drag.scrollRaf = requestAnimationFrame(tickAutoScroll);
+    }
+  };
+
+  const ensureAutoScroll = () => {
+    const scroller = getCalendarScroller();
+    if (!scroller || !drag.active) return;
+    scroller.classList.add('is-drag-scrolling');
+    if (!drag.scrollRaf) drag.scrollRaf = requestAnimationFrame(tickAutoScroll);
   };
 
   const clearDropHighlight = () => {
@@ -570,6 +646,7 @@
       cancelAnimationFrame(drag.raf);
       drag.raf = 0;
     }
+    stopAutoScroll();
     drag.floatEl?.remove();
     drag.snapEl?.remove();
     drag.floatEl = null;
@@ -687,8 +764,11 @@
     drag.floatEl.style.height = `${rect.height}px`;
     drag.floatEl.style.margin = '0';
     document.body.appendChild(drag.floatEl);
+    drag.latestX = clientX;
+    drag.latestY = clientY;
     placeFloat(clientX, clientY);
     updateSnap(clientX, clientY);
+    ensureAutoScroll();
     didDrag = true;
   };
 
@@ -847,6 +927,7 @@
     if (!drag.active) return;
     placeFloat(drag.latestX, drag.latestY);
     updateSnap(drag.latestX, drag.latestY);
+    ensureAutoScroll();
   };
 
   const clearHold = () => {

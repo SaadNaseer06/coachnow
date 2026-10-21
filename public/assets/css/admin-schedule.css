@@ -114,6 +114,12 @@
   scroll-behavior: smooth;
 }
 
+/* Instant scroll while dragging so edge auto-scroll can reach every time slot. */
+.sched-calendar-scroll.is-drag-scrolling,
+body.sched-is-dragging .sched-calendar-scroll {
+  scroll-behavior: auto;
+}
+
 .sched-calendar {
   display: grid;
   grid-template-columns: 64px repeat(7, minmax(118px, 1fr));
