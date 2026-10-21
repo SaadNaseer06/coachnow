@@ -55,6 +55,23 @@
                 placeholder="City, park, or ZIP"
                 autocomplete="off"
               >
+              @php
+                $hasLocationFilter = filled($filters['lat'] ?? null)
+                  || filled($filters['lng'] ?? null)
+                  || filled($locationQuery);
+              @endphp
+              <button
+                type="button"
+                class="tny-search-bar__clear"
+                id="tnyClearLocation"
+                title="Clear location — show all areas"
+                aria-label="Clear location filter"
+                @unless ($hasLocationFilter) hidden @endunless
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M18 6 6 18M6 6l12 12"></path>
+                </svg>
+              </button>
               <button type="button" class="tny-search-bar__locate" id="tnyNearMe" title="Use my location" aria-label="Use my location">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <circle cx="12" cy="12" r="3"></circle>
@@ -113,6 +130,9 @@
             Couldn’t find that location — try a city or ZIP, or use your current location.
           @elseif ($searchOrigin)
             Showing opportunities within {{ $radius }} miles of {{ $searchOrigin['label'] ?? 'your search' }} · next 7 days
+            <button type="button" class="tny-reset-link" id="tnyClearLocationStatus" data-tny-clear-location>
+              Clear location · show all areas
+            </button>
           @else
             Showing the next 7 days. Add a location or use the locate icon to sort by distance.
           @endif
@@ -181,6 +201,11 @@
             @if ($searchOrigin) within {{ $radius }} miles @endif
             in the next 7 days.
             @if ($searchOrigin && $radius < 20) Try a wider radius. @endif
+            @if ($searchOrigin)
+              <button type="button" class="tny-reset-link tny-reset-link--block" data-tny-clear-location>
+                Clear location · show all areas
+              </button>
+            @endif
           </div>
         @endif
       </div>
@@ -235,6 +260,11 @@
           <div class="tny-empty">
             No public session requests nearby right now.
             <a href="{{ route('request-session') }}">Post a Request a Session</a> to get on the board.
+            @if ($searchOrigin)
+              <button type="button" class="tny-reset-link tny-reset-link--block" data-tny-clear-location>
+                Clear location · show all areas
+              </button>
+            @endif
           </div>
         @endif
       </div>
@@ -249,11 +279,13 @@
 (() => {
   const form = document.getElementById('tnyFilters');
   const nearBtn = document.getElementById('tnyNearMe');
+  const clearBtn = document.getElementById('tnyClearLocation');
   const latEl = document.getElementById('tnyLat');
   const lngEl = document.getElementById('tnyLng');
   const locationEl = document.getElementById('tnyLocation');
   const statusEl = document.getElementById('tnyStatus');
   const STORE_KEY = 'coachnow.tny.origin';
+  const SKIP_AUTO_KEY = 'coachnow.tny.skipAutoLocate';
   const MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
   const readSaved = () => {
@@ -269,15 +301,59 @@
   const save = (lat, lng) => {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({ lat, lng, ts: Date.now() }));
+      localStorage.removeItem(SKIP_AUTO_KEY);
     } catch {}
+  };
+
+  const syncClearVisibility = () => {
+    if (!clearBtn) return;
+    const active = Boolean(
+      (latEl?.value || '').trim()
+      || (lngEl?.value || '').trim()
+      || (locationEl?.value || '').trim()
+    );
+    clearBtn.hidden = !active;
+  };
+
+  const clearLocationFilter = () => {
+    try {
+      localStorage.removeItem(STORE_KEY);
+      localStorage.setItem(SKIP_AUTO_KEY, '1');
+    } catch {}
+    if (latEl) latEl.value = '';
+    if (lngEl) lngEl.value = '';
+    if (locationEl) locationEl.value = '';
+    syncClearVisibility();
+    // Drop lat/lng/location so the page shows all areas (keep sport/age/radius).
+    const url = new URL(form?.action || window.location.href, window.location.origin);
+    const radius = document.getElementById('tnyRadius')?.value;
+    const sport = document.getElementById('tnySport')?.value;
+    const age = document.getElementById('tnyAge')?.value;
+    if (radius) url.searchParams.set('radius', radius);
+    if (sport) url.searchParams.set('sport', sport);
+    if (age) url.searchParams.set('age', age);
+    window.location.href = url.pathname + (url.searchParams.toString() ? `?${url.searchParams}` : '');
   };
 
   const searchFrom = (lat, lng) => {
     if (latEl) latEl.value = String(lat);
     if (lngEl) lngEl.value = String(lng);
     if (locationEl && !locationEl.value.trim()) locationEl.value = 'Near me';
+    syncClearVisibility();
     form?.submit();
   };
+
+  document.querySelectorAll('[data-tny-clear-location]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      clearLocationFilter();
+    });
+  });
+  clearBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    clearLocationFilter();
+  });
+  syncClearVisibility();
 
   const locate = ({ onFail } = {}) => {
     if (!navigator.geolocation) {
@@ -304,10 +380,14 @@
     });
   });
 
-  // First visit (no search yet): show sessions near the user automatically.
+  // First visit (no search yet): show sessions near the user automatically —
+  // unless they just cleared the location filter.
   const params = new URLSearchParams(window.location.search);
   const hasSearch = params.has('location') || params.has('lat') || params.has('lng');
-  if (!hasSearch) {
+  const skipAuto = (() => {
+    try { return localStorage.getItem(SKIP_AUTO_KEY) === '1'; } catch { return false; }
+  })();
+  if (!hasSearch && !skipAuto) {
     const saved = readSaved();
     if (saved) {
       if (statusEl) statusEl.textContent = 'Finding sessions near you…';
@@ -334,6 +414,7 @@
   locationEl?.addEventListener('input', () => {
     if (latEl) latEl.value = '';
     if (lngEl) lngEl.value = '';
+    syncClearVisibility();
   });
 })();
 </script>
