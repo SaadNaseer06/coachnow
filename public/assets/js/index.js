@@ -1,4 +1,8 @@
 (() => {
+      // site.js owns global large-screen text scaling.
+      if (window.__coachNowTextScaleBound) return;
+      window.__coachNowTextScaleBound = true;
+
       const HERO_HEADING_SELECTOR = '#hero h1';
 
       const getScale = () => {
@@ -595,7 +599,9 @@
 (function () {
       const root = document.documentElement;
       const preloader = document.getElementById('coachnowPreloader');
-      if (!preloader) return;
+      // site.js owns the global preloader release — avoid double handlers.
+      if (!preloader || preloader.dataset.managed === '1') return;
+      preloader.dataset.managed = '1';
 
       root.classList.add('preloader-active');
       const shownAt = performance.now();
@@ -1092,8 +1098,12 @@
 })();
 
 (function () {
+  // site.js owns the global Lenis instance — avoid a second scroll root.
+  if (window.coachNowLenis || window.__coachNowLenisBound) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (typeof Lenis === 'undefined') return;
+
+  window.__coachNowLenisBound = true;
 
   const lenis = new Lenis({
     duration: 1.3,

@@ -169,3 +169,71 @@
     }
   });
 })();
+
+// Cancel an upcoming booking (refunds the player's session price; the CoachNow fee stays).
+(() => {
+  const root = document.querySelector('[data-player-bookings]');
+  if (!root) return;
+
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+  root.addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-cancel-booking]');
+    if (!btn) return;
+
+    const reference = btn.getAttribute('data-reference');
+    const refund = btn.getAttribute('data-refund');
+    if (!reference) return;
+
+    const message = refund
+      ? `Cancel this booking? $${refund} will be refunded to your card. The CoachNow convenience fee is non-refundable.`
+      : 'Cancel this booking? Your coach will be notified.';
+    const confirmed = window.CoachNowDialog?.confirm
+      ? await window.CoachNowDialog.confirm({
+          title: 'Cancel booking?',
+          message,
+          confirmLabel: 'Cancel booking',
+          cancelLabel: 'Keep booking',
+        })
+      : window.confirm(message);
+    if (!confirmed) return;
+
+    btn.disabled = true;
+    window.CoachNowBusy?.setBusy(btn, { label: 'Cancelling…' });
+
+    try {
+      const res = await fetch(`/api/bookings/${encodeURIComponent(reference)}/cancel`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'X-CSRF-TOKEN': csrf,
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.message || 'Could not cancel this booking.');
+
+      const card = btn.closest('[data-booking-card]');
+      card?.classList.add('is-cancelled');
+      const badge = card?.querySelector('[data-booking-status]');
+      if (badge) {
+        badge.textContent = 'Cancelled';
+        badge.className = 'player-req-badge player-req-badge--zinc';
+      }
+      btn.remove();
+      if (window.CoachNowDialog?.alert) {
+        await window.CoachNowDialog.alert({ title: 'Booking cancelled', message: payload.message || 'Booking cancelled.' });
+      }
+    } catch (error) {
+      window.CoachNowBusy?.clearBusy(btn);
+      btn.disabled = false;
+      btn.textContent = 'Cancel';
+      const msg = error.message || 'Could not cancel this booking.';
+      if (window.CoachNowDialog?.alert) {
+        await window.CoachNowDialog.alert({ title: 'Cancel failed', message: msg });
+      } else {
+        window.alert(msg);
+      }
+    }
+  });
+})();

@@ -212,6 +212,7 @@ class SessionRequest extends Model
         ?int $ignoreRequestId = null,
         int $durationMinutes = 60,
         string $audience = 'athlete',
+        array $ignoreBookingIds = [],
     ): ?string {
         if ($sessionTime === null || $sessionTime === '') {
             return null;
@@ -225,7 +226,8 @@ class SessionRequest extends Model
             $sessionDate,
             $sessionTime,
             $durationMinutes,
-            $ignoreRequestId
+            $ignoreRequestId,
+            $ignoreBookingIds
         );
 
         if ($coachId) {
@@ -289,6 +291,7 @@ class SessionRequest extends Model
         string $sessionTime,
         int $durationMinutes,
         ?int $ignoreRequestId,
+        array $ignoreBookingIds = [],
     ): ?string {
         $activeStatuses = ['open', 'hosted', 'awaiting_deposit', 'confirmed'];
 
@@ -311,6 +314,8 @@ class SessionRequest extends Model
             ->where('athlete_id', $athleteId)
             ->whereDate('session_date', $sessionDate)
             ->where('status', '!=', 'cancelled')
+            // The session being moved (and its own group roster) can't conflict with itself.
+            ->when($ignoreBookingIds !== [], fn ($q) => $q->whereNotIn('id', $ignoreBookingIds))
             ->get(['session_time', 'duration_minutes']);
 
         foreach ($athleteBookings as $booking) {

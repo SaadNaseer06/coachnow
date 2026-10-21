@@ -19,49 +19,12 @@
     }
 
     body {
-      overflow-x: hidden;
+      overflow-x: clip;
     }
   
 
 
-    #siteHeader {
-      background: transparent !important;
-      transition:
-        padding .28s ease,
-        background .28s ease,
-        box-shadow .28s ease,
-        backdrop-filter .28s ease;
-    }
-
-    #siteHeader.nav-scrolled {
-      padding-top: 8px !important;
-      padding-bottom: 8px !important;
-      background: #191615 !important;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.20);
-      border-bottom: 1px solid rgba(255,255,255,.08);
-    }
-
-    #siteHeader.nav-scrolled img[alt="CoachNow Logo"] {
-      height: 2.25rem !important;
-    }
-
-    #siteHeader.nav-scrolled .nav-action {
-      transform: scale(0.92);
-      transform-origin: center;
-    }
-
-    @media (max-width: 1023px) {
-      #siteHeader.nav-scrolled {
-        padding-top: 7px !important;
-        padding-bottom: 7px !important;
-      }
-
-      #siteHeader.nav-scrolled img[alt="CoachNow Logo"] {
-        height: 2rem !important;
-      }
-    }
+    /* Header chrome is owned by site.css so Find a Coach matches every other page. */
   
 
 
@@ -200,7 +163,7 @@
 
     @media (min-width: 1600px) and (max-width: 1919px) {
       body {
-        overflow-x: hidden;
+        overflow-x: clip;
       }
 
       [class*="max-w-[1220px]"] {
@@ -215,7 +178,7 @@
 
     @media (min-width: 1920px) {
       body {
-        overflow-x: hidden;
+        overflow-x: clip;
       }
 
       [class*="max-w-[1220px]"] {

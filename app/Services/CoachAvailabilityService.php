@@ -30,10 +30,6 @@ class CoachAvailabilityService
             ->orderBy('start_time')
             ->get();
 
-        if ($blocks->isEmpty()) {
-            return [];
-        }
-
         $occupancy = Coach::occupancyByCoachIds([$coach->id])[$coach->id] ?? [];
         $busy = $this->busyWindows($occupancy);
 
@@ -105,23 +101,17 @@ class CoachAvailabilityService
                     ];
 
                     if ($group) {
-                        $booked = $group->bookedCount();
-                        $max = (int) $group->max_players;
-                        $spots = max(0, $max - $booked);
-                        $isFull = $spots <= 0 || $group->status === 'full';
-                        $slot['group_session_id'] = $group->id;
-                        $slot['session_type'] = $group->session_type;
-                        $slot['booked_count'] = $booked;
-                        $slot['max_players'] = $max;
-                        $slot['spots_remaining'] = $spots;
-                        $slot['full'] = $isFull;
-                        $slot['label'] = $isFull
-                            ? $group->session_type.' — '.$booked.' of '.$max.' booked / Full'
-                            : $group->session_type.' — '.$booked.' of '.$max.' booked / '.$spots.' spot'.($spots === 1 ? '' : 's').' remaining';
-                        $slot['joinable'] = ! $isFull;
-                        $slot['time_label'] = $isFull
+                        // Private groups are reserved — hide from other families.
+                        if (! $group->is_public) {
+                            $slotStart->addMinutes($duration);
+                            continue;
+                        }
+
+                        $meta = $group->toParentSlotArray();
+                        $slot = array_merge($slot, $meta);
+                        $slot['time_label'] = $meta['full']
                             ? $slotStart->format('g:i A').' · Full'
-                            : $slotStart->format('g:i A').' · Group';
+                            : $slotStart->format('g:i A').' · Open group';
                     }
 
                     $slots[] = $slot;
@@ -131,6 +121,35 @@ class CoachAvailabilityService
 
             $cursor->addDay();
         }
+
+        // Public groups booked outside the weekly availability blocks still need to show.
+        $emitted = array_filter(array_column($slots, 'group_session_id'));
+        foreach ($groups as $group) {
+            if (! $group->is_public || in_array($group->id, $emitted, true)) {
+                continue;
+            }
+
+            $start = Carbon::parse($group->session_date->toDateString().' '.$this->normalizeTime($group->session_time));
+            if ($start->lt(now())) {
+                continue;
+            }
+
+            $meta = $group->toParentSlotArray();
+            $slots[] = array_merge([
+                'date' => $start->toDateString(),
+                'time' => $start->format('H:i'),
+                'end_time' => $start->copy()->addMinutes($group->durationMinutes())->format('H:i'),
+                'duration_minutes' => $group->durationMinutes(),
+                'location_id' => (int) $group->location_id,
+                'location_name' => $group->location?->name ?? 'Field TBD',
+                'location_area' => $group->location?->area,
+                'block_id' => null,
+            ], $meta, [
+                'time_label' => $start->format('g:i A').($meta['full'] ? ' · Full' : ' · Open group'),
+            ]);
+        }
+
+        usort($slots, fn (array $a, array $b) => [$a['date'], $a['time']] <=> [$b['date'], $b['time']]);
 
         return $slots;
     }

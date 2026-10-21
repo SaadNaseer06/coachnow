@@ -136,7 +136,9 @@
 (function () {
   const root = document.documentElement;
   const preloader = document.getElementById('coachnowPreloader');
-  if (!preloader) return;
+  // site.js owns the global preloader release — avoid double handlers.
+  if (!preloader || preloader.dataset.managed === '1') return;
+  preloader.dataset.managed = '1';
 
   root.classList.add('preloader-active');
   const shownAt = performance.now();

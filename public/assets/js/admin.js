@@ -88,3 +88,36 @@
     });
   });
 })();
+
+// Share an open group session link: native share sheet on phones (Instagram, Facebook,
+// Messages…), copy-to-clipboard on desktop.
+(() => {
+  document.addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-share-group]');
+    if (!btn) return;
+    event.preventDefault();
+
+    const url = btn.dataset.shareUrl || document.getElementById(btn.dataset.shareInput || '')?.value || '';
+    if (!url) return;
+    const title = btn.dataset.shareTitle || 'Group session on CoachNow';
+    const text = btn.dataset.shareText || 'Spots open — join on CoachNow';
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+      }
+    }
+
+    const label = btn.textContent;
+    try {
+      await navigator.clipboard.writeText(url);
+      btn.textContent = 'Link copied';
+    } catch {
+      window.prompt('Copy this link to share:', url);
+    }
+    setTimeout(() => { btn.textContent = label; }, 1600);
+  });
+})();

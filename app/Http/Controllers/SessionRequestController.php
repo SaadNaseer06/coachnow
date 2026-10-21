@@ -248,7 +248,7 @@ class SessionRequestController extends Controller
         if (
             $stripe->enabled()
             && config('coachnow.payments.require_payouts_for_paid')
-            && ! $coach->canReceivePayouts()
+            && ! $stripe->canChargeFor($coach)
         ) {
             return response()->json([
                 'message' => 'Finish payout setup on My Profile before accepting paid session requests.',
@@ -288,9 +288,9 @@ class SessionRequestController extends Controller
                     $coach->forceFill(['approval_status' => 'flagged'])->save();
                 }
 
-                $requester = $session->players()->where('role', 'requester')->first();
-                if ($requester) {
-                    $this->chargeRequesterDeposit($stripe, $session, $coach, $requester);
+                // Charge the requester and any families who joined while it was waiting.
+                foreach ($session->players()->where('paid', false)->get() as $player) {
+                    $this->chargeRequesterDeposit($stripe, $session, $coach, $player);
                 }
 
                 if ($session->looking_for === null && $session->max_players !== null) {
@@ -305,17 +305,8 @@ class SessionRequestController extends Controller
                     $coach
                 );
 
-                if ($requester?->stripe_payment_intent_id && $stripe->enabled()) {
-                    try {
-                        $intent = $stripe->retrievePaymentIntent($requester->stripe_payment_intent_id);
-                        \App\Models\Booking::query()
-                            ->where('session_request_id', $session->id)
-                            ->get()
-                            ->each(fn ($booking) => $stripe->applyPaymentToBooking($booking, $intent));
-                    } catch (\Throwable) {
-                        // Booking exists; webhook can still reconcile payment status.
-                    }
-                }
+                // Each booking already carries its own family's payment intent + fee
+                // (createFromAcceptedSession); the webhook reconciles any late status.
             });
         } catch (ApiErrorException $e) {
             return response()->json([
@@ -394,8 +385,15 @@ class SessionRequestController extends Controller
             ->where('reference', $reference)
             ->firstOrFail();
 
-        if (! in_array($session->status, ['hosted', 'awaiting_deposit', 'confirmed'], true) || ! $session->host_coach_id) {
-            return response()->json(['message' => 'A coach must accept this request before other players can join.'], 422);
+        // Families can join a public request before a coach accepts (card saved, charged on
+        // accept) or after (charged now). Requests sent to specific coaches stay private.
+        $waitingForCoach = $session->status === 'open';
+        if (! $waitingForCoach && (! in_array($session->status, ['hosted', 'awaiting_deposit', 'confirmed'], true) || ! $session->host_coach_id)) {
+            return response()->json(['message' => 'This request is no longer open to join.'], 422);
+        }
+
+        if ($session->isTargeted()) {
+            return response()->json(['message' => 'This request was sent to a specific coach and is private.'], 403);
         }
 
         if ($session->isJoinClosed()) {
@@ -412,7 +410,7 @@ class SessionRequestController extends Controller
         }
 
         $coach = $session->hostCoach;
-        if ($stripe->enabled() && (! $coach || ! $coach->canReceivePayouts())) {
+        if ($stripe->enabled() && $coach && ! $stripe->canChargeFor($coach)) {
             return response()->json([
                 'message' => 'This coach is still finishing payout setup. Try again shortly.',
             ], 422);
@@ -420,7 +418,7 @@ class SessionRequestController extends Controller
 
         if ($stripe->enabled() && blank($data['stripe_payment_method_id'] ?? null)) {
             return response()->json([
-                'message' => 'Add a card to pay the $10 join deposit.',
+                'message' => 'Add a card to pay the join deposit ($'.number_format($stripe->depositChargeCents() / 100, 2).' incl. CoachNow fee).',
             ], 422);
         }
 
@@ -459,10 +457,22 @@ class SessionRequestController extends Controller
         }
 
         $session->refresh()->load(['players', 'requester', 'hostCoach.user', 'location']);
+
+        // Already hosted: put the new player on the coach's calendar now.
+        // (Waiting requests get bookings for every player when a coach accepts.)
+        if ($coach && ! $waitingForCoach) {
+            app(SessionBookingService::class)->createFromAcceptedSession($session, $coach);
+        }
+
         $payload = $session->toPortalArray();
         $this->broadcastSessionRequest($payload, 'joined');
 
-        return response()->json(['data' => $payload]);
+        return response()->json([
+            'data' => $payload,
+            'message' => $waitingForCoach
+                ? 'You’re on this request. Your card is saved and the deposit is charged only if a coach accepts.'
+                : 'You joined this session.',
+        ]);
     }
 
     public function cancel(Request $request, string $reference): JsonResponse
@@ -593,7 +603,7 @@ class SessionRequestController extends Controller
             $intent = $stripe->createDestinationPaymentIntent(
                 $payer,
                 $coach,
-                $stripe->depositAmountCents(),
+                $stripe->depositChargeCents(),
                 [
                     'purpose' => 'session_request_deposit',
                     'session_request_reference' => (string) $session->reference,

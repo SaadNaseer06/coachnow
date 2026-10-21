@@ -88,6 +88,8 @@ class Coach extends Model
         'stripe_details_submitted',
         'stripe_onboarded_at',
         'rate',
+        'group_rate',
+        'max_group_size',
         'rating',
         'reviews_count',
         'photo_path',
@@ -106,6 +108,8 @@ class Coach extends Model
     {
         return [
             'rate' => 'decimal:2',
+            'group_rate' => 'decimal:2',
+            'max_group_size' => 'integer',
             'rating' => 'decimal:1',
             'credentials' => 'array',
             'sports' => 'array',
@@ -233,6 +237,14 @@ class Coach extends Model
     public function isPlusPlan(): bool
     {
         return in_array($this->plan ?? 'standard', self::MARKETPLACE_PLANS, true);
+    }
+
+    /**
+     * Parents can book a private group on Book Now only when the coach sets a group rate.
+     */
+    public function offersGroupBooking(): bool
+    {
+        return $this->group_rate !== null && (int) ($this->max_group_size ?? 0) >= 2;
     }
 
     public function canReceivePayouts(): bool

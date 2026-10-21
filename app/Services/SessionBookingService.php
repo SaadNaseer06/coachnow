@@ -19,9 +19,11 @@ class SessionBookingService
     {
         $session->loadMissing(['players', 'requester']);
 
-        $amount = $session->deposit_amount !== null
+        // Each family pays deposit + one convenience fee (its own transaction).
+        $deposit = $session->deposit_amount !== null
             ? (float) $session->deposit_amount
             : (float) ($coach->rate ?? 0);
+        $fee = $deposit > 0 ? (float) config('coachnow.payments.convenience_fee', 2) : 0.0;
 
         $players = $session->players;
         if ($players->isEmpty() && $session->requester_id) {
@@ -30,6 +32,8 @@ class SessionBookingService
                 'name' => $session->requester?->name ?? 'Player',
             ]]);
         }
+
+        $group = $this->privateGroupForAcceptedSession($session, $coach, $players->count());
 
         foreach ($players as $player) {
             $athleteId = $player->user_id ?? null;
@@ -53,9 +57,15 @@ class SessionBookingService
                 'session_date' => $session->session_date?->toDateString(),
                 'session_time' => $session->session_time,
                 'duration_minutes' => 60,
-                'amount' => $amount,
+                'amount' => $deposit + $fee,
+                'platform_fee_amount' => $fee,
+                'coach_payout_amount' => $deposit,
+                'payment_status' => ($player->paid ?? false) ? 'paid' : 'unpaid',
+                'stripe_payment_intent_id' => $player->stripe_payment_intent_id ?? null,
                 'status' => 'confirmed',
                 'session_request_id' => $session->id,
+                'group_session_id' => $group?->id,
+                'max_players' => $group?->max_players,
             ];
 
             if ($existing) {
@@ -66,6 +76,45 @@ class SessionBookingService
                 ]));
             }
         }
+
+        $group?->syncStatusFromRoster();
+    }
+
+    /**
+     * Group requests become a private group session on the coach's calendar: the
+     * booked places are reserved, and the coach can later open spare spots to the public.
+     */
+    private function privateGroupForAcceptedSession(SessionRequest $session, Coach $coach, int $playerCount): ?CoachGroupSession
+    {
+        $maxPlayers = (int) ($session->max_players ?? 0);
+        $isGroup = CoachGroupSession::isGroupType($session->session_type) || $maxPlayers > 1 || $playerCount > 1;
+        if (! $isGroup || ! $session->session_date || ! $session->session_time) {
+            return null;
+        }
+
+        $existingId = Booking::query()
+            ->where('session_request_id', $session->id)
+            ->whereNotNull('group_session_id')
+            ->value('group_session_id');
+
+        if ($existingId && ($existing = CoachGroupSession::query()->find($existingId))) {
+            return $existing;
+        }
+
+        return CoachGroupSession::query()->create([
+            'coach_id' => $coach->id,
+            'location_id' => $session->location_id ?? $coach->location_id,
+            'session_type' => $session->session_type ?: 'Group training',
+            'session_date' => $session->session_date->toDateString(),
+            'session_time' => $session->session_time,
+            'duration_minutes' => SessionRequest::defaultDurationMinutes(),
+            'max_players' => max(2, $maxPlayers, $playerCount),
+            'status' => 'open',
+            'is_public' => false,
+            'age_range' => $session->age_range,
+            'sport' => $session->sport,
+            'price_per_player' => (float) ($coach->rate ?? 0),
+        ]);
     }
 
     /**
@@ -92,21 +141,10 @@ class SessionBookingService
             ]);
         }
 
-        $open = app(CoachAvailabilityService::class)
-            ->openSlotsForCoach($coach, Carbon::parse($date), Carbon::parse($date), $duration);
+        $match = $this->matchOpenSlot($coach, $slot);
 
-        $match = collect($open)->first(function (array $row) use ($date, $time, $locationId) {
-            return $row['date'] === $date
-                && $row['time'] === $time
-                && (int) $row['location_id'] === $locationId
-                && empty($row['group_session_id']);
-        });
-
-        if (! $match) {
-            throw ValidationException::withMessages([
-                'slot' => 'That time is no longer available. Pick another slot.',
-            ]);
-        }
+        $sessionAmount = (float) ($coach->rate ?? 0);
+        $convenienceFee = (float) config('coachnow.payments.convenience_fee', 2);
 
         return Booking::query()->create([
             'reference' => Booking::generateReference(),
@@ -119,13 +157,256 @@ class SessionBookingService
             'session_date' => $date,
             'session_time' => $time,
             'duration_minutes' => (int) ($match['duration_minutes'] ?? $duration),
-            'amount' => (float) ($coach->rate ?? 0),
+            'amount' => $sessionAmount + $convenienceFee,
+            'platform_fee_amount' => $convenienceFee,
+            'coach_payout_amount' => $sessionAmount,
             'status' => 'confirmed',
         ]);
     }
 
     /**
+     * Price for one parent checkout on a public group: per-player price × players,
+     * plus a single convenience fee for the whole transaction.
+     *
+     * @return array{price_per_player: float, session_amount: float, convenience_fee: float, total: float}
+     */
+    public function groupCheckoutQuote(CoachGroupSession $group, int $playerCount): array
+    {
+        $price = $group->price_per_player !== null
+            ? (float) $group->price_per_player
+            : (float) ($group->coach?->rate ?? 0);
+        $sessionAmount = round($price * max(1, $playerCount), 2);
+        $fee = $sessionAmount > 0 ? (float) config('coachnow.payments.convenience_fee', 2) : 0.0;
+
+        return [
+            'price_per_player' => $price,
+            'session_amount' => $sessionAmount,
+            'convenience_fee' => $fee,
+            'total' => round($sessionAmount + $fee, 2),
+        ];
+    }
+
+    /**
+     * @param  list<string>  $playerNames
+     */
+    public function assertGroupJoinable(Coach $coach, CoachGroupSession $group, User $athlete, array $playerNames): void
+    {
+        if ((int) $group->coach_id !== (int) $coach->id) {
+            throw ValidationException::withMessages(['slot' => 'That group session belongs to a different coach.']);
+        }
+
+        if (! $group->is_public) {
+            throw ValidationException::withMessages(['slot' => 'That group session is private and not open for joining.']);
+        }
+
+        if (! $group->isJoinable()) {
+            throw ValidationException::withMessages(['slot' => 'That group session is full or no longer open.']);
+        }
+
+        $count = count($playerNames);
+        if ($count < 1) {
+            throw ValidationException::withMessages(['players' => 'Add at least one player.']);
+        }
+
+        $spots = $group->spotsRemaining();
+        if ($count > $spots) {
+            throw ValidationException::withMessages([
+                'players' => "Only {$spots} spot".($spots === 1 ? '' : 's').' left in this group session.',
+            ]);
+        }
+
+        $existing = $group->activeBookings()
+            ->where(fn ($q) => $q->where('athlete_id', $athlete->id)->orWhereIn('athlete_name', $playerNames))
+            ->pluck('athlete_name')
+            ->map(fn ($name) => strtolower(trim((string) $name)))
+            ->all();
+
+        foreach ($playerNames as $name) {
+            if (in_array(strtolower($name), $existing, true)) {
+                throw ValidationException::withMessages(['players' => "{$name} is already booked on this group session."]);
+            }
+        }
+    }
+
+    /**
+     * Parent books one or more players onto a public group session in one transaction.
+     * The convenience fee is recorded once, on the first player's booking.
+     *
+     * @param  list<string>  $playerNames
+     * @return list<Booking>
+     */
+    public function joinGroupSession(Coach $coach, User $athlete, int $groupSessionId, array $playerNames, ?string $paymentIntentId = null): array
+    {
+        $playerNames = array_values(array_unique(array_filter(array_map(
+            fn ($name) => trim((string) $name),
+            $playerNames
+        ))));
+
+        return DB::transaction(function () use ($coach, $athlete, $groupSessionId, $playerNames, $paymentIntentId) {
+            $group = CoachGroupSession::query()
+                ->with('coach')
+                ->whereKey($groupSessionId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $this->assertGroupJoinable($coach, $group, $athlete, $playerNames);
+
+            return $this->createGroupBookings($coach, $athlete, $group, $playerNames, $paymentIntentId);
+        });
+    }
+
+    /**
+     * Quote for a parent booking a new private group on an open Book Now slot.
+     *
+     * @return array{price_per_player: float, session_amount: float, convenience_fee: float, total: float}
+     */
+    public function newGroupCheckoutQuote(Coach $coach, int $playerCount): array
+    {
+        $price = (float) ($coach->group_rate ?? 0);
+        $sessionAmount = round($price * max(1, $playerCount), 2);
+        $fee = $sessionAmount > 0 ? (float) config('coachnow.payments.convenience_fee', 2) : 0.0;
+
+        return [
+            'price_per_player' => $price,
+            'session_amount' => $sessionAmount,
+            'convenience_fee' => $fee,
+            'total' => round($sessionAmount + $fee, 2),
+        ];
+    }
+
+    /**
+     * @param  list<string>  $playerNames
+     * @return array<string, mixed> The open slot being booked.
+     */
+    public function assertNewGroupBookable(Coach $coach, array $slot, array $playerNames): array
+    {
+        if (! $coach->offersGroupBooking()) {
+            throw ValidationException::withMessages(['slot' => 'This coach doesn’t offer group bookings yet.']);
+        }
+
+        $count = count($playerNames);
+        if ($count < 2) {
+            throw ValidationException::withMessages(['players' => 'A group booking needs at least 2 players.']);
+        }
+
+        if ($count > (int) $coach->max_group_size) {
+            throw ValidationException::withMessages([
+                'players' => 'This coach takes up to '.(int) $coach->max_group_size.' players per group.',
+            ]);
+        }
+
+        return $this->matchOpenSlot($coach, $slot);
+    }
+
+    /**
+     * Parent books an open slot for 2+ players. The group starts private — the places
+     * are reserved and nothing is advertised until the coach opens spare spots.
+     *
+     * @param  array{date: string, time: string, location_id: int, duration_minutes?: int}  $slot
+     * @param  list<string>  $playerNames
+     * @return list<Booking>
+     */
+    public function createPrivateGroupBooking(Coach $coach, User $athlete, array $slot, array $playerNames, ?string $paymentIntentId = null): array
+    {
+        $playerNames = array_values(array_unique(array_filter(array_map(
+            fn ($name) => trim((string) $name),
+            $playerNames
+        ))));
+
+        $match = $this->assertNewGroupBookable($coach, $slot, $playerNames);
+
+        return DB::transaction(function () use ($coach, $athlete, $match, $playerNames, $paymentIntentId) {
+            $group = CoachGroupSession::query()->create([
+                'coach_id' => $coach->id,
+                'location_id' => (int) $match['location_id'],
+                'session_type' => 'Group training',
+                'sport' => $coach->sportsList()[0] ?? ($coach->sport ?: null),
+                'session_date' => $match['date'],
+                'session_time' => $match['time'],
+                'duration_minutes' => (int) $match['duration_minutes'],
+                'max_players' => max(count($playerNames), (int) $coach->max_group_size),
+                'status' => 'open',
+                'is_public' => false,
+                'price_per_player' => (float) $coach->group_rate,
+            ]);
+            $group->setRelation('coach', $coach);
+
+            return $this->createGroupBookings($coach, $athlete, $group, $playerNames, $paymentIntentId);
+        });
+    }
+
+    /**
+     * One booking per player; the convenience fee is recorded once, on the first booking.
+     *
+     * @param  list<string>  $playerNames
+     * @return list<Booking>
+     */
+    private function createGroupBookings(Coach $coach, User $athlete, CoachGroupSession $group, array $playerNames, ?string $paymentIntentId): array
+    {
+        $quote = $this->groupCheckoutQuote($group, count($playerNames));
+        $price = $quote['price_per_player'];
+        $bookings = [];
+
+        foreach ($playerNames as $index => $name) {
+            $fee = $index === 0 ? $quote['convenience_fee'] : 0.0;
+            $bookings[] = Booking::query()->create([
+                'reference' => Booking::generateReference(),
+                'coach_id' => $coach->id,
+                'athlete_id' => $athlete->id,
+                'location_id' => $group->location_id,
+                'athlete_name' => $name,
+                'session_type' => $group->session_type,
+                'session_date' => $group->session_date?->toDateString(),
+                'session_time' => $group->session_time,
+                'duration_minutes' => $group->durationMinutes(),
+                'amount' => $price + $fee,
+                'platform_fee_amount' => $fee,
+                'coach_payout_amount' => $price,
+                'stripe_payment_intent_id' => $paymentIntentId,
+                'payment_status' => $paymentIntentId ? 'paid' : 'unpaid',
+                'status' => 'confirmed',
+                'notes' => $group->notes,
+                'max_players' => $group->max_players,
+                'group_session_id' => $group->id,
+            ]);
+        }
+
+        $group->syncStatusFromRoster();
+
+        return $bookings;
+    }
+
+    /**
+     * @param  array{date: string, time: string, location_id: int, duration_minutes?: int}  $slot
+     * @return array<string, mixed>
+     */
+    private function matchOpenSlot(Coach $coach, array $slot): array
+    {
+        $date = Carbon::parse($slot['date'])->toDateString();
+        $time = substr((string) $slot['time'], 0, 5);
+        $duration = max(30, (int) ($slot['duration_minutes'] ?? 60));
+        $locationId = (int) $slot['location_id'];
+
+        $open = app(CoachAvailabilityService::class)
+            ->openSlotsForCoach($coach, Carbon::parse($date), Carbon::parse($date), $duration);
+
+        $match = collect($open)->first(fn (array $row) => $row['date'] === $date
+            && $row['time'] === $time
+            && (int) $row['location_id'] === $locationId
+            && empty($row['group_session_id']));
+
+        if (! $match) {
+            throw ValidationException::withMessages([
+                'slot' => 'That time is no longer available. Pick another slot.',
+            ]);
+        }
+
+        return $match;
+    }
+
+    /**
      * Parent requests to join an open group session (coach must accept).
+     * Legacy flow — new joins book instantly via joinGroupSession().
      */
     public function requestJoinGroupSession(Coach $coach, User $athlete, int $groupSessionId, ?string $notes = null): GroupJoinRequest
     {
@@ -133,6 +414,12 @@ class SessionBookingService
             ->where('coach_id', $coach->id)
             ->whereKey($groupSessionId)
             ->firstOrFail();
+
+        if (! $group->is_public) {
+            throw ValidationException::withMessages([
+                'slot' => 'That group session is private and not open for joining.',
+            ]);
+        }
 
         if (! $group->isJoinable()) {
             throw ValidationException::withMessages([
@@ -208,6 +495,18 @@ class SessionBookingService
         $maxPlayers = $isGroup
             ? max(2, (int) ($data['max_players'] ?? 4))
             : null;
+        $ageRange = $isGroup ? ($data['age_range'] ?? null) : null;
+        $sport = $isGroup ? ($data['sport'] ?? null) ?: ($coach->sportsList()[0] ?? null) : null;
+        $pricePerPlayer = $isGroup && array_key_exists('price_per_player', $data) && $data['price_per_player'] !== null && $data['price_per_player'] !== ''
+            ? (float) $data['price_per_player']
+            : ($isGroup ? (float) ($coach->rate ?? 0) : null);
+        $isPublic = $isGroup ? (bool) ($data['is_public'] ?? false) : false;
+
+        if ($isPublic && blank($ageRange)) {
+            throw ValidationException::withMessages([
+                'age_range' => 'Set an age range before opening this group to the public.',
+            ]);
+        }
 
         $athlete = null;
         if ($athleteId) {
@@ -242,9 +541,9 @@ class SessionBookingService
 
         $amount = array_key_exists('amount', $data) && $data['amount'] !== null
             ? (float) $data['amount']
-            : (float) ($coach->rate ?? 0);
+            : (float) ($pricePerPlayer ?? $coach->rate ?? 0);
 
-        return DB::transaction(function () use ($coach, $athlete, $playerName, $date, $time, $duration, $locationId, $sessionType, $notes, $isGroup, $maxPlayers, $amount) {
+        return DB::transaction(function () use ($coach, $athlete, $playerName, $date, $time, $duration, $locationId, $sessionType, $notes, $isGroup, $maxPlayers, $amount, $ageRange, $pricePerPlayer, $isPublic, $sport) {
             $groupId = null;
             if ($isGroup) {
                 $group = CoachGroupSession::query()->create([
@@ -257,6 +556,10 @@ class SessionBookingService
                     'max_players' => $maxPlayers,
                     'notes' => $notes,
                     'status' => 'open',
+                    'is_public' => $isPublic,
+                    'age_range' => $ageRange,
+                    'sport' => $sport,
+                    'price_per_player' => $pricePerPlayer,
                 ]);
                 $groupId = $group->id;
             }
@@ -323,6 +626,26 @@ class SessionBookingService
         $maxPlayers = $isGroup
             ? max(2, (int) ($data['max_players'] ?? $group?->max_players ?? $booking->max_players ?? 4))
             : null;
+        $sport = $isGroup
+            ? (array_key_exists('sport', $data) ? ($data['sport'] ?: null) : $group?->sport)
+            : null;
+        $ageRange = $isGroup
+            ? (array_key_exists('age_range', $data) ? ($data['age_range'] ?: null) : $group?->age_range)
+            : null;
+        $pricePerPlayer = $isGroup
+            ? (array_key_exists('price_per_player', $data)
+                ? ($data['price_per_player'] !== null && $data['price_per_player'] !== '' ? (float) $data['price_per_player'] : null)
+                : ($group?->price_per_player !== null ? (float) $group->price_per_player : (float) ($coach->rate ?? 0)))
+            : null;
+        $isPublic = $isGroup
+            ? (array_key_exists('is_public', $data) ? (bool) $data['is_public'] : (bool) ($group?->is_public ?? false))
+            : false;
+
+        if ($isPublic && blank($ageRange)) {
+            throw ValidationException::withMessages([
+                'age_range' => 'Set an age range before opening this group to the public.',
+            ]);
+        }
 
         $ignoreBookingIds = $group
             ? $group->bookings()->pluck('id')->all()
@@ -349,7 +672,8 @@ class SessionBookingService
             $time,
             $duration,
             $coach->id,
-            null
+            null,
+            $ignoreBookingIds
         );
 
         if (! $force && $this->coachHasExclusiveOverlap($coach->id, $date, $time, $duration, $ignoreBookingIds, $ignoreGroupId)) {
@@ -361,7 +685,8 @@ class SessionBookingService
 
         return DB::transaction(function () use (
             $booking, $group, $date, $time, $duration, $locationId, $sessionType,
-            $notes, $isGroup, $maxPlayers, $athleteId, $playerName, $data, $coach
+            $notes, $isGroup, $maxPlayers, $athleteId, $playerName, $data, $coach,
+            $ageRange, $pricePerPlayer, $isPublic, $sport
         ) {
             if ($isGroup) {
                 if (! $group) {
@@ -375,10 +700,14 @@ class SessionBookingService
                         'max_players' => $maxPlayers,
                         'notes' => $notes,
                         'status' => 'open',
+                        'is_public' => $isPublic,
+                        'age_range' => $ageRange,
+                        'sport' => $sport,
+                        'price_per_player' => $pricePerPlayer,
                     ]);
                     $booking->group_session_id = $group->id;
                 } else {
-                    $group->update([
+                    $group->fill([
                         'location_id' => $locationId,
                         'session_type' => $sessionType,
                         'session_date' => $date,
@@ -386,7 +715,15 @@ class SessionBookingService
                         'duration_minutes' => $duration,
                         'max_players' => $maxPlayers,
                         'notes' => $notes,
+                        'is_public' => $isPublic,
+                        'age_range' => $ageRange,
+                        'sport' => $sport,
+                        'price_per_player' => $pricePerPlayer,
                     ]);
+                    if ($isPublic) {
+                        $group->ensureShareToken();
+                    }
+                    $group->save();
                     $group->activeBookings()->update([
                         'session_date' => $date,
                         'session_time' => $time,
@@ -512,6 +849,40 @@ class SessionBookingService
         ]);
     }
 
+    /**
+     * Parent cancels one player's booking. Refunds the player's session price when it
+     * was paid by card; the convenience fee stays. Frees the group spot if any.
+     *
+     * @return float Amount refunded.
+     */
+    public function cancelByAthlete(User $athlete, Booking $booking): float
+    {
+        if ($reason = $booking->athleteCancelBlockReason($athlete)) {
+            throw ValidationException::withMessages(['booking' => $reason]);
+        }
+
+        $refundCents = 0;
+        $stripe = app(StripeService::class);
+        if ($booking->stripe_payment_intent_id && $booking->payment_status === 'paid' && $stripe->enabled()) {
+            $refundCents = (int) round(((float) $booking->coach_payout_amount) * 100);
+            $stripe->refundPaymentIntent($booking->stripe_payment_intent_id, $refundCents, [
+                'booking_reference' => (string) $booking->reference,
+                'reason' => 'parent_cancelled',
+            ]);
+        }
+
+        DB::transaction(function () use ($booking, $refundCents) {
+            $booking->forceFill([
+                'status' => 'cancelled',
+                'payment_status' => $refundCents > 0 ? 'partially_refunded' : $booking->payment_status,
+            ])->save();
+
+            $booking->groupSession?->syncStatusFromRoster();
+        });
+
+        return $refundCents / 100;
+    }
+
     public function cancelCoachBooking(Coach $coach, Booking $booking): void
     {
         if ((int) $booking->coach_id !== (int) $coach->id) {
@@ -596,6 +967,7 @@ class SessionBookingService
         int $duration,
         int $coachId,
         ?int $ignoreRequestId = null,
+        array $ignoreBookingIds = [],
     ): void {
         if ($athleteId) {
             $conflict = SessionRequest::schedulingConflictMessage(
@@ -605,12 +977,14 @@ class SessionBookingService
                 $coachId,
                 $ignoreRequestId,
                 $duration,
-                'coach'
+                'coach',
+                $ignoreBookingIds
             );
             if ($conflict) {
                 $lower = strtolower($conflict);
-                $isAthleteConflict = str_contains($lower, 'player')
-                    || str_contains($lower, 'already have a');
+                // Only the player's own clashes block here. "You already have a session…"
+                // is the coach's calendar, which the double-book prompt handles.
+                $isAthleteConflict = str_contains($lower, 'player');
                 if ($isAthleteConflict) {
                     throw ValidationException::withMessages(['time' => $conflict]);
                 }

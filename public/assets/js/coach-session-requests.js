@@ -645,7 +645,7 @@
         <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request data-loading-text="Accepting…">Accept &amp; host</button>
         <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request data-loading-text="Declining…">Decline</button>
       </div>
-      <p class="coach-req-card__hint">If you accept, the $10 deposit is charged to the parent’s card on file. You just host — and can see who’s paid.</p>
+      <p class="coach-req-card__hint">If you accept, the parent’s card is charged the $10 deposit + $2 CoachNow fee (you receive the $10). You just host — and can see who’s paid.</p>
       ` : `<p class="coach-req-card__hint">View only — this request is waiting for ${escapeHtml(preferredCoachName(req) || 'a coach')} to accept.</p>`}
     `;
 
@@ -804,6 +804,13 @@
 
   bell?.addEventListener('click', openModal);
   kpi?.addEventListener('click', openModal);
+  document.querySelectorAll('[data-open-session-requests]').forEach((el) => {
+    el.addEventListener('click', openModal);
+  });
+  // Deep link from Training Near You: /coach/dashboard?requests=open
+  if (new URLSearchParams(window.location.search).get('requests') === 'open') {
+    openModal();
+  }
   kpi?.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();

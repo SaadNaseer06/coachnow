@@ -2,12 +2,17 @@
 
 namespace App\Services;
 
+use App\Mail\BookingCancelledMail;
+use App\Mail\BookingConfirmedMail;
+use App\Mail\CoachNewBookingMail;
 use App\Mail\CoachPendingReviewMail;
 use App\Mail\CoachStatusChangedMail;
 use App\Mail\ContactMessageMail;
 use App\Mail\SessionRequestAcceptedMail;
 use App\Mail\SessionRequestConfirmationMail;
+use App\Mail\SessionRescheduledMail;
 use App\Mail\WelcomeUserMail;
+use App\Models\Booking;
 use App\Models\Coach;
 use App\Models\SessionRequest;
 use App\Models\User;
@@ -68,6 +73,77 @@ class AppMailer
         }
 
         $this->deliver($email, new SessionRequestAcceptedMail($session));
+    }
+
+    /**
+     * Parent receipt + coach alert for one checkout.
+     *
+     * @param  list<Booking>  $bookings
+     * @param  'single'|'private_group'|'group_join'  $kind
+     */
+    public function notifyBookingCreated(array $bookings, string $kind, User $parent): void
+    {
+        if ($bookings === []) {
+            return;
+        }
+
+        foreach ($bookings as $booking) {
+            $booking->loadMissing(['coach.user', 'location', 'groupSession']);
+        }
+
+        $this->deliver($parent->email, new BookingConfirmedMail($bookings, $kind));
+
+        $coachEmail = $bookings[0]->coach?->user?->email;
+        if ($coachEmail) {
+            $this->deliver($coachEmail, new CoachNewBookingMail($bookings, $kind, $parent->name));
+        }
+    }
+
+    /**
+     * One email per parent account on the moved session (a group can span several families).
+     *
+     * @return int Number of parents emailed.
+     */
+    public function notifySessionRescheduled(Booking $booking, string $oldDate, string $oldTime): int
+    {
+        $booking->loadMissing(['coach', 'location', 'groupSession']);
+
+        $roster = $booking->group_session_id
+            ? Booking::query()->with('athlete')->where('group_session_id', $booking->group_session_id)->where('status', '!=', 'cancelled')->get()
+            : collect([$booking->loadMissing('athlete')]);
+
+        $sent = 0;
+        foreach ($roster->filter(fn (Booking $b) => $b->athlete?->email)->groupBy('athlete_id') as $family) {
+            $first = $family->first();
+            $playerNames = $family
+                ->map(fn (Booking $b) => $b->displayName())
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+            $this->deliver($first->athlete->email, new SessionRescheduledMail(
+                $booking,
+                $playerNames !== [] ? $playerNames : ['your player'],
+                $oldDate,
+                $oldTime,
+            ));
+            $sent++;
+        }
+
+        return $sent;
+    }
+
+    public function notifyBookingCancelled(Booking $booking, float $refund): void
+    {
+        $booking->loadMissing(['coach.user', 'athlete', 'location', 'groupSession']);
+
+        if ($booking->athlete?->email) {
+            $this->deliver($booking->athlete->email, new BookingCancelledMail($booking, $refund, 'parent'));
+        }
+
+        if ($booking->coach?->user?->email) {
+            $this->deliver($booking->coach->user->email, new BookingCancelledMail($booking, $refund, 'coach'));
+        }
     }
 
     /**

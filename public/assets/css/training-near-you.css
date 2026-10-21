@@ -1,0 +1,284 @@
+/* Training Near You — matches Find a Coach hero + content scale */
+
+.tny-search-bar {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-height: 72px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.tny-search-bar__field {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 10px 16px;
+}
+
+.tny-search-bar__field--grow {
+  flex: 1.35 1 0;
+}
+
+.tny-search-bar__field label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #71717a;
+  margin-bottom: 4px;
+}
+
+.tny-search-bar__control {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.tny-search-bar__control svg {
+  width: 16px;
+  height: 16px;
+  color: #71717a;
+  flex-shrink: 0;
+}
+
+.tny-search-bar__control input,
+.tny-search-bar__control select {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: #18181b;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.tny-search-bar__control input::placeholder {
+  color: #a1a1aa;
+  font-weight: 500;
+}
+
+.tny-search-bar__locate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid #e4e4e7;
+  background: #fafafa;
+  color: #71717a;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.tny-search-bar__locate:hover,
+.tny-search-bar__locate.is-loading {
+  background: #fff0f1;
+  border-color: rgba(218, 2, 12, 0.35);
+  color: #da020c;
+}
+
+.tny-search-bar__divider {
+  width: 1px;
+  background: #e4e4e7;
+  margin: 12px 0;
+  flex-shrink: 0;
+}
+
+.tny-search-bar__submit {
+  flex-shrink: 0;
+  min-width: 132px;
+  margin: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: #da020c;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.tny-search-bar__submit:hover {
+  background: #bf020a;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 900px) {
+  .tny-search-bar {
+    flex-direction: column;
+    min-height: 0;
+    border-radius: 14px;
+  }
+
+  .tny-search-bar__divider {
+    width: auto;
+    height: 1px;
+    margin: 0 16px;
+  }
+
+  .tny-search-bar__submit {
+    min-height: 48px;
+    margin: 8px;
+  }
+}
+
+.tny-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .tny-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .tny-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.tny-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.1rem 1.15rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #141618;
+  min-height: 220px;
+}
+
+.tny-card.is-group {
+  border-color: rgba(234, 179, 8, 0.32);
+  box-shadow: inset 3px 0 0 #facc15;
+}
+
+.tny-card__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.tny-card__dist {
+  font-size: 12px;
+  color: #a1a1aa;
+  white-space: nowrap;
+}
+
+.tny-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-right: 0.25rem;
+}
+
+.tny-badge--group {
+  background: rgba(250, 204, 21, 0.15);
+  color: #fde68a;
+}
+
+.tny-badge--request {
+  background: rgba(218, 2, 12, 0.15);
+  color: #fda4af;
+}
+
+.tny-badge--full {
+  background: rgba(113, 113, 122, 0.25);
+  color: #d4d4d8;
+}
+
+.tny-card h3 {
+  margin: 0.4rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+
+.tny-card__meta {
+  margin: 0;
+  display: grid;
+  gap: 0.28rem;
+  font-size: 12.5px;
+  color: #a1a1aa;
+  line-height: 1.45;
+}
+
+.tny-card__meta strong {
+  color: #e4e4e7;
+  font-weight: 600;
+}
+
+.tny-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+.tny-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 0.95rem;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.tny-btn--primary {
+  background: #da020c;
+  color: #fff;
+}
+
+.tny-btn--primary:hover {
+  background: #bf020a;
+}
+
+.tny-btn--ghost {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.tny-btn--ghost:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tny-empty {
+  padding: 1.5rem 1.25rem;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  background: #141618;
+  color: #a1a1aa;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.tny-empty a {
+  color: #fda4af;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

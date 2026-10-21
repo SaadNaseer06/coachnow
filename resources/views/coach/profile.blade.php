@@ -216,6 +216,36 @@
       >
     </label>
 
+    <label class="admin-field">
+      <span>Group rate ($ / player)</span>
+      <input
+        class="admin-input"
+        type="number"
+        name="group_rate"
+        value="{{ old('group_rate', $coach->group_rate !== null ? (int) $coach->group_rate : '') }}"
+        min="0"
+        max="9999"
+        step="1"
+        placeholder="Leave blank to offer 1-on-1 only"
+      >
+    </label>
+
+    <label class="admin-field">
+      <span>Max group size</span>
+      <input
+        class="admin-input"
+        type="number"
+        name="max_group_size"
+        value="{{ old('max_group_size', $coach->max_group_size ?? 6) }}"
+        min="2"
+        max="30"
+        step="1"
+      >
+    </label>
+    <p class="admin-field admin-field--full" style="margin:-4px 0 0;font-size:12px;color:#71717a">
+      With a group rate set, parents can book a <strong>private</strong> group for 2+ players on any open time. Open spare spots to the public later from Manage session.
+    </p>
+
     <label class="admin-field admin-field--full">
       <span>Bio</span>
       <textarea class="admin-input admin-textarea" name="bio" rows="4" maxlength="2000" placeholder="Short intro for athletes and parents">{{ old('bio', $coach->bio) }}</textarea>

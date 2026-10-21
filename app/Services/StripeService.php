@@ -7,6 +7,7 @@ use App\Models\Coach;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Stripe\Exception\ApiErrorException;
+use Stripe\Exception\InvalidRequestException;
 use Stripe\StripeClient;
 
 class StripeService
@@ -28,6 +29,26 @@ class StripeService
         return (bool) config('coachnow.payments.sample_mode');
     }
 
+    /**
+     * True when the configured secret key is a Stripe test key (sk_test_ / rk_test_).
+     */
+    public function testMode(): bool
+    {
+        $secret = (string) config('services.stripe.secret');
+
+        return str_starts_with($secret, 'sk_test_') || str_starts_with($secret, 'rk_test_');
+    }
+
+    /**
+     * Whether a card payment can be taken for this coach right now.
+     * Live: coach must finish Stripe Connect payouts. Test keys: always allowed —
+     * unfinished coaches are charged to the platform account so checkout can be tested.
+     */
+    public function canChargeFor(Coach $coach): bool
+    {
+        return $coach->canReceivePayouts() || $this->testMode();
+    }
+
     public function client(): StripeClient
     {
         if (! $this->enabled()) {
@@ -47,19 +68,63 @@ class StripeService
         return max(50, (int) round(((float) config('coachnow.payments.deposit_amount', 10)) * 100));
     }
 
-    public function platformFeeCents(int $amountCents): int
+    /**
+     * What a family pays for a Request a Session deposit: deposit + one convenience fee.
+     */
+    public function depositChargeCents(): int
     {
-        $percent = (float) config('coachnow.payments.platform_fee_percent', 10);
-        $fixed = (int) round(((float) config('coachnow.payments.platform_fee_fixed', 0)) * 100);
-        $fee = (int) round($amountCents * ($percent / 100)) + $fixed;
+        return $this->depositAmountCents() + $this->convenienceFeeCents();
+    }
 
-        return max(0, min($amountCents - 1, $fee));
+    public function convenienceFeeCents(): int
+    {
+        return max(0, (int) round(((float) config('coachnow.payments.convenience_fee', 2)) * 100));
+    }
+
+    public function convenienceFeeAmount(): float
+    {
+        return round($this->convenienceFeeCents() / 100, 2);
+    }
+
+    /**
+     * Platform take per booking transaction (not per player).
+     * Launch default: flat $2 convenience fee (+ optional percent/fixed from env).
+     */
+    public function platformFeeCents(int $amountCents, bool $includeConvenience = true): int
+    {
+        if ($amountCents <= 0) {
+            return 0;
+        }
+
+        $percent = (float) config('coachnow.payments.platform_fee_percent', 0);
+        $fixed = (int) round(((float) config('coachnow.payments.platform_fee_fixed', 0)) * 100);
+        $fee = ($includeConvenience ? $this->convenienceFeeCents() : 0)
+            + (int) round($amountCents * ($percent / 100))
+            + $fixed;
+
+        // Leave at least $0.50 for the coach when amount is above the fee.
+        $maxFee = max(0, $amountCents - 50);
+
+        return max(0, min($maxFee, $fee));
     }
 
     public function ensureCustomer(User $user): string
     {
         if (filled($user->stripe_customer_id)) {
-            return (string) $user->stripe_customer_id;
+            // Customer IDs saved under other keys (live vs test, or another account)
+            // fail with "No such customer" — recreate instead of blocking checkout.
+            try {
+                $existing = $this->client()->customers->retrieve((string) $user->stripe_customer_id);
+                if (! ($existing->deleted ?? false)) {
+                    return (string) $user->stripe_customer_id;
+                }
+            } catch (InvalidRequestException $e) {
+                if ($e->getStripeCode() !== 'resource_missing') {
+                    throw $e;
+                }
+            }
+
+            Log::info('Recreating missing Stripe customer', ['user_id' => $user->id]);
         }
 
         $customer = $this->client()->customers->create([
@@ -107,27 +172,33 @@ class StripeService
         bool $confirm = false,
         bool $offSession = false,
     ): \Stripe\PaymentIntent {
-        if (! $coach->canReceivePayouts()) {
+        if (! $this->canChargeFor($coach)) {
             throw new \RuntimeException('This coach has not finished payout setup.');
         }
 
         $customerId = $this->ensureCustomer($payer);
+        // Every checkout (booking, group join, request deposit) carries one convenience fee.
         $fee = $this->platformFeeCents($amountCents);
+        $destination = $coach->canReceivePayouts();
 
         $params = [
             'amount' => $amountCents,
             'currency' => config('services.stripe.currency', 'usd'),
             'customer' => $customerId,
-            'application_fee_amount' => $fee,
-            'transfer_data' => [
-                'destination' => $coach->stripe_account_id,
-            ],
             'metadata' => array_merge([
                 'coach_id' => (string) $coach->id,
                 'user_id' => (string) $payer->id,
                 'platform_fee_cents' => (string) $fee,
+                'test_platform_charge' => $destination ? '0' : '1',
             ], $metadata),
         ];
+
+        if ($destination) {
+            $params['application_fee_amount'] = $fee;
+            $params['transfer_data'] = [
+                'destination' => $coach->stripe_account_id,
+            ];
+        }
 
         if ($paymentMethodId) {
             $params['payment_method'] = $paymentMethodId;
@@ -228,7 +299,7 @@ class StripeService
     public function applyPaymentToBooking(Booking $booking, \Stripe\PaymentIntent $intent): void
     {
         $amount = ((int) $intent->amount) / 100;
-        $fee = ((int) ($intent->application_fee_amount ?? 0)) / 100;
+        $fee = ((int) ($intent->application_fee_amount ?? ($intent->metadata['platform_fee_cents'] ?? 0))) / 100;
 
         $booking->forceFill([
             'amount' => $amount,
@@ -238,6 +309,30 @@ class StripeService
             'payment_status' => $intent->status === 'succeeded' ? 'paid' : 'pending',
             'status' => $intent->status === 'succeeded' ? 'confirmed' : $booking->status,
         ])->save();
+    }
+
+    /**
+     * Partial refund on a booking's PaymentIntent. Destination charges also pull the
+     * coach's transfer back so the platform isn't left covering it.
+     */
+    public function refundPaymentIntent(string $paymentIntentId, int $amountCents, array $metadata = []): ?\Stripe\Refund
+    {
+        if ($amountCents <= 0) {
+            return null;
+        }
+
+        $intent = $this->retrievePaymentIntent($paymentIntentId);
+        $params = [
+            'payment_intent' => $paymentIntentId,
+            'amount' => $amountCents,
+            'metadata' => $metadata,
+        ];
+
+        if (! empty($intent->transfer_data?->destination)) {
+            $params['reverse_transfer'] = true;
+        }
+
+        return $this->client()->refunds->create($params);
     }
 
     public function retrievePaymentIntent(string $id): \Stripe\PaymentIntent

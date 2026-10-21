@@ -31,15 +31,48 @@
     return t.includes('group') || t.includes('camp') || t.includes('clinic') || t.includes('team');
   };
 
-  const syncMaxField = (typeEl, fieldEl) => {
-    if (!typeEl || !fieldEl) return;
-    fieldEl.hidden = !isGroupType(typeEl.value);
+  const syncGroupFields = (typeEl, fieldEls) => {
+    if (!typeEl) return;
+    const show = isGroupType(typeEl.value);
+    (fieldEls || []).forEach((el) => {
+      if (el) el.hidden = !show;
+    });
+  };
+
+  const syncPublicStatus = () => {
+    const box = document.getElementById('manageIsPublic');
+    const status = document.getElementById('managePublicStatus');
+    const shareWrap = document.getElementById('manageShareWrap');
+    if (!box || !status) return;
+    status.textContent = box.checked
+      ? 'Open to public — remaining spots show on Book Now for other families.'
+      : 'Private — only reserved players. Not shown on Book Now.';
+    if (shareWrap) {
+      const url = document.getElementById('manageShareUrl')?.value || '';
+      shareWrap.hidden = !(box.checked && url);
+    }
+  };
+
+  const setShareUrl = (url) => {
+    const input = document.getElementById('manageShareUrl');
+    const wrap = document.getElementById('manageShareWrap');
+    if (input) input.value = url || '';
+    if (wrap) {
+      const publicOn = Boolean(document.getElementById('manageIsPublic')?.checked);
+      wrap.hidden = !(publicOn && url);
+    }
   };
 
   const bookType = document.getElementById('bookSessionType');
-  const bookMaxField = document.getElementById('bookMaxPlayersField');
-  bookType?.addEventListener('change', () => syncMaxField(bookType, bookMaxField));
-  syncMaxField(bookType, bookMaxField);
+  const bookGroupFields = [
+    document.getElementById('bookMaxPlayersField'),
+    document.getElementById('bookAgeRangeField'),
+    document.getElementById('bookSportField'),
+    document.getElementById('bookPriceField'),
+    document.getElementById('bookGroupHint'),
+  ];
+  bookType?.addEventListener('change', () => syncGroupFields(bookType, bookGroupFields));
+  syncGroupFields(bookType, bookGroupFields);
 
   // —— Double-book on create (redirect with errors) ——
   const bookForm = document.getElementById('bookPlayerForm');
@@ -67,7 +100,13 @@
   // —— Manage session ——
   const manageForm = document.getElementById('sessionManageForm');
   const manageType = document.getElementById('manageType');
-  const manageMaxField = document.getElementById('manageMaxField');
+  const manageGroupFields = [
+    document.getElementById('manageMaxField'),
+    document.getElementById('manageAgeRangeField'),
+    document.getElementById('manageSportField'),
+    document.getElementById('managePriceField'),
+    document.getElementById('managePublicWrap'),
+  ];
   const managePlayersWrap = document.getElementById('managePlayersWrap');
   const managePlayersList = document.getElementById('managePlayersList');
   const manageError = document.getElementById('sessionManageError');
@@ -84,8 +123,26 @@
   let applyManageSaveToUi = () => {};
 
   manageType?.addEventListener('change', () => {
-    syncMaxField(manageType, manageMaxField);
+    syncGroupFields(manageType, manageGroupFields);
     if (managePlayersWrap) managePlayersWrap.hidden = !isGroupType(manageType.value);
+  });
+  document.getElementById('manageIsPublic')?.addEventListener('change', syncPublicStatus);
+  document.getElementById('manageShareCopy')?.addEventListener('click', async () => {
+    const input = document.getElementById('manageShareUrl');
+    const url = input?.value || '';
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      const btn = document.getElementById('manageShareCopy');
+      if (btn) {
+        const prev = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = prev || 'Copy'; }, 1400);
+      }
+    } catch {
+      input?.select();
+      document.execCommand('copy');
+    }
   });
 
   const renderPlayers = (players) => {
@@ -165,13 +222,28 @@
     document.getElementById('manageDuration').value = d.duration_minutes || 60;
     document.getElementById('manageType').value = d.session_type || 'Private 1-on-1';
     document.getElementById('manageMax').value = d.max_players || 4;
+    const ageMinEl = document.getElementById('manageAgeMin');
+    const ageMaxEl = document.getElementById('manageAgeMax');
+    const bounds = Array.isArray(d.age_bounds) ? d.age_bounds : null;
+    if (ageMinEl) ageMinEl.value = bounds ? bounds[0] : '';
+    if (ageMaxEl) ageMaxEl.value = bounds ? bounds[1] : '';
+    const sportEl = document.getElementById('manageSport');
+    if (sportEl && d.sport) sportEl.value = d.sport;
+    const priceEl = document.getElementById('managePricePerPlayer');
+    if (priceEl) priceEl.value = d.price_per_player != null ? d.price_per_player : priceEl.value;
+    const publicEl = document.getElementById('manageIsPublic');
+    if (publicEl) publicEl.checked = Boolean(d.is_public);
+    setShareUrl(d.share_url || '');
+    syncPublicStatus();
     document.getElementById('manageLocation').value = d.location_id || '';
     document.getElementById('sessionManageSub').textContent = d.capacity_label
-      ? `${d.session_type} · ${d.capacity_label}`
+      ? `${d.session_type} · ${d.capacity_label}${d.is_public ? ' · Public' : ' · Private'}`
       : (d.player_name || 'Session');
     document.getElementById('manageForceDouble').value = '0';
-    syncMaxField(manageType, manageMaxField);
-    if (managePlayersWrap) managePlayersWrap.hidden = !d.is_group && !isGroupType(d.session_type);
+    const showGroup = Boolean(d.is_group) || isGroupType(d.session_type);
+    syncGroupFields(manageType, manageGroupFields);
+    manageGroupFields.forEach((el) => { if (el) el.hidden = !showGroup; });
+    if (managePlayersWrap) managePlayersWrap.hidden = !showGroup;
     renderPlayers(d.players || []);
     openModal('sessionManageModal');
   };
@@ -202,6 +274,11 @@
       duration_minutes: Number(document.getElementById('manageDuration').value || 60),
       session_type: document.getElementById('manageType').value,
       max_players: Number(document.getElementById('manageMax').value || 4),
+      age_min: document.getElementById('manageAgeMin')?.value || null,
+      age_max: document.getElementById('manageAgeMax')?.value || null,
+      sport: document.getElementById('manageSport')?.value || null,
+      price_per_player: document.getElementById('managePricePerPlayer')?.value || null,
+      is_public: Boolean(document.getElementById('manageIsPublic')?.checked),
       location_id: Number(document.getElementById('manageLocation').value),
       force_double_book: document.getElementById('manageForceDouble').value === '1',
       remove_booking_ids: removeIds,
@@ -209,34 +286,43 @@
       view,
       week,
     };
-    const res = await fetch(`${baseUrl}/${currentBookingId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'X-CSRF-TOKEN': csrf,
-        'X-HTTP-Method-Override': 'PATCH',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      credentials: 'same-origin',
-      body: JSON.stringify({ ...body, _method: 'PATCH' }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (res.status === 422 && json.double_book) {
-      pendingDoubleAction = () => {
-        document.getElementById('manageForceDouble').value = '1';
-        manageForm.requestSubmit();
-      };
-      openModal('doubleBookModal');
-      return;
-    }
-    if (!res.ok) {
+    try {
+      const res = await fetch(`${baseUrl}/${currentBookingId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-CSRF-TOKEN': csrf,
+          'X-HTTP-Method-Override': 'PATCH',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ ...body, _method: 'PATCH' }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 422 && json.double_book) {
+        pendingDoubleAction = () => {
+          document.getElementById('manageForceDouble').value = '1';
+          manageForm.requestSubmit();
+        };
+        openModal('doubleBookModal');
+        return;
+      }
+      if (!res.ok) {
+        manageError.hidden = false;
+        manageErrorText.textContent = json.message || 'Could not save.';
+        return;
+      }
+      applyManageSaveToUi(currentBookingId, json.data || body);
+      closeModal('sessionManageModal');
+    } catch (err) {
       manageError.hidden = false;
-      manageErrorText.textContent = json.message || 'Could not save.';
-      return;
+      manageErrorText.textContent = err?.message || 'Could not save.';
+    } finally {
+      // form-busy.js arms the spinner on submit; always clear it for this AJAX form.
+      window.CoachNowBusy?.clearFormBusy(manageForm);
+      document.getElementById('manageForceDouble').value = '0';
     }
-    applyManageSaveToUi(currentBookingId, json.data || body);
-    closeModal('sessionManageModal');
   });
 
   document.getElementById('manageCancelSession')?.addEventListener('click', async () => {
@@ -267,6 +353,10 @@
 
   // —— Shared calendar UI helpers + smooth pointer drag ——
   const DRAG_THRESHOLD = 5;
+  // Touch: hold this long before an appointment can move; moving further than
+  // TOUCH_SLOP before then is treated as scrolling.
+  const TOUCH_HOLD_MS = 500;
+  const TOUCH_SLOP = 10;
 
   const pad2 = (n) => String(n).padStart(2, '0');
 
@@ -371,9 +461,13 @@
     const title = (data.is_group && data.capacity_label)
       ? `${type} · ${data.capacity_label}`
       : (data.player_name || (eventEl ? eventTitleText(eventEl) : '') || 'Session');
-    const typeLine = (data.max_players != null && data.players != null)
+    let typeLine = (data.max_players != null && data.players != null)
       ? `${type} · ${data.players}/${data.max_players}`
       : type;
+    if (data.group_session_id) {
+      typeLine = `${typeLine}${typeLine ? ' · ' : ''}${data.is_public ? 'Public' : 'Private'}`;
+    }
+    setShareUrl(data.share_url || '');
 
     if (eventEl) {
       eventEl.dataset.duration = String(duration);
@@ -459,6 +553,9 @@
     sourceEl: null,
     startX: 0,
     startY: 0,
+    isTouch: false,
+    armed: false,
+    holdTimer: 0,
   };
 
   const clearDropHighlight = () => {
@@ -532,7 +629,7 @@
     return target;
   };
 
-  const moveBooking = async (bookingId, date, time, force = false, applyUi = true) => {
+  const moveBooking = async (bookingId, date, time, force = false, applyUi = true, notify = false) => {
     const res = await fetch(`${baseUrl}/${bookingId}/move`, {
       method: 'POST',
       headers: {
@@ -548,22 +645,21 @@
         session_date: date,
         session_time: time,
         force_double_book: force,
+        notify_parent: notify,
       }),
     });
     const json = await res.json().catch(() => ({}));
     if (res.status === 422 && json.double_book) {
-      pendingDoubleAction = () => moveBooking(bookingId, date, time, true, true);
-      openModal('doubleBookModal');
-      return false;
+      return { ok: false, doubleBook: true, json };
     }
     if (!res.ok) {
       alert(json.message || 'Could not move session.');
-      return false;
+      return { ok: false, doubleBook: false, json };
     }
     if (applyUi) {
       applyMoveInUi(bookingId, json.date || date, (json.time || time).slice(0, 5));
     }
-    return true;
+    return { ok: true, doubleBook: false, json };
   };
 
   const beginDrag = (el, clientX, clientY) => {
@@ -620,12 +716,131 @@
       return;
     }
 
+    // Preview at the new slot; nothing is saved until the coach confirms.
     applyMoveInUi(bookingId, target.date, target.time);
-    const ok = await moveBooking(bookingId, target.date, target.time, false, false);
-    if (!ok) {
-      revertDrag(finished);
-    }
+    el.classList.add('is-move-pending');
+    openMoveConfirm(finished, target);
   };
+
+  // —— Confirm Appointment Change ——
+  let pendingMove = null;
+  const moveConfirmButtons = () => document.querySelectorAll('#moveConfirmModal button');
+
+  const whenLabel = (date, time, withDate) => (withDate
+    ? `${formatDateLabel(date)} · ${formatTimeLabel(time)}`
+    : formatTimeLabel(time));
+
+  const openMoveConfirm = (finished, target) => {
+    pendingMove = { finished, target };
+    const sameDay = finished.originDate === target.date;
+    const from = document.getElementById('moveConfirmFrom');
+    const to = document.getElementById('moveConfirmTo');
+    const who = document.getElementById('moveConfirmWho');
+    if (from) from.textContent = whenLabel(finished.originDate, finished.originTime, !sameDay);
+    if (to) to.textContent = whenLabel(target.date, target.time, !sameDay);
+    if (who) {
+      const name = eventTitleText(finished.el) || 'This appointment';
+      who.textContent = sameDay ? `${name} · ${formatDateLabel(target.date)}` : name;
+    }
+    moveConfirmButtons().forEach((b) => { b.disabled = false; });
+    openModal('moveConfirmModal');
+  };
+
+  const undoPendingMove = () => {
+    if (!pendingMove) return;
+    const { finished } = pendingMove;
+    pendingMove = null;
+    finished.el.classList.remove('is-move-pending');
+    revertDrag(finished);
+    closeModal('moveConfirmModal');
+  };
+
+  const showMoveFlash = (message) => {
+    if (!message) return;
+    let el = document.getElementById('schedMoveFlash');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'schedMoveFlash';
+      el.className = 'admin-alert admin-alert--success';
+      el.setAttribute('role', 'status');
+      el.innerHTML = '<div class="admin-alert__body"><p class="admin-alert__text"></p></div>';
+      const host = document.querySelector('.admin-main') || document.querySelector('main') || document.body;
+      host.prepend(el);
+    }
+    const text = el.querySelector('.admin-alert__text');
+    if (text) text.textContent = message;
+    el.hidden = false;
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => { el.hidden = true; }, 4200);
+  };
+
+  const finishPendingMoveSuccess = (finished, json, target) => {
+    pendingMove = null;
+    finished.el.classList.remove('is-move-pending');
+    closeModal('moveConfirmModal');
+    applyMoveInUi(
+      finished.bookingId,
+      json?.date || target.date,
+      String(json?.time || target.time).slice(0, 5)
+    );
+    showMoveFlash(json?.message || 'Session moved.');
+  };
+
+  const confirmPendingMove = async (notify) => {
+    if (!pendingMove) return;
+    const { finished, target } = pendingMove;
+    moveConfirmButtons().forEach((b) => { b.disabled = true; });
+    const result = await moveBooking(finished.bookingId, target.date, target.time, false, false, notify);
+
+    if (result.ok) {
+      finishPendingMoveSuccess(finished, result.json, target);
+      return;
+    }
+
+    if (result.doubleBook) {
+      // Keep the previewed slot; only undo if they cancel the double-book dialog.
+      closeModal('moveConfirmModal');
+      pendingDoubleAction = async () => {
+        const forced = await moveBooking(finished.bookingId, target.date, target.time, true, false, notify);
+        if (forced.ok) {
+          finishPendingMoveSuccess(finished, forced.json, target);
+        } else {
+          finished.el.classList.remove('is-move-pending');
+          revertDrag(finished);
+          pendingMove = null;
+          moveConfirmButtons().forEach((b) => { b.disabled = false; });
+        }
+      };
+      const onDoubleCancel = () => {
+        finished.el.classList.remove('is-move-pending');
+        revertDrag(finished);
+        pendingMove = null;
+        moveConfirmButtons().forEach((b) => { b.disabled = false; });
+        document.querySelectorAll('#doubleBookModal [data-admin-modal-close]').forEach((el) => {
+          el.removeEventListener('click', onDoubleCancel);
+        });
+      };
+      document.querySelectorAll('#doubleBookModal [data-admin-modal-close]').forEach((el) => {
+        el.addEventListener('click', onDoubleCancel, { once: true });
+      });
+      openModal('doubleBookModal');
+      return;
+    }
+
+    // Hard failure — put the appointment back.
+    pendingMove = null;
+    finished.el.classList.remove('is-move-pending');
+    closeModal('moveConfirmModal');
+    revertDrag(finished);
+    moveConfirmButtons().forEach((b) => { b.disabled = false; });
+  };
+
+  document.getElementById('moveConfirmNotify')?.addEventListener('click', () => confirmPendingMove(true));
+  document.getElementById('moveConfirmQuiet')?.addEventListener('click', () => confirmPendingMove(false));
+  document.querySelectorAll('[data-move-undo]').forEach((el) => el.addEventListener('click', undoPendingMove));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && pendingMove) undoPendingMove();
+  });
 
   const paintDrag = () => {
     drag.raf = 0;
@@ -634,12 +849,35 @@
     updateSnap(drag.latestX, drag.latestY);
   };
 
+  const clearHold = () => {
+    if (drag.holdTimer) {
+      clearTimeout(drag.holdTimer);
+      drag.holdTimer = 0;
+    }
+    drag.sourceEl?.classList.remove('is-hold-pending', 'is-drag-armed');
+  };
+
+  const stopTracking = () => {
+    drag.tracking = false;
+    drag.armed = false;
+    clearHold();
+    document.removeEventListener('pointermove', onDocPointerMove);
+    document.removeEventListener('pointerup', onDocPointerUp);
+    document.removeEventListener('pointercancel', onDocPointerCancel);
+  };
+
   const onDocPointerMove = (e) => {
     if (!drag.tracking || e.pointerId !== drag.pointerId) return;
     if (!drag.active) {
       const dx = e.clientX - drag.startX;
       const dy = e.clientY - drag.startY;
-      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      if (drag.isTouch && !drag.armed) {
+        // Finger moved before the hold finished → it's a scroll, not a drag.
+        if (Math.hypot(dx, dy) > TOUCH_SLOP) stopTracking();
+        return;
+      }
+      if (!drag.isTouch && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      drag.sourceEl.classList.remove('is-drag-armed');
       beginDrag(drag.sourceEl, e.clientX, e.clientY);
     }
     if (drag.active) {
@@ -652,10 +890,9 @@
 
   const onDocPointerUp = async (e) => {
     if (!drag.tracking || e.pointerId !== drag.pointerId) return;
-    drag.tracking = false;
-    document.removeEventListener('pointermove', onDocPointerMove);
-    document.removeEventListener('pointerup', onDocPointerUp);
-    document.removeEventListener('pointercancel', onDocPointerCancel);
+    // Held long enough but lifted without moving: don't also open Manage session.
+    if (drag.armed && !drag.active) didDrag = true;
+    stopTracking();
     try { drag.sourceEl?.releasePointerCapture(drag.pointerId); } catch (_) { /* ignore */ }
     if (drag.active) {
       await endDrag(e.clientX, e.clientY);
@@ -665,31 +902,52 @@
 
   const onDocPointerCancel = () => {
     if (!drag.tracking) return;
-    drag.tracking = false;
-    document.removeEventListener('pointermove', onDocPointerMove);
-    document.removeEventListener('pointerup', onDocPointerUp);
-    document.removeEventListener('pointercancel', onDocPointerCancel);
+    stopTracking();
     teardownDragChrome();
     if (drag.active?.el) drag.active.el.classList.remove('is-drag-origin');
     drag.active = null;
     didDrag = false;
   };
 
+  // While an appointment is held/dragged on touch, stop the page from scrolling under it.
+  // (Appointments use touch-action: pan-x pan-y on phones so normal touches still scroll.)
+  document.addEventListener('touchmove', (e) => {
+    if (drag.armed || drag.active) e.preventDefault();
+  }, { passive: false });
+
   document.querySelectorAll('.sched-event.is-manageable').forEach((el) => {
     el.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       if (e.target.closest('form, button, a')) return;
-      if (drag.tracking || drag.active) return;
+      if (drag.tracking || drag.active || pendingMove) return;
       drag.tracking = true;
+      drag.isTouch = e.pointerType === 'touch';
+      drag.armed = false;
       drag.pointerId = e.pointerId;
       drag.sourceEl = el;
       drag.startX = e.clientX;
       drag.startY = e.clientY;
       didDrag = false;
-      try { el.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
       document.addEventListener('pointermove', onDocPointerMove, { passive: false });
       document.addEventListener('pointerup', onDocPointerUp);
       document.addEventListener('pointercancel', onDocPointerCancel);
+
+      if (drag.isTouch) {
+        // Press and hold ~0.5s before the appointment becomes movable.
+        el.classList.add('is-hold-pending');
+        drag.holdTimer = setTimeout(() => {
+          drag.holdTimer = 0;
+          if (!drag.tracking) return;
+          drag.armed = true;
+          el.classList.remove('is-hold-pending');
+          el.classList.add('is-drag-armed');
+          try { el.setPointerCapture(drag.pointerId); } catch (_) { /* ignore */ }
+          navigator.vibrate?.(15);
+        }, TOUCH_HOLD_MS);
+        return;
+      }
+
+      try { el.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
     });
   });
 })();

@@ -16,10 +16,20 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function showLogin()
+    public function showLogin(Request $request)
     {
         if (Auth::check()) {
             return redirect()->to(Auth::user()->dashboardPath());
+        }
+
+        $redirect = $request->query('redirect');
+        if (is_string($redirect) && $redirect !== '') {
+            $path = parse_url($redirect, PHP_URL_PATH) ?: '';
+            $host = parse_url($redirect, PHP_URL_HOST);
+            $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+            if ($path !== '' && ($host === null || $host === $appHost)) {
+                $request->session()->put('url.intended', url($path.(parse_url($redirect, PHP_URL_QUERY) ? '?'.parse_url($redirect, PHP_URL_QUERY) : '')));
+            }
         }
 
         return view('pages.login');

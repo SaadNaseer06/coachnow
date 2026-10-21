@@ -11,6 +11,7 @@
   <link rel="apple-touch-icon" href="{{ asset('assets/apple-touch-icon.png') }}">
   <title>@yield('title', 'CoachNow')</title>
   <meta name="description" content="@yield('meta_description', 'Discover and book vetted local soccer coaches tailored to your skill level, age group, and schedule.')">
+  @stack('meta')
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -45,7 +46,7 @@
   </script>
 
   <link rel="stylesheet" href="https://unpkg.com/lenis@1.3.26/dist/lenis.css">
-  <link rel="stylesheet" href="{{ asset('assets/css/site.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/site.css') }}?v={{ @filemtime(public_path('assets/css/site.css')) ?: time() }}">
   <link rel="stylesheet" href="{{ asset('assets/css/scroll-progress.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/form-busy.css') }}?v={{ @filemtime(public_path('assets/css/form-busy.css')) ?: time() }}">
   <link rel="stylesheet" href="{{ asset('assets/css/dialog.css') }}?v={{ @filemtime(public_path('assets/css/dialog.css')) ?: time() }}">
@@ -79,7 +80,7 @@
   <script src="https://unpkg.com/lenis@1.3.26/dist/lenis.min.js"></script>
   <script src="{{ asset('assets/js/form-busy.js') }}?v={{ @filemtime(public_path('assets/js/form-busy.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/dialog.js') }}?v={{ @filemtime(public_path('assets/js/dialog.js')) ?: time() }}"></script>
-  <script src="{{ asset('assets/js/site.js') }}"></script>
+  <script src="{{ asset('assets/js/site.js') }}?v={{ @filemtime(public_path('assets/js/site.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/scroll-progress.js') }}"></script>
   @stack('scripts')
 </body>

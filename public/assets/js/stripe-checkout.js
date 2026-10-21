@@ -126,6 +126,8 @@
 
     return {
       amount: intentRes.data.amount,
+      session_amount: intentRes.data.session_amount,
+      convenience_fee: intentRes.data.convenience_fee,
       platform_fee: intentRes.data.platform_fee,
       payment_intent_id: intentRes.data.payment_intent_id,
       async confirm() {

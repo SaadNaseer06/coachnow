@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Coach;
+use App\Models\CoachGroupSession;
 use App\Models\ContactMessage;
+use App\Models\GroupJoinRequest;
 use App\Models\Location;
 use App\Models\SessionRequest;
 use App\Models\SessionReport;
@@ -12,6 +14,7 @@ use App\Models\SharedVideo;
 use App\Models\User;
 use App\Services\AppMailer;
 use App\Services\NominatimGeocoder;
+use App\Services\TrainingNearYouService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,7 +27,7 @@ use Illuminate\View\View;
 
 class PageController extends Controller
 {
-    public function home(): View
+    public function home(Request $request): View
     {
         $locations = Location::query()
             ->where('status', 'live')
@@ -52,8 +55,97 @@ class PageController extends Controller
             ->values()
             ->all();
 
+        $origin = null;
+        if ($request->filled(['lat', 'lng'])) {
+            $lat = (float) $request->query('lat');
+            $lng = (float) $request->query('lng');
+            if (is_finite($lat) && is_finite($lng) && abs($lat) <= 90 && abs($lng) <= 180) {
+                $origin = ['lat' => $lat, 'lng' => $lng];
+            }
+        }
+
+        $featuredSessions = app(TrainingNearYouService::class)->featured($origin, 4);
+        $featuredNearYou = $origin !== null && collect($featuredSessions)->contains(
+            fn (array $row) => ($row['distance_miles'] ?? null) !== null
+        );
+
         return view('pages.home', [
             'homeLocations' => $locations,
+            'featuredSessions' => $featuredSessions,
+            'featuredNearYou' => $featuredNearYou,
+            'featuredTriedGeo' => $origin !== null,
+        ]);
+    }
+
+    public function trainingNearYou(Request $request, NominatimGeocoder $geocoder, TrainingNearYouService $discovery): View
+    {
+        $locationQuery = trim((string) $request->query('location', ''));
+        $radius = (int) $request->query('radius', 5);
+        if (! in_array($radius, [5, 10, 20], true)) {
+            $radius = 5;
+        }
+        $sport = trim((string) $request->query('sport', ''));
+        $age = trim((string) $request->query('age', ''));
+
+        $originLat = $request->query('lat');
+        $originLng = $request->query('lng');
+        $searchOrigin = null;
+        $geocodeFailed = false;
+
+        if (is_numeric($originLat) && is_numeric($originLng)) {
+            $searchOrigin = [
+                'lat' => (float) $originLat,
+                'lng' => (float) $originLng,
+                'label' => $locationQuery !== '' ? $locationQuery : 'you',
+            ];
+        } elseif ($locationQuery !== '' && ! preg_match('/^(near me|current location)$/i', $locationQuery)) {
+            $geocoded = $geocoder->geocode($locationQuery);
+            if ($geocoded) {
+                $searchOrigin = $geocoded;
+                $searchOrigin['label'] = $this->shortGeocodeLabel($geocoded['label'], $locationQuery);
+            } else {
+                $geocodeFailed = true;
+            }
+        }
+
+        if ($searchOrigin) {
+            $locations = Location::query()->where('status', 'live')->get();
+            foreach ($locations as $location) {
+                if ($location->hasCoordinates()) {
+                    continue;
+                }
+                $coords = $geocoder->geocode(trim($location->name.' '.$location->area));
+                if ($coords) {
+                    $location->forceFill([
+                        'latitude' => $coords['lat'],
+                        'longitude' => $coords['lng'],
+                    ])->save();
+                }
+            }
+        }
+
+        $openGroups = $discovery->openGroupSessions($searchOrigin, $radius, $sport ?: null, $age ?: null);
+        $openRequests = $discovery->openSessionRequests($searchOrigin, $radius, $sport ?: null, $age ?: null);
+
+        return view('pages.training-near-you', [
+            'openGroups' => $openGroups,
+            'openRequests' => $openRequests,
+            'radius' => $radius,
+            'sport' => $sport,
+            'age' => $age,
+            'locationQuery' => $locationQuery,
+            'searchOrigin' => $searchOrigin,
+            'geocodeFailed' => $geocodeFailed,
+            'sports' => User::SPORTS,
+            'ageOptions' => Coach::AGE_OPTIONS,
+            'filters' => [
+                'location' => $locationQuery,
+                'lat' => $searchOrigin['lat'] ?? $request->query('lat'),
+                'lng' => $searchOrigin['lng'] ?? $request->query('lng'),
+                'radius' => $radius,
+                'sport' => $sport,
+                'age' => $age,
+            ],
         ]);
     }
 
@@ -525,7 +617,10 @@ class PageController extends Controller
     {
         $raw = $request->route()->originalParameter('coach');
         if (ctype_digit((string) $raw) && filled($coach->slug)) {
-            return redirect()->route('book-coach', $coach, 301);
+            return redirect()->route('book-coach', array_filter([
+                'coach' => $coach,
+                'group' => $request->query('group'),
+            ]), 301);
         }
 
         abort_unless($coach->status === 'active', 404);
@@ -535,12 +630,69 @@ class PageController extends Controller
             ->openSlotsForCoach($coach, now()->startOfDay(), now()->addDays(14)->startOfDay());
 
         $dates = collect($slots)->pluck('date')->unique()->values()->all();
+        $focusGroupId = $request->integer('group') ?: null;
 
         return view('pages.book-coach', [
             'coach' => $coach,
             'slots' => $slots,
             'availableDates' => $dates,
             'slotsJson' => $slots,
+            'focusGroupId' => $focusGroupId,
+            'convenienceFee' => (float) config('coachnow.payments.convenience_fee', 2),
+        ]);
+    }
+
+    /**
+     * Public view of an open marketplace request (from Training Near You) where
+     * another family can join. Requests sent to specific coaches are never shown.
+     */
+    public function openSessionRequest(Request $request, string $reference): View
+    {
+        $session = SessionRequest::query()
+            ->with(['players', 'location', 'hostCoach'])
+            ->where('reference', $reference)
+            ->firstOrFail();
+
+        abort_if($session->isTargeted(), 404);
+        abort_unless(in_array($session->status, ['open', 'hosted', 'awaiting_deposit', 'confirmed'], true), 404);
+
+        $user = $request->user();
+        $joinedCount = $session->players->count();
+        $isFull = $session->max_players !== null && $joinedCount >= (int) $session->max_players;
+        $alreadyIn = $user && $session->players->contains(fn ($p) => (int) $p->user_id === (int) $user->id);
+
+        return view('pages.open-session-request', [
+            'session' => $session,
+            'joinedCount' => $joinedCount,
+            'isFull' => $isFull,
+            'alreadyIn' => $alreadyIn,
+            'joinClosed' => $session->isJoinClosed(),
+            'depositAmount' => (float) config('coachnow.payments.deposit_amount', 10),
+            'convenienceFee' => (float) config('coachnow.payments.convenience_fee', 2),
+        ]);
+    }
+
+    public function sharedGroupSession(string $token): View|RedirectResponse
+    {
+        $group = CoachGroupSession::query()
+            ->with(['coach.user', 'location'])
+            ->where('share_token', $token)
+            ->firstOrFail();
+
+        abort_unless($group->is_public && $group->status !== 'cancelled', 404);
+        abort_unless($group->coach && $group->coach->status === 'active', 404);
+
+        $meta = $group->toParentSlotArray();
+
+        return view('pages.shared-group-session', [
+            'group' => $group,
+            'coach' => $group->coach,
+            'meta' => $meta,
+            'bookUrl' => route('book-coach', [
+                'coach' => $group->coach->publicToken(),
+                'group' => $group->id,
+            ]),
+            'convenienceFee' => (float) config('coachnow.payments.convenience_fee', 2),
         ]);
     }
 
@@ -551,14 +703,32 @@ class PageController extends Controller
         $upcoming = Booking::query()
             ->forAthlete($user->id)
             ->upcoming()
-            ->with(['coach.user', 'location'])
+            ->with(['coach.user', 'location', 'groupSession'])
             ->limit(8)
             ->get();
 
         $past = Booking::query()
             ->forAthlete($user->id)
             ->past()
-            ->with(['coach.user', 'location'])
+            ->with(['coach.user', 'location', 'groupSession'])
+            ->limit(8)
+            ->get();
+
+        $groupJoined = Booking::query()
+            ->forAthlete($user->id)
+            ->where('status', '!=', 'cancelled')
+            ->whereNotNull('group_session_id')
+            ->with(['coach.user', 'location', 'groupSession'])
+            ->orderByDesc('session_date')
+            ->orderByDesc('session_time')
+            ->limit(12)
+            ->get();
+
+        $pendingGroupJoins = GroupJoinRequest::query()
+            ->where('athlete_id', $user->id)
+            ->where('status', 'pending')
+            ->with(['groupSession.coach.user', 'groupSession.location'])
+            ->latest()
             ->limit(8)
             ->get();
 
@@ -668,6 +838,8 @@ class PageController extends Controller
             'initials' => $initials,
             'upcomingBookings' => $upcoming,
             'pastBookings' => $past,
+            'groupJoinedBookings' => $groupJoined,
+            'pendingGroupJoins' => $pendingGroupJoins,
             'completedCount' => $completedCount,
             'completedThisMonth' => $completedThisMonth,
             'focusLabel' => $focusLabel,

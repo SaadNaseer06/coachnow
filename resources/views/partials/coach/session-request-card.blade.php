@@ -177,7 +177,7 @@
         <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request>Accept &amp; host</button>
         <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request>Decline</button>
       </div>
-      <p class="coach-req-card__hint">If you accept, the $10 deposit is charged to the parent’s card on file. You don’t handle payment — you just see who’s confirmed and paid.</p>
+      <p class="coach-req-card__hint">If you accept, the parent’s card is charged the $10 deposit + $2 CoachNow fee (you receive the $10). You don’t handle payment — you just see who’s confirmed and paid.</p>
     @else
       <p class="coach-req-card__hint">View only — this request is waiting for {{ $isTargeted && $preferredCoach !== '' ? $preferredCoach : 'a coach' }} to accept.</p>
     @endif

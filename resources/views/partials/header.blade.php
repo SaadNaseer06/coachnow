@@ -1,9 +1,10 @@
 @php
-  $navActive = 'block px-4 py-2 rounded-full bg-brand-red text-white font-medium shadow-[0_2px_10px_rgba(218,2,12,0.35)] transition-all';
-  $navIdle = 'block px-4 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-brand-red hover:shadow-[0_2px_10px_rgba(218,2,12,0.28)] transition-all duration-200';
+  $navActive = 'block px-3.5 py-2 rounded-full bg-brand-red text-white font-medium shadow-[0_2px_10px_rgba(218,2,12,0.35)] transition-all';
+  $navIdle = 'block px-3.5 py-2 rounded-full font-normal text-zinc-200 hover:text-white hover:bg-white/10 transition-all duration-200';
   $mobileActive = 'block px-4 py-2 rounded-lg bg-brand-red text-white font-semibold';
   $mobileIdle = 'block px-4 py-2 rounded-lg hover:bg-white/10';
   $dashboardActive = request()->routeIs('player-dashboard', 'coach.*', 'admin.*');
+  $moreActive = request()->routeIs('about', 'faq', 'contact');
 
   $dashboardLinks = [];
   $showRequestSession = ! auth()->check() || auth()->user()->isAthlete();
@@ -22,16 +23,17 @@
   }
 @endphp
 
-<header id="siteHeader" class="fixed top-0 left-0 w-full z-50 transition-all duration-300 bg-gradient-to-b from-black/80 via-black/40 to-transparent py-4 md:py-5">
-  <div class="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-    <a href="{{ route('home') }}" class="flex items-center group shrink-0">
-      <img src="{{ asset('assets/logo.png') }}" alt="CoachNow Logo" class="h-9 md:h-11 w-auto object-contain transition-all duration-300">
+<header id="siteHeader" class="site-header fixed top-0 left-0 w-full z-50">
+  <div class="site-header__inner max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-[auto_1fr_auto] items-center gap-3 md:gap-4">
+    <a href="{{ route('home') }}" class="flex items-center group shrink-0 justify-self-start">
+      <img src="{{ asset('assets/logo.png') }}" alt="CoachNow Logo" class="site-header__logo h-9 md:h-10 w-auto object-contain transition-all duration-300">
     </a>
 
-    <nav class="hidden lg:flex items-center bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-full p-1 shadow-lg">
-      <ul class="flex items-center gap-0.5 list-none m-0 p-0 text-xs font-normal">
+    <nav class="site-header__nav hidden lg:flex items-center justify-self-center rounded-full p-1" aria-label="Primary">
+      <ul class="flex items-center gap-0.5 list-none m-0 p-0 text-[12px] font-normal">
         <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $navActive : $navIdle }}">Home</a></li>
         <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile', 'book-coach') ? $navActive : $navIdle }}">Find a Coach</a></li>
+        <li><a href="{{ route('training-near-you') }}" class="{{ request()->routeIs('training-near-you', 'group-session.share') ? $navActive : $navIdle }}">Training Near You</a></li>
         @if ($showRequestSession)
           <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $navActive : $navIdle }}">Request Session</a></li>
         @endif
@@ -57,25 +59,32 @@
         @else
           <li><a href="{{ route('login') }}" class="{{ $navIdle }}">Dashboard</a></li>
         @endauth
-        <li><a href="{{ route('home') }}#how-it-works" class="{{ $navIdle }}">How It Works</a></li>
-        <li><a href="{{ route('about') }}" class="{{ request()->routeIs('about') ? $navActive : $navIdle }}">About</a></li>
-        <li><a href="{{ route('faq') }}" class="{{ request()->routeIs('faq') ? $navActive : $navIdle }}">FAQ</a></li>
-        <li><a href="{{ route('contact') }}" class="{{ request()->routeIs('contact') ? $navActive : $navIdle }}">Contact</a></li>
+        <li class="nav-dropdown">
+          <button type="button" class="nav-dropdown__trigger {{ $moreActive ? $navActive : $navIdle }}" aria-haspopup="true" aria-expanded="false">
+            More
+            <svg class="nav-dropdown__caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="nav-dropdown__menu" role="menu">
+            <a href="{{ route('home') }}#how-it-works" class="nav-dropdown__item" role="menuitem">How It Works</a>
+            <a href="{{ route('about') }}" class="nav-dropdown__item {{ request()->routeIs('about') ? 'is-active' : '' }}" role="menuitem">About</a>
+            <a href="{{ route('faq') }}" class="nav-dropdown__item {{ request()->routeIs('faq') ? 'is-active' : '' }}" role="menuitem">FAQ</a>
+            <a href="{{ route('contact') }}" class="nav-dropdown__item {{ request()->routeIs('contact') ? 'is-active' : '' }}" role="menuitem">Contact</a>
+          </div>
+        </li>
       </ul>
     </nav>
 
-    <div class="flex items-center gap-3 shrink-0">
+    <div class="flex items-center gap-2.5 shrink-0 justify-self-end">
       @auth
-        <a href="{{ auth()->user()->dashboardPath() }}" class="nav-action hidden sm:inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-2.5 rounded-full border border-white/40 bg-black/30 backdrop-blur-md hover:bg-white/15 hover:border-white transition-all duration-300">My Dashboard</a>
+        <a href="{{ auth()->user()->dashboardPath() }}" class="nav-action hidden sm:inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-2.5 rounded-full">My Dashboard</a>
         <form action="{{ route('logout') }}" method="post" class="hidden sm:block">
           @csrf
-          <button type="submit" class="nav-action inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-2.5 rounded-full border border-white/40 bg-black/30 backdrop-blur-md hover:bg-white/15 hover:border-white transition-all duration-300">Sign Out</button>
+          <button type="submit" class="nav-action inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-2.5 rounded-full">Sign Out</button>
         </form>
       @else
-        <a href="{{ route('login') }}" class="nav-action hidden sm:inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-2.5 rounded-full border border-white/40 bg-black/30 backdrop-blur-md hover:bg-white/15 hover:border-white transition-all duration-300">Login</a>
-        <a href="{{ route('register') }}" class="header-join-btn nav-action inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-3 rounded-full bg-brand-red hover:bg-brand-red-hover shadow-brand-glow hover:-translate-y-0.5 transition-all duration-300">
-          <span class="sm:hidden">Sign up</span>
-          <span class="hidden sm:inline">Sign up</span>
+        <a href="{{ route('login') }}" class="nav-action hidden sm:inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-2.5 rounded-full">Login</a>
+        <a href="{{ route('register') }}" class="header-join-btn nav-action nav-action--primary inline-flex items-center justify-center text-xs md:text-sm font-semibold text-white px-5 py-2.5 rounded-full">
+          Sign up
         </a>
       @endauth
       <button type="button" id="mobileMenuBtn" class="lg:hidden relative z-[60] flex flex-col justify-center items-center gap-1.5 w-10 h-10 text-white bg-white/10 rounded-full border border-white/20 shrink-0" aria-label="Toggle Navigation" aria-expanded="false" aria-controls="mobileMenuDrawer">
@@ -86,10 +95,11 @@
     </div>
   </div>
 
-  <div id="mobileMenuDrawer" class="hidden lg:hidden px-4 pt-3 pb-5 mt-2 bg-[#191615] backdrop-blur-2xl border-b border-zinc-800 transition-all">
+  <div id="mobileMenuDrawer" class="hidden lg:hidden px-4 pt-3 pb-5 mt-2 bg-[#191615] border-t border-white/10">
     <ul class="flex flex-col gap-2 text-sm font-medium text-zinc-200">
       <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $mobileActive : $mobileIdle }}">Home</a></li>
       <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile', 'book-coach') ? $mobileActive : $mobileIdle }}">Find a Coach</a></li>
+      <li><a href="{{ route('training-near-you') }}" class="{{ request()->routeIs('training-near-you', 'group-session.share') ? $mobileActive : $mobileIdle }}">Training Near You</a></li>
       @if ($showRequestSession)
         <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $mobileActive : $mobileIdle }}">Request Session</a></li>
       @endif
@@ -108,6 +118,7 @@
       @else
         <li><a href="{{ route('login') }}" class="{{ $mobileIdle }}">Dashboard</a></li>
       @endauth
+      <li class="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">More</li>
       <li><a href="{{ route('home') }}#how-it-works" class="{{ $mobileIdle }}">How It Works</a></li>
       <li><a href="{{ route('about') }}" class="{{ request()->routeIs('about') ? $mobileActive : $mobileIdle }}">About</a></li>
       <li><a href="{{ route('faq') }}" class="{{ request()->routeIs('faq') ? $mobileActive : $mobileIdle }}">FAQ</a></li>

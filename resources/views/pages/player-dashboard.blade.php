@@ -205,6 +205,46 @@
           </div>
         </article>
 
+        {{-- My upcoming bookings --}}
+        <article id="my-bookings" class="player-panel motion-item motion-soft-up" style="--motion-delay:40ms">
+          <div class="player-panel-head !mb-4">
+            <div>
+              <p class="player-section-kicker">Bookings</p>
+              <h2 class="player-panel-title">My upcoming bookings</h2>
+            </div>
+          </div>
+          <div class="space-y-3" data-player-bookings>
+            @forelse ($upcomingBookings as $booking)
+              <div class="player-req-card" data-booking-card>
+                <div class="player-req-card__main">
+                  <div class="player-req-card__top">
+                    <span class="player-req-badge player-req-badge--{{ $booking->group_session_id ? 'hosted' : 'open' }}" data-booking-status>
+                      {{ $booking->group_session_id ? 'Group' : '1-on-1' }}
+                    </span>
+                  </div>
+                  <p class="player-req-card__title">{{ $booking->session_type ?? 'Session' }}@if($booking->athlete_name && $booking->athlete_name !== auth()->user()->name) · {{ $booking->athlete_name }}@endif</p>
+                  <p class="player-req-card__meta">{{ $booking->whenLabel() }} · {{ $booking->location?->name ?? 'Field TBD' }}</p>
+                  <p class="player-req-card__sub">{{ $booking->coach?->display_name ?? 'Coach' }}</p>
+                </div>
+                @if (! $booking->athleteCancelBlockReason(auth()->user()))
+                  <button
+                    type="button"
+                    class="player-req-cancel"
+                    data-cancel-booking
+                    data-reference="{{ $booking->reference }}"
+                    data-refund="{{ $booking->payment_status === 'paid' ? number_format((float) $booking->coach_payout_amount, 2) : '' }}"
+                  >Cancel</button>
+                @endif
+              </div>
+            @empty
+              <div class="player-req-empty">
+                <p class="text-[14px] font-semibold text-white">No upcoming bookings</p>
+                <p class="text-[13px] text-zinc-400 mt-1">Book a coach or join an open group session to see it here.</p>
+              </div>
+            @endforelse
+          </div>
+        </article>
+
         {{-- My session requests --}}
         <article id="my-requests" class="player-panel motion-item motion-soft-up" style="--motion-delay:60ms" data-player-requests>
           <div class="player-panel-head !mb-4">
@@ -266,6 +306,58 @@
                 <p class="text-[13px] text-zinc-400 mt-1">Request a private or group session — it will show up here with live status.</p>
                 <a href="{{ route('request-session') }}" class="player-req-cta mt-4 inline-flex">Request a session</a>
               </div>
+            @endforelse
+          </div>
+        </article>
+
+        {{-- Group sessions joined --}}
+        <article id="my-groups" class="player-panel motion-item motion-soft-up" style="--motion-delay:80ms">
+          <div class="player-panel-head !mb-4">
+            <div>
+              <p class="player-section-kicker">Groups</p>
+              <h2 class="player-panel-title">Group sessions I’ve joined</h2>
+            </div>
+          </div>
+          <div class="space-y-3">
+            @forelse ($pendingGroupJoins ?? [] as $join)
+              <div class="player-req-card">
+                <div class="player-req-card__main">
+                  <div class="player-req-card__top">
+                    <span class="player-req-badge player-req-badge--open">Pending</span>
+                  </div>
+                  <p class="player-req-card__title">{{ $join->groupSession?->session_type ?? 'Group session' }}</p>
+                  <p class="player-req-card__meta">
+                    {{ $join->groupSession?->session_date?->format('D, M j') }}
+                    {{ $join->groupSession?->timeLabel() }}
+                    · {{ $join->groupSession?->location?->name ?? 'Field TBD' }}
+                  </p>
+                  <p class="player-req-card__sub">Waiting for {{ $join->groupSession?->coach?->display_name ?? 'coach' }} to confirm</p>
+                </div>
+              </div>
+            @empty
+            @endforelse
+
+            @forelse ($groupJoinedBookings ?? [] as $booking)
+              <div class="player-req-card">
+                <div class="player-req-card__main">
+                  <div class="player-req-card__top">
+                    <span class="player-req-badge player-req-badge--hosted">Joined</span>
+                  </div>
+                  <p class="player-req-card__title">{{ $booking->session_type ?? 'Group session' }}</p>
+                  <p class="player-req-card__meta">{{ $booking->whenLabel() }} · {{ $booking->location?->name ?? 'Field TBD' }}</p>
+                  <p class="player-req-card__sub">
+                    {{ $booking->coach?->display_name ?? 'Coach' }}
+                    @if($booking->groupSession?->age_range) · {{ $booking->groupSession->age_range }}@endif
+                  </p>
+                </div>
+              </div>
+            @empty
+              @if (($pendingGroupJoins ?? collect())->isEmpty())
+                <div class="player-req-empty">
+                  <p class="text-[14px] font-semibold text-white">No group sessions yet</p>
+                  <p class="text-[13px] text-zinc-400 mt-1">When you join an open group, it will show up here.</p>
+                </div>
+              @endif
             @endforelse
           </div>
         </article>

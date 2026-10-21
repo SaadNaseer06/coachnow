@@ -318,7 +318,13 @@
                       <span class="sched-event-time">{{ $session['time_label'] ?? '' }}</span>
                       {{ $session['title'] }}
                     </p>
-                    <p class="sched-event-type">{{ $session['type'] }}@if (!empty($session['max_players'])) · {{ $session['players'] }}/{{ $session['max_players'] }}@endif</p>
+                    <p class="sched-event-type">
+                      {{ $session['type'] }}
+                      @if (!empty($session['max_players'])) · {{ $session['players'] }}/{{ $session['max_players'] }}@endif
+                      @if (!empty($session['group_session_id']))
+                        · {{ !empty($session['is_public']) ? 'Public' : 'Private' }}
+                      @endif
+                    </p>
                     @if (($session['kind'] ?? '') === 'personal')
                       <form method="POST" action="{{ route('coach.schedule.blocks.destroy', $session['id']) }}" class="sched-event-remove" onsubmit="return confirm('Remove this personal block?')">
                         @csrf
@@ -572,6 +578,27 @@
           <span>Max players</span>
           <input class="admin-input" type="number" name="max_players" id="bookMaxPlayers" value="{{ old('max_players', 4) }}" min="2" max="30">
         </label>
+        <div class="admin-field" id="bookAgeRangeField" hidden>
+          <span>Age range</span>
+          <div class="sched-age-range">
+            <input class="admin-input" type="number" name="age_min" id="bookAgeMin" value="{{ old('age_min') }}" min="{{ \App\Models\CoachGroupSession::MIN_AGE }}" max="{{ \App\Models\CoachGroupSession::MAX_AGE }}" placeholder="Min" aria-label="Minimum age">
+            <span>to</span>
+            <input class="admin-input" type="number" name="age_max" id="bookAgeMax" value="{{ old('age_max') }}" min="{{ \App\Models\CoachGroupSession::MIN_AGE }}" max="{{ \App\Models\CoachGroupSession::MAX_AGE }}" placeholder="Max" aria-label="Maximum age">
+          </div>
+        </div>
+        <label class="admin-field" id="bookSportField" hidden>
+          <span>Sport</span>
+          <select class="admin-select" name="sport" id="bookSport">
+            @foreach ((auth()->user()?->coach?->sportsList() ?: \App\Models\User::SPORTS) as $sportOption)
+              <option value="{{ $sportOption }}" @selected(old('sport') === $sportOption)>{{ $sportOption }}</option>
+            @endforeach
+          </select>
+        </label>
+        <label class="admin-field" id="bookPriceField" hidden>
+          <span>Price per player ($)</span>
+          <input class="admin-input" type="number" name="price_per_player" id="bookPricePerPlayer" value="{{ old('price_per_player', (int) ($coach->rate ?? 25)) }}" min="0" max="9999" step="1">
+        </label>
+        <p class="admin-field admin-field--full" id="bookGroupHint" hidden style="margin:0;font-size:12px;color:#71717a">Group sessions start <strong>private</strong>. Open them to the public later from Manage session.</p>
         <label class="admin-field admin-field--full">
           <span>Field / park</span>
           <select class="admin-select" name="location_id" required>
@@ -646,6 +673,46 @@
           <span>Max players</span>
           <input class="admin-input" type="number" name="max_players" id="manageMax" min="2" max="30" value="4">
         </label>
+        <div class="admin-field" id="manageAgeRangeField" hidden>
+          <span>Age range</span>
+          <div class="sched-age-range">
+            <input class="admin-input" type="number" id="manageAgeMin" min="{{ \App\Models\CoachGroupSession::MIN_AGE }}" max="{{ \App\Models\CoachGroupSession::MAX_AGE }}" placeholder="Min" aria-label="Minimum age">
+            <span>to</span>
+            <input class="admin-input" type="number" id="manageAgeMax" min="{{ \App\Models\CoachGroupSession::MIN_AGE }}" max="{{ \App\Models\CoachGroupSession::MAX_AGE }}" placeholder="Max" aria-label="Maximum age">
+          </div>
+        </div>
+        <label class="admin-field" id="manageSportField" hidden>
+          <span>Sport</span>
+          <select class="admin-select" id="manageSport">
+            @foreach ((auth()->user()?->coach?->sportsList() ?: \App\Models\User::SPORTS) as $sportOption)
+              <option value="{{ $sportOption }}">{{ $sportOption }}</option>
+            @endforeach
+          </select>
+        </label>
+        <label class="admin-field" id="managePriceField" hidden>
+          <span>Price per player ($)</span>
+          <input class="admin-input" type="number" name="price_per_player" id="managePricePerPlayer" min="0" max="9999" step="1" value="{{ (int) ($coach->rate ?? 25) }}">
+        </label>
+        <div class="admin-field admin-field--full" id="managePublicWrap" hidden>
+          <span>Public visibility</span>
+          <div class="sched-public-toggle">
+            <p id="managePublicStatus" class="sched-public-toggle__status">Private — only reserved players. Not shown on Book Now.</p>
+            <label class="sched-public-toggle__switch">
+              <input type="checkbox" name="is_public" id="manageIsPublic" value="1">
+              <span>Open to public</span>
+            </label>
+            <p class="sched-public-toggle__hint">When open, remaining spots appear yellow on the parent booking calendar for other families to join. An age range is required before opening.</p>
+            <div id="manageShareWrap" class="sched-share-link" hidden>
+              <label for="manageShareUrl">Share session link</label>
+              <div class="sched-share-link__row">
+                <input type="text" class="admin-input" id="manageShareUrl" readonly value="">
+                <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" id="manageShareCopy">Copy</button>
+                <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-share-group data-share-input="manageShareUrl" data-share-title="Open group session on CoachNow" data-share-text="Spots open in my group session — book on CoachNow">Share</button>
+              </div>
+              <p class="sched-public-toggle__hint">Send this link on Instagram, Facebook, or text so parents can join the open spots.</p>
+            </div>
+          </div>
+        </div>
         <label class="admin-field admin-field--full">
           <span>Field / park</span>
           <select class="admin-select" name="location_id" id="manageLocation" required>
@@ -694,6 +761,29 @@
     <div class="admin-modal__footer" style="padding:0 20px 20px;border:0;display:flex;gap:8px;justify-content:flex-end">
       <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-close>Cancel</button>
       <button type="button" class="admin-btn admin-btn-primary" id="doubleBookConfirm">Book Anyway</button>
+    </div>
+  </div>
+</div>
+
+<div class="admin-modal" id="moveConfirmModal" aria-hidden="true">
+  <div class="admin-modal__backdrop" data-move-undo></div>
+  <div class="admin-modal__panel sched-action-sheet" role="dialog" aria-modal="true" aria-labelledby="moveConfirmTitle">
+    <div class="admin-modal__header">
+      <div>
+        <h2 id="moveConfirmTitle">Confirm Appointment Change</h2>
+        <p id="moveConfirmWho"></p>
+      </div>
+      <button type="button" class="admin-modal__close" data-move-undo aria-label="Undo move">&times;</button>
+    </div>
+    <dl class="sched-move-confirm">
+      <div><dt>Original Time</dt><dd id="moveConfirmFrom">—</dd></div>
+      <div><dt>New Time</dt><dd id="moveConfirmTo">—</dd></div>
+    </dl>
+    <p class="sched-move-confirm__note">The new time isn’t saved until you choose an option.</p>
+    <div class="sched-move-confirm__actions">
+      <button type="button" class="admin-btn admin-btn-primary" id="moveConfirmNotify">Move &amp; Notify Parent</button>
+      <button type="button" class="admin-btn admin-btn-ghost" id="moveConfirmQuiet">Move Without Notification</button>
+      <button type="button" class="admin-btn admin-btn-ghost" data-move-undo>Undo Move</button>
     </div>
   </div>
 </div>

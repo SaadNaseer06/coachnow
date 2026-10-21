@@ -20,7 +20,7 @@
           Session requests
           <span class="coach-req-badge" id="coachSessionRequestsModalBadge">{{ $openCount }} need host</span>
         </h2>
-        <p>Accept to host — the parent already has a card on file. $10 charges automatically. You only see who’s paid.</p>
+        <p>Accept to host — the parent already has a card on file. The $10 deposit + $2 CoachNow fee charges automatically. You only see who’s paid.</p>
       </div>
       <button type="button" class="coach-req-modal__close" data-close-session-requests aria-label="Close session requests">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -38,7 +38,7 @@
     <footer class="coach-req-modal__footer">
       <p class="coach-req-footnote">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
-        New open requests appear here. Accept to host — sample mode records the $10 deposit without a live Stripe charge for now.
+        New open requests appear here. Accept to host — sample mode records the $10 deposit + $2 fee without a live Stripe charge for now.
       </p>
     </footer>
   </div>

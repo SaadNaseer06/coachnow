@@ -1,4 +1,4 @@
-<footer id="footer" class="bg-[#191615] text-white pt-12 pb-5 motion-section">
+<footer id="footer" class="bg-[#191615] text-white pt-12 pb-5 motion-section is-visible">
   <div class="max-w-[1220px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-16">
     <div class="grid grid-cols-1 lg:grid-cols-[0.95fr_1.35fr] gap-8 lg:gap-12 items-center pb-9 border-b border-white/10 motion-item motion-soft-up">
       <a href="{{ route('home') }}" class="inline-flex items-center">
@@ -27,6 +27,7 @@
         <h4 class="text-[14px] lg:text-[15px] font-semibold mb-5">Explore</h4>
         <ul class="space-y-3 text-[12px] lg:text-[13px] text-zinc-400">
           <li><a href="{{ route('find-a-coach') }}" class="hover:text-white transition-colors">Find a Coach</a></li>
+          <li><a href="{{ route('training-near-you') }}" class="hover:text-white transition-colors">Training Near You</a></li>
           <li><a href="{{ route('request-session') }}" class="hover:text-white transition-colors">Request Session</a></li>
           <li><a href="{{ auth()->check() ? auth()->user()->dashboardPath() : route('login') }}" class="hover:text-white transition-colors">{{ auth()->check() ? 'My Dashboard' : 'Dashboard' }}</a></li>
           <li><a href="{{ route('home') }}#how-it-works" class="hover:text-white transition-colors">How It Works</a></li>

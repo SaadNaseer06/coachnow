@@ -14,6 +14,7 @@ use App\Models\SessionReport;
 use App\Models\User;
 use App\Services\SessionBookingService;
 use App\Services\OllamaReportService;
+use App\Services\TrainingNearYouService;
 use App\Services\VideoCompressionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -412,8 +413,18 @@ class CoachController extends Controller
             ->forCoach($coach->id)
             ->confirmed()
             ->whereDate('session_date', $today)
-            ->with(['athlete', 'location'])
+            ->with(['athlete', 'location', 'groupSession'])
             ->orderBy('session_time')
+            ->get();
+
+        $upcomingBookings = Booking::query()
+            ->forCoach($coach->id)
+            ->confirmed()
+            ->upcoming()
+            ->with(['athlete', 'location', 'groupSession'])
+            ->orderBy('session_date')
+            ->orderBy('session_time')
+            ->limit(8)
             ->get();
 
         $weekCount = Booking::query()
@@ -432,6 +443,33 @@ class CoachController extends Controller
             1
         );
 
+        $pendingJoins = \App\Models\GroupJoinRequest::query()
+            ->where('status', 'pending')
+            ->whereHas('groupSession', fn ($q) => $q->where('coach_id', $coach->id))
+            ->with(['athlete', 'groupSession.location'])
+            ->latest()
+            ->limit(8)
+            ->get();
+
+        $openGroups = \App\Models\CoachGroupSession::query()
+            ->where('coach_id', $coach->id)
+            ->whereIn('status', ['open', 'full'])
+            ->whereDate('session_date', '>=', $today->toDateString())
+            ->with('location')
+            ->orderBy('session_date')
+            ->orderBy('session_time')
+            ->limit(8)
+            ->get()
+            ->each(fn ($group) => $group->is_public && $group->ensureShareToken());
+
+        $pendingRequestCount = SessionRequest::query()
+            ->where('status', 'open')
+            ->visibleToCoach($coach)
+            ->count();
+
+        $openOpportunities = app(TrainingNearYouService::class)
+            ->coachOpportunities($coach, 20, 5);
+
         return view('coach.dashboard', [
             'coach' => $coach,
             'players' => $players->take(6)->values()->all(),
@@ -443,6 +481,19 @@ class CoachController extends Controller
                 'type' => $b->session_type ?? 'Session',
                 'tone' => $b->tone(),
             ])->all(),
+            'upcomingSessions' => $upcomingBookings->map(fn (Booking $b) => [
+                'id' => $b->id,
+                'when' => $b->whenLabel(),
+                'name' => $b->displayName(),
+                'type' => $b->session_type ?? 'Session',
+                'location' => $b->location?->name,
+                'is_group' => (bool) $b->group_session_id,
+                'is_public' => (bool) ($b->groupSession?->is_public ?? false),
+            ])->all(),
+            'pendingJoins' => $pendingJoins,
+            'openGroups' => $openGroups,
+            'openOpportunities' => $openOpportunities,
+            'pendingRequestCount' => $pendingRequestCount,
             'weekSessionCount' => $weekCount,
             'weekHours' => $weekHours,
             'todayLabel' => $today->format('l'),
@@ -901,6 +952,8 @@ class CoachController extends Controller
             'ages' => ['required', 'string', 'max:80'],
             'location_id' => ['required', 'integer', 'exists:locations,id'],
             'rate' => ['required', 'numeric', 'min:0', 'max:9999'],
+            'group_rate' => ['nullable', 'numeric', 'min:0', 'max:9999'],
+            'max_group_size' => ['nullable', 'integer', 'min:2', 'max:30'],
             'bio' => ['nullable', 'string', 'max:2000'],
             'languages_spoken' => ['nullable', 'string', 'max:255'],
             'coaching_philosophy' => ['nullable', 'string', 'max:5000'],
@@ -911,6 +964,8 @@ class CoachController extends Controller
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'remove_photo' => ['nullable', 'boolean'],
         ]);
+
+        $data['max_group_size'] = (int) ($data['max_group_size'] ?? 6);
 
         $sports = array_values(array_unique($data['sports']));
         $specialties = array_values(array_unique($data['specialties']));
@@ -1084,6 +1139,8 @@ class CoachController extends Controller
                 'type' => $booking->session_type ?? 'Session',
                 'players' => $playerCount,
                 'max_players' => $group?->max_players,
+                'is_public' => (bool) ($group?->is_public ?? false),
+                'age_range' => $group?->age_range,
                 'notes' => $booking->notes,
                 'tone' => $booking->tone(),
                 'location' => $booking->location?->name,

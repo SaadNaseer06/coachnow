@@ -717,7 +717,7 @@
 
     const cardNote = document.getElementById('reqCardOnFileNote');
     if (cardNote && cardLabel && !hosted) {
-      cardNote.textContent = `Saved ${cardLabel}. $10 charges automatically when a coach accepts. Keep this tab open, then Accept & host on the coach dashboard.`;
+      cardNote.textContent = `Saved ${cardLabel}. $12 ($10 deposit + $2 fee) charges automatically when a coach accepts. Keep this tab open, then Accept & host on the coach dashboard.`;
     }
 
     if (!hosted) {
@@ -728,7 +728,7 @@
     if (hosted && requesterPaid) {
       const liveStatus = document.querySelector('.req-live-card__status');
       if (liveStatus) liveStatus.innerHTML = '<span class="req-pulse"></span> Hosted · Deposit charged';
-      if (els.countdownHint) els.countdownHint.textContent = 'Coach accepted — $10 charged · session open for others to join';
+      if (els.countdownHint) els.countdownHint.textContent = 'Coach accepted — $12 charged · session open for others to join';
       const paidLabel = document.getElementById('reqPaidWith');
       if (paidLabel && (requester?.paid_with || cardLabel)) {
         paidLabel.textContent = `Charged to ${requester?.paid_with || cardLabel}`;

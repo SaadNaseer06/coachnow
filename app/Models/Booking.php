@@ -125,6 +125,33 @@ class Booking extends Model
     }
 
     /**
+     * Parents can cancel their own direct / group bookings until the cutoff
+     * (default 24h before start). Session-request bookings go through the request flow.
+     */
+    public function athleteCancelBlockReason(User $user): ?string
+    {
+        if ((int) $this->athlete_id !== (int) $user->id) {
+            return 'You can only cancel your own bookings.';
+        }
+
+        if ($this->status === 'cancelled') {
+            return 'This booking is already cancelled.';
+        }
+
+        if ($this->session_request_id) {
+            return 'This session came from a session request — message your coach to change it.';
+        }
+
+        $hours = (int) config('coachnow.payments.cancel_cutoff_hours', 24);
+        $start = $this->startsAt();
+        if (! $start || $start->copy()->subHours($hours)->lte(now())) {
+            return "Bookings can be cancelled up to {$hours} hours before the session. Contact your coach for anything later.";
+        }
+
+        return null;
+    }
+
+    /**
      * Still on the calendar: future date, or today and the 60-minute slot has not ended.
      */
     public function isUpcoming(): bool

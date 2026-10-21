@@ -77,7 +77,7 @@
   </article>
   <article class="admin-kpi coach-kpi-requests" id="coachOpenRequestsKpi" role="button" tabindex="0" aria-label="Open session requests">
     <div class="admin-kpi-label">Open Session Requests</div>
-    <div class="admin-kpi-value" id="coachOpenRequestCount">{{ collect($sessionRequests ?? [])->where('status', 'open')->count() }}</div>
+    <div class="admin-kpi-value" id="coachOpenRequestCount">{{ $pendingRequestCount ?? collect($sessionRequests ?? [])->where('status', 'open')->count() }}</div>
     <div class="admin-kpi-trend up">Tap to review · Hosted sessions stay open to join</div>
   </article>
 </section>
@@ -132,26 +132,169 @@
   <div class="admin-card">
     <div class="admin-card-header">
       <div>
-        <h2>Today's Sessions</h2>
-        <p>{{ $todayLabel ?? 'Today' }} · {{ count($today) }} sessions scheduled</p>
+        <h2>Upcoming Sessions</h2>
+        <p>Next confirmed bookings on your calendar</p>
       </div>
       <a href="{{ route('coach.schedule') }}" class="admin-btn admin-btn-ghost admin-btn-sm">Open schedule</a>
     </div>
     <div class="admin-card-body">
       <div class="admin-list">
-        @forelse ($today as $session)
+        @forelse ($upcomingSessions ?? [] as $session)
           <div class="admin-list-item">
             <div>
               <strong>{{ $session['name'] }}</strong>
-              <span>{{ $session['time'] }} · {{ $session['type'] }}</span>
+              <span>{{ $session['when'] }} · {{ $session['type'] }}@if(!empty($session['location'])) · {{ $session['location'] }}@endif</span>
             </div>
-            <span class="admin-badge admin-badge-zinc">{{ ucfirst($session['tone']) }}</span>
+            @if (!empty($session['is_group']))
+              <span class="admin-badge {{ !empty($session['is_public']) ? 'admin-badge-amber' : 'admin-badge-zinc' }}">
+                {{ !empty($session['is_public']) ? 'Public group' : 'Private group' }}
+              </span>
+            @else
+              <span class="admin-badge admin-badge-green">1-on-1</span>
+            @endif
           </div>
         @empty
           <div class="admin-list-item">
             <div>
-              <strong>No sessions today</strong>
-              <span>Accepted requests will show here</span>
+              <strong>No upcoming sessions</strong>
+              <span>Book a player or accept a request to fill your week</span>
+            </div>
+          </div>
+        @endforelse
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="admin-grid-2" style="margin-top:16px">
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <div>
+        <h2>Pending Session Requests</h2>
+        <p>Open marketplace / invited requests waiting for a host</p>
+      </div>
+      <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-open-session-requests>
+        Review ({{ $pendingRequestCount ?? 0 }})
+      </button>
+    </div>
+    <div class="admin-card-body">
+      <div class="admin-list">
+        <div class="admin-list-item">
+          <div>
+            <strong>{{ $pendingRequestCount ?? 0 }} open request{{ ($pendingRequestCount ?? 0) === 1 ? '' : 's' }} in your inbox</strong>
+            <span>Invited + marketplace requests waiting for a host — use the bell or KPI to accept</span>
+          </div>
+          <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-open-session-requests>Review</button>
+        </div>
+
+        <div class="admin-list-item" style="align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <strong>Open Session Opportunities</strong>
+            <span>Public marketplace requests near your park</span>
+            @forelse ($openOpportunities ?? [] as $opp)
+              <div style="margin-top:10px;padding-top:10px;border-top:1px solid #e4e4e7">
+                <div style="font-size:13px;font-weight:600;color:#18181b">{{ $opp['title'] }}</div>
+                <div style="font-size:12px;color:#71717a;margin-top:2px;line-height:1.45">
+                  {{ $opp['date_label'] ?? '' }}@if(!empty($opp['time_label'])) · {{ $opp['time_label'] }}@endif
+                  · {{ $opp['location_name'] ?? 'Park TBD' }}
+                  @if (($opp['distance_miles'] ?? null) !== null)
+                    · {{ number_format((float) $opp['distance_miles'], 1) }} mi
+                  @endif
+                  @if (!empty($opp['sport'])) · {{ $opp['sport'] }}@endif
+                  @if (!empty($opp['age_range'])) · {{ $opp['age_range'] }}@endif
+                </div>
+              </div>
+            @empty
+              <div style="margin-top:8px;font-size:12px;color:#a1a1aa">
+                No open marketplace requests right now.
+                <a href="{{ route('training-near-you') }}" style="color:inherit;text-decoration:underline">Browse Training Near You</a>
+              </div>
+            @endforelse
+          </div>
+          @if (!empty($openOpportunities))
+            <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-open-session-requests>Accept</button>
+          @endif
+        </div>
+
+        @if (($pendingJoins ?? collect())->isNotEmpty())
+          @foreach ($pendingJoins as $join)
+            <div class="admin-list-item">
+              <div>
+                <strong>{{ $join->displayName() }} wants to join</strong>
+                <span>
+                  {{ $join->groupSession?->session_type }} ·
+                  {{ $join->groupSession?->session_date?->format('D, M j') }}
+                  {{ $join->groupSession?->timeLabel() }}
+                </span>
+              </div>
+              <a href="{{ route('coach.schedule', ['date' => optional($join->groupSession?->session_date)->toDateString()]) }}" class="admin-btn admin-btn-ghost admin-btn-sm">Manage</a>
+            </div>
+          @endforeach
+        @endif
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <div>
+        <h2>Group Session Management</h2>
+        <p>Private vs public groups and remaining spots</p>
+      </div>
+      <a href="{{ route('coach.schedule') }}" class="admin-btn admin-btn-ghost admin-btn-sm">Schedule</a>
+    </div>
+    <div class="admin-card-body">
+      <div class="admin-list">
+        @forelse ($openGroups ?? [] as $group)
+          <div class="admin-list-item">
+            <div>
+              <strong>{{ $group->session_type }}</strong>
+              <span>
+                {{ $group->session_date?->format('D, M j') }} · {{ $group->timeLabel() }} ·
+                {{ $group->capacityLabel() }}
+                @if($group->age_range) · {{ $group->age_range }}@endif
+                @if($group->sportLabel()) · {{ $group->sportLabel() }}@endif
+              </span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+              <span class="admin-badge {{ $group->is_public ? 'admin-badge-amber' : 'admin-badge-zinc' }}">
+                {{ $group->is_public ? 'Public · '.$group->spotsRemaining().' left' : 'Private' }}
+              </span>
+              @if ($group->is_public && $group->shareUrl())
+                <button
+                  type="button"
+                  class="admin-btn admin-btn-ghost admin-btn-sm"
+                  data-share-group
+                  data-share-url="{{ $group->shareUrl() }}"
+                  data-share-title="{{ $group->session_type }} with {{ $coach->display_name }}"
+                  data-share-text="{{ $group->spotsRemaining() }} spot{{ $group->spotsRemaining() === 1 ? '' : 's' }} left · {{ $group->session_date?->format('D, M j') }} {{ $group->timeLabel() }}@if($group->age_range) · {{ $group->age_range }}@endif"
+                >Share</button>
+              @endif
+              @if ($group->status !== 'full' || $group->is_public)
+                <form method="POST" action="{{ route('coach.group-sessions.visibility', $group) }}" style="margin:0">
+                  @csrf
+                  @method('PATCH')
+                  <input type="hidden" name="is_public" value="{{ $group->is_public ? 0 : 1 }}">
+                  @if (! $group->is_public && blank($group->age_range))
+                    <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#71717a">
+                      Ages
+                      <input type="number" name="age_min" class="admin-input" required min="{{ \App\Models\CoachGroupSession::MIN_AGE }}" max="{{ \App\Models\CoachGroupSession::MAX_AGE }}" placeholder="11" aria-label="Minimum age" style="height:32px;width:56px;padding:0 6px;font-size:12px">
+                      –
+                      <input type="number" name="age_max" class="admin-input" required min="{{ \App\Models\CoachGroupSession::MIN_AGE }}" max="{{ \App\Models\CoachGroupSession::MAX_AGE }}" placeholder="13" aria-label="Maximum age" style="height:32px;width:56px;padding:0 6px;font-size:12px">
+                    </span>
+                  @endif
+                  <button type="submit" class="admin-btn admin-btn-sm {{ $group->is_public ? 'admin-btn-ghost' : 'admin-btn-primary' }}">
+                    {{ $group->is_public ? 'Close' : 'Open to public' }}
+                  </button>
+                </form>
+              @endif
+            </div>
+          </div>
+        @empty
+          <div class="admin-list-item">
+            <div>
+              <strong>No upcoming group sessions</strong>
+              <span>Book a group type on your schedule, then open spots to the public when ready</span>
             </div>
           </div>
         @endforelse

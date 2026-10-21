@@ -1,18 +1,20 @@
-/* Shared layout: mobile nav + single-page scroll */
+/* Shared layout: one scroll root only.
+   Important: overflow-x:hidden on body makes overflow-y compute to auto (CSS quirk),
+   which stacks a second scrollbar beside html. Use clip for the x-axis instead. */
 html {
-  overflow-x: hidden;
+  overflow-x: clip;
   overflow-y: auto;
   max-width: 100%;
 }
 
 body {
-  overflow-x: hidden;
+  overflow-x: clip;
   overflow-y: visible;
   max-width: 100%;
   min-height: 100%;
 }
 
-/* Lenis smooth scroll — one scroll root only (prevents double scrollbars) */
+/* Lenis smooth scroll — html is the only scrollport */
 html.lenis {
   height: auto;
   overflow: hidden;
@@ -20,7 +22,8 @@ html.lenis {
 
 html.lenis body {
   height: auto;
-  overflow: visible;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 html.lenis.lenis-smooth {
@@ -38,13 +41,121 @@ body.mobile-nav-open {
   overflow: hidden;
 }
 
+/* Shared section reveal — keep footer/content visible even if page JS skipped */
+.motion-section .motion-item {
+  opacity: 0;
+  filter: blur(3px);
+  will-change: opacity, transform, filter;
+  transition:
+    opacity 0.78s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.92s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.78s ease;
+  transition-delay: var(--motion-delay, 0ms);
+}
+
+.motion-section .motion-soft-up {
+  transform: translate3d(0, 22px, 0);
+}
+
+.motion-section .motion-from-left {
+  transform: translate3d(-46px, 0, 0);
+}
+
+.motion-section .motion-from-right {
+  transform: translate3d(46px, 0, 0);
+}
+
+.motion-section .motion-pop {
+  transform: translate3d(0, 20px, 0) scale(0.96);
+}
+
+.motion-section.is-visible .motion-item {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-section .motion-item {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    transition: none !important;
+  }
+}
+
+/* One header chrome for every page — solid dark bar, same buttons, same scroll state */
 #siteHeader {
   isolation: isolate;
+  padding: 0.9rem 0;
+  background: rgba(25, 22, 21, 0.94) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  transition:
+    padding 0.28s ease,
+    background 0.28s ease,
+    box-shadow 0.28s ease;
 }
 
 #siteHeader > div {
   position: relative;
   z-index: 2;
+}
+
+#siteHeader .site-header__nav {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+#siteHeader .nav-action {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+#siteHeader .nav-action:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+#siteHeader .nav-action--primary,
+#siteHeader .header-join-btn {
+  border-color: transparent;
+  background: #da020c;
+  box-shadow: 0 4px 18px rgba(218, 2, 12, 0.35);
+}
+
+#siteHeader .nav-action--primary:hover,
+#siteHeader .header-join-btn:hover {
+  background: #bf020a;
+  border-color: transparent;
+  transform: translateY(-1px);
+}
+
+#siteHeader.nav-scrolled {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+  background: #191615 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+
+#siteHeader.nav-scrolled .site-header__logo {
+  height: 2.15rem !important;
+}
+
+#siteHeader.nav-scrolled .nav-action {
+  transform: scale(0.96);
+  transform-origin: center;
+}
+
+#siteHeader.nav-scrolled .nav-action--primary:hover,
+#siteHeader.nav-scrolled .header-join-btn:hover {
+  transform: scale(0.96) translateY(-1px);
 }
 
 /* Keep nav pills on one line and tighten spacing when the bar gets crowded */
@@ -55,7 +166,7 @@ body.mobile-nav-open {
 
 @media (min-width: 1024px) and (max-width: 1279px) {
   #siteHeader nav ul {
-    font-size: 10.5px;
+    font-size: 11px;
   }
 
   #siteHeader nav ul > li > a,
@@ -67,6 +178,19 @@ body.mobile-nav-open {
   #siteHeader .nav-action {
     padding-left: 14px;
     padding-right: 14px;
+  }
+}
+
+/* Keep auth buttons from colliding with the centered pill on mid-size desktops */
+@media (min-width: 1024px) {
+  #siteHeader .site-header__inner {
+    min-height: 2.75rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  #siteHeader.nav-scrolled .site-header__logo {
+    height: 2rem !important;
   }
 }
 
@@ -197,13 +321,8 @@ body.mobile-nav-open {
 }
 
 @media (max-width: 1023px) {
-  #siteHeader.nav-scrolled,
   #siteHeader:has(#mobileMenuDrawer.is-open) {
     background: #191615 !important;
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 }
 

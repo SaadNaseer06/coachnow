@@ -1383,3 +1383,167 @@ body.sched-is-dragging .sched-event.is-manageable {
     min-width: 780px;
   }
 }
+
+.sched-public-toggle {
+  margin-top: 6px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #e4e4e7;
+  background: #fafafa;
+}
+
+.sched-public-toggle__status {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3f3f46;
+}
+
+.sched-public-toggle__switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #18181b;
+  cursor: pointer;
+}
+
+.sched-public-toggle__switch input {
+  accent-color: #da020c;
+  width: 16px;
+  height: 16px;
+}
+
+.sched-public-toggle__hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #71717a;
+}
+
+.sched-share-link {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e4e4e7;
+}
+
+.sched-share-link label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3f3f46;
+}
+
+.sched-share-link__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sched-share-link__row .admin-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.sched-age-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sched-age-range .admin-input {
+  min-width: 0;
+  flex: 1;
+}
+
+.sched-age-range > span {
+  font-size: 12px;
+  color: #71717a;
+}
+
+/* —— Touch: press-and-hold to move (phones/tablets) ——
+   Appointments scroll with the page until held ~0.5s; then they lift and follow the finger. */
+@media (pointer: coarse) {
+  .sched-event.is-manageable {
+    touch-action: pan-x pan-y;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+.sched-event.is-hold-pending {
+  transition: transform 0.45s ease, box-shadow 0.45s ease;
+  transform: scale(0.985);
+}
+
+.sched-event.is-drag-armed {
+  transform: scale(1.03);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18), 0 0 0 2px rgba(218, 2, 12, 0.55);
+  z-index: 5;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+/* Dropped but not yet confirmed */
+.sched-event.is-move-pending {
+  outline: 2px dashed rgba(218, 2, 12, 0.6);
+  outline-offset: 1px;
+  opacity: 0.85;
+}
+
+/* —— Confirm Appointment Change —— */
+.sched-move-confirm {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0;
+  padding: 0 20px;
+}
+
+.sched-move-confirm > div {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #e4e4e7;
+  background: #fafafa;
+}
+
+.sched-move-confirm > div:last-child {
+  border-color: rgba(218, 2, 12, 0.35);
+  background: rgba(218, 2, 12, 0.04);
+}
+
+.sched-move-confirm dt {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #71717a;
+}
+
+.sched-move-confirm dd {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #18181b;
+}
+
+.sched-move-confirm__note {
+  margin: 10px 20px 0;
+  font-size: 12px;
+  color: #71717a;
+}
+
+.sched-move-confirm__actions {
+  display: grid;
+  gap: 8px;
+  padding: 16px 20px 20px;
+}
+
+.sched-move-confirm__actions .admin-btn {
+  width: 100%;
+  justify-content: center;
+  min-height: 42px;
+}

@@ -26,7 +26,12 @@ return [
         // When true: skip live Stripe Connect/checkout and use sample bookings + card-on-file.
         'sample_mode' => filter_var(env('COACHNOW_SAMPLE_PAYMENTS', false), FILTER_VALIDATE_BOOL),
         'deposit_amount' => (float) env('COACHNOW_DEPOSIT_AMOUNT', 10),
-        'platform_fee_percent' => (float) env('COACHNOW_PLATFORM_FEE_PERCENT', 10),
+        // Launch: $2 convenience fee per booking transaction (one fee per checkout, not per player).
+        'convenience_fee' => (float) env('COACHNOW_CONVENIENCE_FEE', 2),
+        // Parents may cancel direct/group bookings up to this many hours before start.
+        // Refund = the player's session price; the convenience fee is non-refundable.
+        'cancel_cutoff_hours' => (int) env('COACHNOW_CANCEL_CUTOFF_HOURS', 24),
+        'platform_fee_percent' => (float) env('COACHNOW_PLATFORM_FEE_PERCENT', 0),
         'platform_fee_fixed' => (float) env('COACHNOW_PLATFORM_FEE_FIXED', 0),
         'require_payouts_for_paid' => filter_var(
             env('COACHNOW_REQUIRE_PAYOUTS', env('COACHNOW_SAMPLE_PAYMENTS', false) ? false : true),

@@ -29,7 +29,7 @@
         <div class="req-main">
           <div class="req-banner">
             <span class="req-banner__pill">How it works</span>
-            <p>Put a <strong>card on file</strong> to submit — you’re not charged yet. When a coach accepts, a <strong>$10 deposit</strong> is charged automatically so the session is locked in.</p>
+            <p>Put a <strong>card on file</strong> to submit — you’re not charged yet. When a coach accepts, a <strong>$10 deposit + $2 CoachNow fee</strong> is charged automatically so the session is locked in.</p>
           </div>
 
           <div class="req-progress" aria-hidden="true">
@@ -362,7 +362,7 @@
                     <button type="submit" class="req-btn req-btn--primary">Submit request</button>
                     <p class="req-disclaimer">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                      <span>Next you’ll put a card on file. Nothing is charged until a coach accepts. Then a <strong>$10 deposit</strong> is taken automatically.</span>
+                      <span>Next you’ll put a card on file. Nothing is charged until a coach accepts. Then a <strong>$10 deposit + $2 CoachNow fee</strong> is taken automatically.</span>
                     </p>
                   </div>
                 </form>
@@ -407,25 +407,25 @@
                   <div class="req-deposit req-deposit--waiting" id="reqWaitingCoach">
                     <div class="req-deposit__badge req-deposit__badge--wait">Card on file</div>
                     <h3>No charge yet</h3>
-                    <p>Your card is saved. When a coach accepts, a <strong>$10 deposit</strong> is charged automatically — same idea as Uber. Nothing is charged if nobody accepts.</p>
-                    <p class="req-deposit__note" id="reqCardOnFileNote">Keep this tab open, then Accept &amp; host on the coach dashboard to see the $10 charge.</p>
+                    <p>Your card is saved. When a coach accepts, a <strong>$10 deposit + $2 CoachNow fee</strong> is charged automatically — same idea as Uber. Nothing is charged if nobody accepts.</p>
+                    <p class="req-deposit__note" id="reqCardOnFileNote">Keep this tab open, then Accept &amp; host on the coach dashboard to see the $12 charge.</p>
                   </div>
 
                   <div class="req-deposit req-deposit--paid" id="reqDepositPaid" hidden>
                     <h3>You’re confirmed</h3>
-                    <p>A coach accepted and your <strong>$10 deposit</strong> was charged to the card on file. The session stays open so others can join until 30 minutes before start.</p>
+                    <p>A coach accepted and your <strong>$10 deposit + $2 CoachNow fee</strong> was charged to the card on file. The session stays open so others can join until 30 minutes before start.</p>
                     <p class="req-deposit__note" id="reqPaidWith"></p>
                     <button type="button" class="req-btn req-btn--ghost" id="reqJoinAsAnother" style="margin-top:0.75rem;width:100%">Demo: join as another player</button>
                   </div>
 
                   <div class="req-deposit" id="reqJoinDepositPanel" hidden>
                     <div class="req-deposit__badge">Join session</div>
-                    <h3>Join with a $10 deposit</h3>
-                    <p>Players joining this open session confirm with a $10 deposit. The coach can see who’s paid.</p>
+                    <h3>Join with a $10 deposit + $2 fee</h3>
+                    <p>Players joining this open session confirm with a $10 deposit + $2 CoachNow fee. The coach can see who’s paid.</p>
                     @include('partials.payment-methods', ['payPrefix' => 'reqJoinPay'])
-                    <button type="button" class="req-btn req-btn--primary" id="reqJoinPayBtn">Pay $10 &amp; join</button>
+                    <button type="button" class="req-btn req-btn--primary" id="reqJoinPayBtn">Pay $12 &amp; join</button>
                     <button type="button" class="req-btn req-btn--ghost" id="reqJoinCancelBtn">Cancel</button>
-                    <p class="req-deposit__note">Sample checkout — $10 deposit is recorded (no live Stripe charge yet).</p>
+                    <p class="req-deposit__note">Sample checkout — $12 ($10 deposit + $2 fee) is recorded (no live Stripe charge yet).</p>
                   </div>
 
                   <div class="req-live-card__footer">
@@ -457,14 +457,14 @@
                 <span class="req-steps-list__num">2</span>
                 <div>
                   <strong>A coach accepts</strong>
-                  <p>Your $10 deposit is charged automatically. The coach just hosts.</p>
+                  <p>Your $10 deposit + $2 CoachNow fee is charged automatically. The coach just hosts.</p>
                 </div>
               </li>
               <li>
                 <span class="req-steps-list__num">3</span>
                 <div>
                   <strong>Others can join</strong>
-                  <p>Joiners pay a $10 deposit too. Open until 30 minutes before start.</p>
+                  <p>Each family that joins pays the same $10 deposit + $2 fee. Open until 30 minutes before start.</p>
                 </div>
               </li>
             </ol>
@@ -483,13 +483,13 @@
               </li>
               <li>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                Card on file at request. $10 charges only after a coach accepts.
+                Card on file at request. $12 ($10 deposit + $2 fee) charges only after a coach accepts.
               </li>
             </ul>
           </div>
 
           <div class="req-aside-note">
-            <p>The $10 deposit confirms real players and coaches. Full session balance is settled with your coach after training.</p>
+            <p>The $10 deposit (plus a $2 CoachNow fee) confirms real players and coaches. Full session balance is settled with your coach after training.</p>
           </div>
         </aside>
 
@@ -505,7 +505,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
         <h2 id="reqCardModalTitle">Confirm with a card</h2>
-        <p class="req-pay-modal__lead">We’ll save this card to post your request. No charge now — a <strong>$10 deposit</strong> only if a coach accepts.</p>
+        <p class="req-pay-modal__lead">We’ll save this card to post your request. No charge now — a <strong>$10 deposit + $2 CoachNow fee</strong> only if a coach accepts.</p>
       </div>
       <div class="req-pay-modal__body" id="reqCardOnFileBox" data-lenis-prevent>
         @include('partials.payment-methods', ['payPrefix' => 'reqFile'])

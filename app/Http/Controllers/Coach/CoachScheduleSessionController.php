@@ -5,14 +5,17 @@ namespace App\Http\Controllers\Coach;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Coach;
+use App\Models\CoachGroupSession;
 use App\Models\GroupJoinRequest;
 use App\Models\User;
+use App\Services\AppMailer;
 use App\Services\SessionBookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class CoachScheduleSessionController extends Controller
@@ -31,6 +34,12 @@ class CoachScheduleSessionController extends Controller
             'session_type' => ['required', 'string', 'max:160'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'max_players' => ['nullable', 'integer', 'min:2', 'max:30'],
+            'age_range' => ['nullable', 'string', 'max:80'],
+            'age_min' => ['nullable', 'integer', 'min:'.CoachGroupSession::MIN_AGE, 'max:'.CoachGroupSession::MAX_AGE],
+            'age_max' => ['nullable', 'integer', 'min:'.CoachGroupSession::MIN_AGE, 'max:'.CoachGroupSession::MAX_AGE],
+            'sport' => ['nullable', 'string', Rule::in(User::SPORTS)],
+            'price_per_player' => ['nullable', 'numeric', 'min:0', 'max:9999'],
+            'is_public' => ['nullable', 'boolean'],
             'force_double_book' => ['nullable', 'boolean'],
             'week' => ['nullable', 'date'],
             'view' => ['nullable', 'string'],
@@ -40,6 +49,8 @@ class CoachScheduleSessionController extends Controller
         if (empty($data['athlete_id']) && blank($data['player_name'] ?? null)) {
             return $this->fail($request, ['player_name' => 'Choose a roster player or enter a client name.'], $data);
         }
+
+        $data = $this->withAgeRange($data);
 
         try {
             $booking = $bookings->createCoachBooking($coach, [
@@ -52,6 +63,10 @@ class CoachScheduleSessionController extends Controller
                 'session_type' => $data['session_type'],
                 'notes' => $data['notes'] ?? null,
                 'max_players' => $data['max_players'] ?? null,
+                'age_range' => $data['age_range'] ?? null,
+                'sport' => $data['sport'] ?? null,
+                'price_per_player' => $data['price_per_player'] ?? null,
+                'is_public' => (bool) ($data['is_public'] ?? false),
                 'force_double_book' => (bool) ($data['force_double_book'] ?? false),
             ]);
         } catch (ValidationException $e) {
@@ -92,6 +107,12 @@ class CoachScheduleSessionController extends Controller
             'session_type' => ['nullable', 'string', 'max:160'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'max_players' => ['nullable', 'integer', 'min:2', 'max:30'],
+            'age_range' => ['nullable', 'string', 'max:80'],
+            'age_min' => ['nullable', 'integer', 'min:'.CoachGroupSession::MIN_AGE, 'max:'.CoachGroupSession::MAX_AGE],
+            'age_max' => ['nullable', 'integer', 'min:'.CoachGroupSession::MIN_AGE, 'max:'.CoachGroupSession::MAX_AGE],
+            'sport' => ['nullable', 'string', Rule::in(User::SPORTS)],
+            'price_per_player' => ['nullable', 'numeric', 'min:0', 'max:9999'],
+            'is_public' => ['nullable', 'boolean'],
             'force_double_book' => ['nullable', 'boolean'],
             'add_players' => ['nullable', 'array'],
             'add_players.*.athlete_id' => ['nullable', 'integer', 'exists:users,id'],
@@ -111,7 +132,7 @@ class CoachScheduleSessionController extends Controller
                 }
             }
 
-            $updated = $bookings->updateCoachBooking($coach, $booking->fresh(), $data);
+            $updated = $bookings->updateCoachBooking($coach, $booking->fresh(), $this->withAgeRange($data));
         } catch (ValidationException $e) {
             if ($request->expectsJson()) {
                 return response()->json([
@@ -152,6 +173,12 @@ class CoachScheduleSessionController extends Controller
                     'session_type' => $updated->session_type,
                     'notes' => $updated->notes,
                     'max_players' => $group?->max_players ?? $updated->max_players,
+                    'age_range' => $group?->age_range,
+                    'age_bounds' => CoachGroupSession::ageBounds($group?->age_range),
+                    'sport' => $group?->sport,
+                    'price_per_player' => $group?->price_per_player !== null ? (float) $group->price_per_player : null,
+                    'is_public' => (bool) ($group?->is_public ?? false),
+                    'share_url' => $group?->is_public ? $group->shareUrl() : null,
                     'players' => $group?->bookedCount(),
                     'capacity_label' => $group?->capacityLabel(),
                     'location' => $updated->location?->name,
@@ -178,7 +205,11 @@ class CoachScheduleSessionController extends Controller
             'session_date' => ['required', 'date'],
             'session_time' => ['required', 'date_format:H:i'],
             'force_double_book' => ['nullable', 'boolean'],
+            'notify_parent' => ['nullable', 'boolean'],
         ]);
+
+        $oldDate = optional($booking->session_date)->toDateString();
+        $oldTime = substr((string) $booking->session_time, 0, 5);
 
         try {
             $updated = $bookings->moveCoachBooking(
@@ -199,8 +230,16 @@ class CoachScheduleSessionController extends Controller
         $coach->forceFill(['last_active_at' => now()])->save();
         $this->forgetCoachCaches($coach);
 
+        $notified = 0;
+        if ($request->boolean('notify_parent') && $oldDate) {
+            $notified = app(AppMailer::class)->notifySessionRescheduled($updated->fresh(), $oldDate, $oldTime);
+        }
+
         return response()->json([
-            'message' => 'Session moved.',
+            'message' => $request->boolean('notify_parent')
+                ? ($notified > 0 ? 'Session moved — parent notified.' : 'Session moved. No parent account is linked, so no one was emailed.')
+                : 'Session moved.',
+            'notified' => $notified,
             'booking_id' => $updated->id,
             'date' => optional($updated->session_date)->toDateString(),
             'time' => substr((string) $updated->session_time, 0, 5),
@@ -241,6 +280,9 @@ class CoachScheduleSessionController extends Controller
         ]);
 
         $group = $booking->groupSession;
+        if ($group?->is_public) {
+            $group->ensureShareToken();
+        }
         $players = $group
             ? $group->bookings->map(fn (Booking $b) => [
                 'booking_id' => $b->id,
@@ -266,9 +308,16 @@ class CoachScheduleSessionController extends Controller
                 'session_type' => $booking->session_type,
                 'notes' => $booking->notes,
                 'max_players' => $group?->max_players ?? $booking->max_players,
+                'age_range' => $group?->age_range,
+                'age_bounds' => CoachGroupSession::ageBounds($group?->age_range),
+                'sport' => $group?->sport,
+                'price_per_player' => $group?->price_per_player !== null ? (float) $group->price_per_player : null,
+                'is_public' => (bool) ($group?->is_public ?? false),
+                'share_url' => $group?->is_public ? $group->shareUrl() : null,
                 'is_group' => (bool) $booking->group_session_id,
                 'players' => $players,
                 'capacity_label' => $group?->capacityLabel(),
+                'spots_remaining' => $group?->spotsRemaining(),
             ],
         ]);
     }
@@ -297,6 +346,63 @@ class CoachScheduleSessionController extends Controller
         return back()->with('success', $booking->displayName().' joined the group session.');
     }
 
+    /**
+     * Open spare spots to the public, or close them again.
+     */
+    public function visibility(Request $request, CoachGroupSession $group): JsonResponse|RedirectResponse
+    {
+        $coach = $this->currentCoach();
+        abort_unless((int) $group->coach_id === (int) $coach->id, 403);
+
+        $data = $request->validate([
+            'is_public' => ['required', 'boolean'],
+            'age_range' => ['nullable', 'string', 'max:80'],
+            'age_min' => ['nullable', 'integer', 'min:'.CoachGroupSession::MIN_AGE, 'max:'.CoachGroupSession::MAX_AGE],
+            'age_max' => ['nullable', 'integer', 'min:'.CoachGroupSession::MIN_AGE, 'max:'.CoachGroupSession::MAX_AGE],
+        ]);
+
+        $data = $this->withAgeRange($data);
+        if (filled($data['age_range'] ?? null)) {
+            $group->forceFill(['age_range' => $data['age_range']])->save();
+        }
+
+        if ($data['is_public'] && blank($group->age_range)) {
+            $message = 'Set an age range before opening this group to the public.';
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $message], 422)
+                : back()->with('error', $message);
+        }
+
+        if ($group->status === 'cancelled') {
+            $message = 'This group session was cancelled.';
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $message], 422)
+                : back()->with('error', $message);
+        }
+
+        $data['is_public'] ? $group->openToPublic() : $group->closeToPublic();
+        $group->refresh();
+        $this->forgetCoachCaches($coach);
+
+        $message = $group->is_public
+            ? 'Open to public — '.$group->spotsRemaining().' spot'.($group->spotsRemaining() === 1 ? '' : 's').' now bookable by other families.'
+            : 'Closed — this group is private again.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'data' => [
+                    'is_public' => (bool) $group->is_public,
+                    'share_url' => $group->is_public ? $group->shareUrl() : null,
+                ],
+            ]);
+        }
+
+        return back()->with('success', $message);
+    }
+
     public function declineJoin(Request $request, GroupJoinRequest $join, SessionBookingService $bookings): JsonResponse|RedirectResponse
     {
         $coach = $this->currentCoach();
@@ -308,6 +414,23 @@ class CoachScheduleSessionController extends Controller
         }
 
         return back()->with('success', 'Join request declined.');
+    }
+
+    /**
+     * Coach forms send min/max ages; store them as one label ("Ages 11-13").
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function withAgeRange(array $data): array
+    {
+        if (array_key_exists('age_min', $data) || array_key_exists('age_max', $data)) {
+            $data['age_range'] = CoachGroupSession::ageRangeFromBounds($data['age_min'] ?? null, $data['age_max'] ?? null);
+        }
+
+        unset($data['age_min'], $data['age_max']);
+
+        return $data;
     }
 
     private function assertOwnsBooking(Coach $coach, Booking $booking): void

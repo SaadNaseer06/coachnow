@@ -330,6 +330,111 @@
       </div>
     </section>
 
+    <!-- ==================== TRAINING NEAR YOU (FEATURED) ==================== -->
+    <section id="training-near-you-home" class="py-16 lg:py-20 bg-white border-t border-zinc-100">
+      <div class="max-w-[1220px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-16">
+        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 lg:mb-10">
+          <div class="max-w-xl">
+            <div class="inline-flex items-center px-4 py-2 rounded-full bg-brand-red text-white text-[11px] lg:text-xs font-semibold uppercase mb-4">
+              TRAINING NEAR YOU
+            </div>
+            <h2 class="section-main-title text-[1.95rem] sm:text-[2.3rem] lg:text-[2.65rem] font-normal text-[#191615] tracking-[-0.045em] leading-[1.08]">
+              Open sessions this week
+            </h2>
+            <p class="mt-3 text-[14px] text-zinc-500 font-light max-w-md" id="homeFeaturedLead">
+              @if (!empty($featuredNearYou))
+                Public group spots and open requests within about 20 miles of you.
+              @elseif (!empty($featuredTriedGeo))
+                Nothing closer matched — showing the soonest open sessions citywide.
+              @else
+                Public group spots and open session requests — use your location to sort by distance.
+              @endif
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3 self-start sm:self-auto shrink-0">
+            <button
+              type="button"
+              id="homeFeaturedNearMe"
+              class="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-zinc-300 bg-white text-[12px] font-medium text-zinc-800 hover:border-brand-red hover:text-brand-red transition-colors"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path>
+              </svg>
+              {{ !empty($featuredTriedGeo) ? 'Update location' : 'Use my location' }}
+            </button>
+            <a href="{{ route('training-near-you') }}" class="inline-flex items-center gap-2 text-[13px] font-medium text-zinc-800 hover:text-brand-red transition-colors group">
+              <span class="border-b border-zinc-400 pb-0.5">Browse all</span>
+              <svg class="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        @if (!empty($featuredSessions))
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
+            @foreach ($featuredSessions as $item)
+              @php
+                $ctaUrl = ($item['kind'] ?? '') === 'group'
+                  ? ($item['joinable'] && !empty($item['book_url'])
+                      ? (auth()->check() ? $item['book_url'] : route('login').'?redirect='.urlencode($item['book_url']))
+                      : ($item['share_url'] ?? route('training-near-you')))
+                  : ($item['view_url'] ?? route('request-session'));
+              @endphp
+              <article class="rounded-[16px] border border-zinc-200 bg-[#FAFAFA] p-4 flex flex-col min-h-[210px]">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                  @if (($item['kind'] ?? '') === 'group')
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-[10px] font-semibold uppercase tracking-wide">Open group</span>
+                  @else
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-zinc-200 text-zinc-700 text-[10px] font-semibold uppercase tracking-wide">Open request</span>
+                  @endif
+                  @if (($item['distance_miles'] ?? null) !== null)
+                    <span class="text-[11px] text-zinc-500">{{ number_format((float) $item['distance_miles'], 1) }} mi</span>
+                  @endif
+                </div>
+                <h3 class="text-[16px] font-medium text-[#191615] leading-snug mb-2">{{ $item['title'] }}</h3>
+                <div class="text-[12px] text-zinc-500 leading-relaxed space-y-1 flex-1">
+                  @if (!empty($item['coach_name']))
+                    <p>{{ $item['coach_name'] }}@if(!empty($item['sport'])) · {{ $item['sport'] }}@endif</p>
+                  @elseif (!empty($item['sport']))
+                    <p>{{ $item['sport'] }}</p>
+                  @endif
+                  <p>{{ $item['date_label'] ?? '' }}@if(!empty($item['time_label'])) · {{ $item['time_label'] }}@endif</p>
+                  <p>{{ $item['location_name'] ?? 'Location TBD' }}</p>
+                  <p class="text-[#191615] font-medium">{{ $item['price_label'] ?? '' }}</p>
+                </div>
+                <a href="{{ $ctaUrl }}" class="mt-4 inline-flex items-center justify-center h-10 rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-[12px] font-medium transition-colors">
+                  @if (($item['kind'] ?? '') === 'group')
+                    {{ !empty($item['joinable']) ? 'Book Now' : 'View session' }}
+                  @else
+                    {{ !empty($item['view_label']) ? $item['view_label'] : 'View request' }}
+                  @endif
+                </a>
+              </article>
+            @endforeach
+          </div>
+        @else
+          <div class="rounded-[16px] border border-dashed border-zinc-300 bg-[#FAFAFA] px-6 py-10 text-center">
+            <p class="text-[15px] font-medium text-[#191615] mb-2">
+              {{ !empty($featuredNearYou) ? 'Nothing open within 20 miles right now' : 'No public sessions listed yet' }}
+            </p>
+            <p class="text-[14px] text-zinc-500 max-w-md mx-auto">
+              When coaches open leftover group spots or families post open requests, they’ll show up here and on Training Near You.
+            </p>
+            <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+              <a href="{{ route('training-near-you') }}" class="inline-flex items-center justify-center h-10 px-5 rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-[12px] font-medium transition-colors">
+                Open Training Near You
+              </a>
+              <a href="{{ route('request-session') }}" class="inline-flex items-center justify-center h-10 px-5 rounded-full border border-zinc-300 bg-white text-[12px] font-medium text-zinc-800 hover:border-brand-red hover:text-brand-red transition-colors">
+                Request a session
+              </a>
+            </div>
+          </div>
+        @endif
+      </div>
+    </section>
+
     <!-- ==================== HOW IT WORKS SECTION ==================== -->
     <section id="how-it-works" class="py-20 lg:py-24 bg-[#F6F6F6]">
       <div class="max-w-[1220px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-16">
@@ -625,4 +730,30 @@
   </script>
   <script src="{{ asset('assets/js/search-draft.js') }}?v={{ @filemtime(public_path('assets/js/search-draft.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/index.js') }}"></script>
+  <script>
+    (() => {
+      const btn = document.getElementById('homeFeaturedNearMe');
+      if (!btn || !navigator.geolocation) return;
+      btn.addEventListener('click', () => {
+        const prev = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Locating…';
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const url = new URL(window.location.href);
+            url.searchParams.set('lat', pos.coords.latitude.toFixed(5));
+            url.searchParams.set('lng', pos.coords.longitude.toFixed(5));
+            url.hash = 'training-near-you-home';
+            window.location.href = url.toString();
+          },
+          () => {
+            btn.disabled = false;
+            btn.textContent = prev || 'Use my location';
+            window.location.href = @json(route('training-near-you'));
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+        );
+      });
+    })();
+  </script>
 @endpush

@@ -22,47 +22,10 @@ body {
 }
 
 body {
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
-#siteHeader {
-  background: transparent !important;
-  transition:
-    padding 0.28s ease,
-    background 0.28s ease,
-    box-shadow 0.28s ease,
-    backdrop-filter 0.28s ease;
-}
-
-#siteHeader.nav-scrolled {
-  padding-top: 8px !important;
-  padding-bottom: 8px !important;
-  background: #191615 !important;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-#siteHeader.nav-scrolled img[alt='CoachNow Logo'] {
-  height: 2.25rem !important;
-}
-
-#siteHeader.nav-scrolled .nav-action {
-  transform: scale(0.92);
-  transform-origin: center;
-}
-
-@media (max-width: 1023px) {
-  #siteHeader.nav-scrolled {
-    padding-top: 7px !important;
-    padding-bottom: 7px !important;
-  }
-
-  #siteHeader.nav-scrolled img[alt='CoachNow Logo'] {
-    height: 2rem !important;
-  }
-}
+/* Header chrome is owned by site.css so Book Now matches every other page. */
 
 /* Slimmer chrome on this transactional page */
 body.book-flow #footer,
@@ -213,8 +176,58 @@ body.book-flow #coachnowPreloader {
   background: rgba(218, 2, 12, 0.12);
 }
 
+.book-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.book-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #a1a1aa;
+}
+
+.book-legend__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #1b1e22;
+}
+
+.book-legend__swatch.is-open {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.book-legend__swatch.is-group {
+  background: #facc15;
+  border-color: #eab308;
+}
+
+.book-legend__swatch.is-full {
+  background: #3f3f46;
+  border-color: #52525b;
+}
+
 .book-chip.is-group {
-  border-color: rgba(167, 139, 250, 0.45);
+  border-color: #eab308;
+  background: rgba(250, 204, 21, 0.12);
+  color: #fef08a;
+}
+
+.book-chip.is-group.is-selected,
+.book-chip.is-group:hover:not(:disabled) {
+  border-color: #facc15;
+  background: rgba(250, 204, 21, 0.2);
+  color: #fef9c3;
 }
 
 .book-chip.is-full,
@@ -231,6 +244,23 @@ body.book-flow #coachnowPreloader {
   border-radius: 12px;
   border: 1px solid rgba(218, 2, 12, 0.28);
   background: rgba(218, 2, 12, 0.06);
+}
+
+.book-field.is-group {
+  border-color: rgba(234, 179, 8, 0.45);
+  background: rgba(250, 204, 21, 0.08);
+}
+
+.book-field__meta {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+  font-size: 0.8125rem;
+  color: #d4d4d8;
+}
+
+.book-field__meta span {
+  display: block;
 }
 
 .book-field strong {
@@ -345,4 +375,69 @@ body.book-flow #coachnowPreloader {
   font-size: 0.9rem;
   line-height: 1.55;
   margin: 0 0 1.25rem;
+}
+
+.book-players {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.25rem 0 1rem;
+  padding: 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  background: rgba(250, 204, 21, 0.06);
+}
+
+.book-players__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fafafa;
+}
+
+.book-players__head select,
+.book-players__input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0.5rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #15171a;
+  color: #fafafa;
+  font-size: 0.875rem;
+}
+
+.book-players__head select {
+  width: auto;
+}
+
+.book-players__names {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.book-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.book-mode__opt {
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #15171a;
+  color: #d4d4d8;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.book-mode__opt.is-selected {
+  border-color: rgba(218, 2, 12, 0.6);
+  background: rgba(218, 2, 12, 0.12);
+  color: #fafafa;
 }

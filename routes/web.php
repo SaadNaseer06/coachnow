@@ -24,6 +24,7 @@ Route::get('/download/{path}', [\App\Http\Controllers\MediaController::class, 'd
     ->where('path', '.*')
     ->name('media.download');
 Route::get('/find-a-coach', [PageController::class, 'findACoach'])->name('find-a-coach');
+Route::get('/training-near-you', [PageController::class, 'trainingNearYou'])->name('training-near-you');
 Route::get('/become-a-coach', [PageController::class, 'becomeACoach'])->name('become-a-coach');
 Route::post('/become-a-coach', [PageController::class, 'submitBecomeACoach'])->name('become-a-coach.submit');
 Route::get('/about', [PageController::class, 'about'])->name('about');
@@ -32,6 +33,8 @@ Route::get('/contact', [PageController::class, 'contact'])->name('contact');
 Route::post('/contact', [PageController::class, 'submitContact'])->name('contact.submit');
 Route::get('/coach-profile', fn () => redirect()->route('find-a-coach'));
 Route::get('/coaches/{coach}', [PageController::class, 'coachProfile'])->name('coach-profile');
+Route::get('/requests/{reference}', [PageController::class, 'openSessionRequest'])->name('open-session-request');
+Route::get('/s/{token}',[PageController::class, 'sharedGroupSession'])->name('group-session.share');
 Route::get('/api/coaches/{coach}/slots', [\App\Http\Controllers\BookingController::class, 'slots'])->name('coaches.slots');
 Route::get('/api/stripe/config', [StripePaymentController::class, 'config'])->name('stripe.config');
 Route::post('/api/stripe/webhook', StripeWebhookController::class)->name('stripe.webhook');
@@ -50,6 +53,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/api/session-requests/{reference}/join', [SessionRequestController::class, 'join'])->name('session-requests.join');
         Route::post('/api/session-requests/{reference}/cancel', [SessionRequestController::class, 'cancel'])->name('session-requests.cancel');
         Route::post('/api/bookings', [\App\Http\Controllers\BookingController::class, 'store'])->name('bookings.store');
+        Route::post('/api/bookings/{reference}/cancel', [\App\Http\Controllers\BookingController::class, 'cancel'])->name('bookings.cancel');
         Route::post('/api/group-sessions/{group}/join', [\App\Http\Controllers\BookingController::class, 'requestJoin'])->name('group-sessions.join');
     });
 
@@ -94,6 +98,7 @@ Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach'])->grou
     Route::delete('/schedule/sessions/{booking}', [CoachScheduleSessionController::class, 'destroy'])->name('schedule.sessions.destroy');
     Route::post('/schedule/joins/{join}/accept', [CoachScheduleSessionController::class, 'acceptJoin'])->name('schedule.joins.accept');
     Route::post('/schedule/joins/{join}/decline', [CoachScheduleSessionController::class, 'declineJoin'])->name('schedule.joins.decline');
+    Route::patch('/group-sessions/{group}/visibility', [CoachScheduleSessionController::class, 'visibility'])->name('group-sessions.visibility');
     Route::post('/schedule/blocks', [CoachController::class, 'storeTimeBlock'])->name('schedule.blocks.store');
     Route::delete('/schedule/blocks/{block}', [CoachController::class, 'destroyTimeBlock'])->name('schedule.blocks.destroy');
     Route::get('/dashboard', [CoachController::class, 'dashboard'])->name('dashboard');
