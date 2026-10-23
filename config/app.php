@@ -65,7 +65,9 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Session times are entered in local (California) time, so "now" must be too —
+    // otherwise cutoffs, countdowns and past/upcoming checks run 7–8 hours early.
+    'timezone' => env('APP_TIMEZONE', 'America/Los_Angeles'),
 
     /*
     |--------------------------------------------------------------------------

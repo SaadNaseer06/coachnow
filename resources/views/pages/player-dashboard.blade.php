@@ -337,7 +337,9 @@
             @empty
             @endforelse
 
-            @forelse ($groupJoinedBookings ?? [] as $booking)
+            {{-- One row per group session, listing every child booked on it. --}}
+            @forelse (collect($groupJoinedBookings ?? [])->groupBy('group_session_id') as $groupBookings)
+              @php($booking = $groupBookings->first())
               <div class="player-req-card">
                 <div class="player-req-card__main">
                   <div class="player-req-card__top">
@@ -348,6 +350,7 @@
                   <p class="player-req-card__sub">
                     {{ $booking->coach?->display_name ?? 'Coach' }}
                     @if($booking->groupSession?->age_range) · {{ $booking->groupSession->age_range }}@endif
+                    · {{ $groupBookings->pluck('athlete_name')->filter()->implode(', ') }}
                   </p>
                 </div>
               </div>
@@ -650,15 +653,17 @@
       </aside>
     </div>
 
-    {{-- Upgrade --}}
+    {{-- Upgrade (non-members only) --}}
+    @unless (($membership['active'] ?? false))
     <section class="player-upgrade-banner mt-8 lg:mt-10 px-6 py-7 sm:px-8 sm:py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-5 text-white motion-item motion-soft-up">
       <div>
-        <p class="text-[11px] uppercase tracking-[0.1em] text-brand-red font-bold mb-2">Development Plus</p>
+        <p class="text-[11px] uppercase tracking-[0.1em] text-brand-red font-bold mb-2">Family Membership</p>
         <h2 class="text-[1.35rem] sm:text-[1.5rem] font-semibold mb-2">Unlock deeper progress tracking</h2>
-        <p class="text-[13px] sm:text-[14px] text-zinc-400 leading-[1.65] font-light max-w-xl">Detailed coach reports and personalized development tracking for every eligible session.</p>
+        <p class="text-[13px] sm:text-[14px] text-zinc-400 leading-[1.65] font-light max-w-xl">Coach reports, skill progress and session requests — and no ${{ number_format((float) ($membership['fee'] ?? 2), 0) }} booking fees — for ${{ number_format((float) ($membership['price'] ?? 10), 0) }}/month.</p>
       </div>
-      <a href="{{ route('contact') }}" class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-sm font-semibold shadow-brand-glow transition-all shrink-0">Explore subscription</a>
+      <a href="#membership" class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-sm font-semibold shadow-brand-glow transition-all shrink-0">See membership</a>
     </section>
+    @endunless
   </div>
 </main>
 

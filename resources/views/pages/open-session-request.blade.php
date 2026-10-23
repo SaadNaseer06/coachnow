@@ -53,9 +53,9 @@
         </div>
         <p class="book-hint" style="margin-top:1rem">
           @if ($waiting)
-            Join now to share the session. Your card is saved and the ${{ number_format($depositAmount, 0) }} deposit + ${{ number_format($convenienceFee, 0) }} CoachNow fee is charged only if a coach accepts.
+            Join now to share the session. Your card is saved and the ${{ number_format($depositAmount, 0) }} deposit{{ $convenienceFee > 0 ? ' + $'.number_format($convenienceFee, 0).' CoachNow fee' : '' }} is charged only if a coach accepts.
           @else
-            A coach is hosting this session. Join with a ${{ number_format($depositAmount, 0) }} deposit + ${{ number_format($convenienceFee, 0) }} CoachNow fee until 1 hour before it starts.
+            A coach is hosting this session. Join with a ${{ number_format($depositAmount, 0) }} deposit{{ $convenienceFee > 0 ? ' + $'.number_format($convenienceFee, 0).' CoachNow fee' : '' }} until 1 hour before it starts.
           @endif
         </p>
       </div>
