@@ -666,7 +666,8 @@ class PageController extends Controller
             'joinedCount' => $joinedCount,
             'isFull' => $isFull,
             'alreadyIn' => $alreadyIn,
-            'joinClosed' => $session->isJoinClosed(),
+            'joinClosed' => $session->isJoinClosed() || $session->isUnhostedAndExpired(),
+            'requestExpired' => $session->isUnhostedAndExpired(),
             'depositAmount' => (float) config('coachnow.payments.deposit_amount', 10),
             'convenienceFee' => User::convenienceFeeFor(request()->user()),
         ]);

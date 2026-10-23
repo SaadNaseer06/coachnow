@@ -68,6 +68,8 @@
             <a href="{{ route('player-dashboard') }}#my-requests" class="book-btn">Go to my dashboard</a>
           @elseif ($isFull)
             <p class="book-error" style="display:block">This session is full.</p>
+          @elseif ($requestExpired ?? false)
+            <p class="book-error" style="display:block">No coach accepted this request before its deadline, so it’s closed.</p>
           @elseif ($joinClosed)
             <p class="book-error" style="display:block">Joining closed 1 hour before the session.</p>
           @elseif (! auth()->check())

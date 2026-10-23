@@ -73,8 +73,10 @@ class TrainingNearYouService
             ->limit(80)
             ->get();
 
-        // Hide hosted requests that are already full or past the 30-minute join cutoff.
+        // Hide requests that are full, past the 1-hour join cutoff, or whose
+        // "accept by" deadline passed without a coach.
         $requests = $requests->reject(fn (SessionRequest $r) => $r->isJoinClosed()
+            || $r->isUnhostedAndExpired()
             || ($r->max_players !== null && $r->players->count() >= (int) $r->max_players));
 
         return $this->mapAndFilterRequests($requests, $origin, $radiusMiles, $sport, $age, $limit);

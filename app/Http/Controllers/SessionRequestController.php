@@ -397,6 +397,9 @@ class SessionRequestController extends Controller
         // Families can join a public request before a coach accepts (card saved, charged on
         // accept) or after (charged now). Requests sent to specific coaches stay private.
         $waitingForCoach = $session->status === 'open';
+        if ($session->isUnhostedAndExpired()) {
+            return response()->json(['message' => 'No coach accepted this request before its deadline, so it is closed.'], 422);
+        }
         if (! $waitingForCoach && (! in_array($session->status, ['hosted', 'awaiting_deposit', 'confirmed'], true) || ! $session->host_coach_id)) {
             return response()->json(['message' => 'This request is no longer open to join.'], 422);
         }

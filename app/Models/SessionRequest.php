@@ -541,6 +541,15 @@ class SessionRequest extends Model
         return $deadline !== null && $deadline->lte(now());
     }
 
+    /**
+     * Still waiting for a coach but its "accept by" deadline passed — nobody can host it,
+     * so it shouldn't be advertised or joined.
+     */
+    public function isUnhostedAndExpired(): bool
+    {
+        return $this->status === 'open' && $this->isAcceptCutoffPassed();
+    }
+
     public function isJoinClosed(): bool
     {
         $start = $this->startsAt();
