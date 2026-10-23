@@ -90,6 +90,7 @@ class Coach extends Model
         'rate',
         'group_rate',
         'max_group_size',
+        'buffer_minutes',
         'rating',
         'reviews_count',
         'photo_path',
@@ -110,6 +111,7 @@ class Coach extends Model
             'rate' => 'decimal:2',
             'group_rate' => 'decimal:2',
             'max_group_size' => 'integer',
+            'buffer_minutes' => 'integer',
             'rating' => 'decimal:1',
             'credentials' => 'array',
             'sports' => 'array',
@@ -237,6 +239,36 @@ class Coach extends Model
     public function isPlusPlan(): bool
     {
         return in_array($this->plan ?? 'standard', self::MARKETPLACE_PLANS, true);
+    }
+
+    /**
+     * Can accept open marketplace requests: everyone during the free launch window,
+     * then only coaches on a marketplace plan. Direct bookings never need this.
+     */
+    public function hasMarketplaceAccess(): bool
+    {
+        return $this->isPlusPlan() || self::freeMarketplaceActive();
+    }
+
+    /**
+     * True before launch (no COACHNOW_LAUNCH_DATE set) and for the first
+     * COACHNOW_FREE_MARKETPLACE_MONTHS (default 3) after it.
+     */
+    public static function freeMarketplaceActive(): bool
+    {
+        $endsAt = self::freeMarketplaceEndsAt();
+
+        return $endsAt === null || now()->lt($endsAt);
+    }
+
+    public static function freeMarketplaceEndsAt(): ?Carbon
+    {
+        $launch = config('coachnow.marketplace.launch_date');
+        if (blank($launch)) {
+            return null;
+        }
+
+        return Carbon::parse($launch)->startOfDay()->addMonthsNoOverflow((int) config('coachnow.marketplace.free_months', 3));
     }
 
     /**
@@ -573,14 +605,15 @@ class Coach extends Model
             ->where('status', '!=', 'cancelled')
             ->whereDate('session_date', '>=', $from)
             ->whereDate('session_date', '<=', $to)
-            ->with(['groupSession:id,status,max_players'])
+            ->with(['groupSession:id,status,max_players,is_public'])
             ->get(['coach_id', 'session_date', 'session_time', 'duration_minutes', 'group_session_id']);
 
         foreach ($bookings as $booking) {
-            // Joinable group sessions stay visible on Book Now — don't mark exclusive busy.
+            // Public groups with spots stay visible on Book Now — don't mark exclusive busy.
+            // Private groups block the coach's time like any booking.
             if ($booking->group_session_id) {
                 $group = $booking->groupSession;
-                if ($group && $group->status === 'open' && $group->spotsRemaining() > 0) {
+                if ($group && $group->is_public && $group->status === 'open' && $group->spotsRemaining() > 0) {
                     continue;
                 }
             }

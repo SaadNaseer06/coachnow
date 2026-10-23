@@ -29,7 +29,9 @@
   $sessionsByDay = collect($sessions)->groupBy('day');
   $workingHoursByDow = $workingHoursByDow ?? [];
   $calStart = (int) ($calStartHour ?? 4);
-  $slotCount = count($hours ?? range(4, 20)) * 2;
+  $slotMinutes = (int) ($calSlotMinutes ?? 15);
+  $slotsPerHour = intdiv(60, $slotMinutes);
+  $slotCount = count($hours ?? range(4, 20)) * $slotsPerHour;
   $now = now();
   $dayStart = $calStart * 60;
   $dayEnd = ($calStart + count($hours ?? range(4, 20))) * 60;
@@ -42,11 +44,11 @@
   foreach ($workingHoursByDow as $windows) {
     foreach ($windows as $wh) {
       [$sh, $sm] = array_map('intval', explode(':', $wh['start'] ?? '16:00'));
-      $gs = max(1, (int) floor(((($sh * 60) + $sm) - ($calStart * 60)) / 30) + 1);
+      $gs = max(1, (int) floor(((($sh * 60) + $sm) - ($calStart * 60)) / $slotMinutes) + 1);
       $workScroll = $workScroll === null ? $gs : min($workScroll, $gs);
     }
   }
-  $noonRow = max(1, (int) floor(((12 * 60) - ($calStart * 60)) / 30) + 1);
+  $noonRow = max(1, (int) floor(((12 * 60) - ($calStart * 60)) / $slotMinutes) + 1);
   $firstGridStart = $bookingScroll ?: $workScroll ?: $noonRow;
   $openAvailabilityModal = request()->boolean('availability')
     || (session('success') && str_contains(strtolower((string) session('success')), 'availability'))
@@ -56,9 +58,9 @@
     || $errors->hasAny($bookErrorKeys);
   $openPersonalModal = $errors->hasAny(['title', 'block_date', 'start_time', 'end_time'])
     && ! $errors->hasAny($bookErrorKeys);
-  $isOpenSlot = function (int $dow, int $slotIndex) use ($workingHoursByDow, $calStart): bool {
-    $slotStart = $calStart * 60 + $slotIndex * 30;
-    $slotEnd = $slotStart + 30;
+  $isOpenSlot = function (int $dow, int $slotIndex) use ($workingHoursByDow, $calStart, $slotMinutes): bool {
+    $slotStart = $calStart * 60 + $slotIndex * $slotMinutes;
+    $slotEnd = $slotStart + $slotMinutes;
     foreach ($workingHoursByDow[$dow] ?? [] as $wh) {
       [$sh, $sm] = array_map('intval', explode(':', $wh['start']));
       [$eh, $em] = array_map('intval', explode(':', $wh['end']));
@@ -70,14 +72,14 @@
     }
     return false;
   };
-  $slotTimeLabel = function (int $slotIndex) use ($calStart): string {
-    $mins = $calStart * 60 + $slotIndex * 30;
+  $slotTimeLabel = function (int $slotIndex) use ($calStart, $slotMinutes): string {
+    $mins = $calStart * 60 + $slotIndex * $slotMinutes;
     $h = intdiv($mins, 60);
     $m = $mins % 60;
     return sprintf('%02d:%02d', $h, $m);
   };
-  $slotTimeDisplay = function (int $slotIndex) use ($calStart): string {
-    $mins = $calStart * 60 + $slotIndex * 30;
+  $slotTimeDisplay = function (int $slotIndex) use ($calStart, $slotMinutes): string {
+    $mins = $calStart * 60 + $slotIndex * $slotMinutes;
     $h24 = intdiv($mins, 60);
     $m = $mins % 60;
     $suffix = $h24 >= 12 ? 'PM' : 'AM';
@@ -241,7 +243,7 @@
         <div
           class="sched-calendar-scroll {{ $viewMode === 'day' ? 'sched-calendar-scroll--day' : '' }}"
         data-scroll-to-row="{{ $firstGridStart ?: '' }}"
-          data-row-height="{{ $viewMode === 'day' ? '64' : '48' }}"
+          data-row-height="{{ $viewMode === 'day' ? '32' : '24' }}"
       >
           <div class="sched-calendar {{ $viewMode === 'day' ? 'sched-calendar--day' : '' }}" style="--sched-cols: {{ count($days) }}">
           <div class="sched-calendar-corner"></div>
@@ -269,10 +271,17 @@
                 @php $dow = (int) ($day['dow'] ?? 0); @endphp
                 <div class="sched-calendar-column {{ !empty($day['today']) ? 'is-today' : '' }}" data-date="{{ $day['iso'] ?? '' }}" data-dow="{{ $dow }}">
                   @for ($slot = 0; $slot < $slotCount; $slot++)
-                    @php $open = $isOpenSlot($dow, $slot); @endphp
+                    @php
+                      $open = $isOpenSlot($dow, $slot);
+                      // Line under this row: :45→hour (solid), :15→half hour (dotted), else quarter (light dotted).
+                      $quarter = $slot % $slotsPerHour;
+                      $lineClass = $quarter === $slotsPerHour - 1 ? 'is-line-hour' : ($quarter === 1 ? 'is-line-half' : 'is-line-quarter');
+                    @endphp
+                    {{-- Explicit row: events in this column must never push slots out of place. --}}
                     <button
                       type="button"
-                      class="sched-calendar-slot {{ $open ? 'is-open-hours' : 'is-closed-hours' }} {{ $slot % 2 === 0 ? 'is-hour-start' : 'is-half' }}"
+                      style="grid-row: {{ $slot + 1 }}; grid-column: 1;"
+                      class="sched-calendar-slot {{ $open ? 'is-open-hours' : 'is-closed-hours' }} {{ $quarter === 0 ? 'is-hour-start' : 'is-half' }} {{ $lineClass }}"
                       data-slot-click
                       data-date="{{ $day['iso'] ?? '' }}"
                       data-time="{{ $slotTimeLabel($slot) }}"
@@ -302,7 +311,7 @@
                   @endphp
                   <article
                     class="sched-event sched-event--{{ $tone }} {{ !empty($session['allDay']) ? 'is-all-day' : '' }} {{ ($session['kind'] ?? '') === 'booking' ? 'is-manageable' : '' }}"
-                    style="grid-row: {{ $session['gridStart'] }} / {{ $session['gridEnd'] }};"
+                    style="grid-row: {{ $session['gridStart'] }} / {{ $session['gridEnd'] }}; --lane: {{ (int) ($session['lane'] ?? 0) }}; --lane-count: {{ max(1, (int) ($session['laneCount'] ?? 1)) }};"
                     title="{{ $eventTip }}"
                     @if (($session['kind'] ?? '') === 'personal')
                       data-personal-id="{{ $session['id'] }}"
@@ -811,6 +820,7 @@
   hidden
   data-csrf="{{ csrf_token() }}"
   data-cal-start="{{ $calStartHour ?? 4 }}"
+  data-slot-minutes="{{ $calSlotMinutes ?? 15 }}"
   data-move-url="{{ url('/coach/schedule/sessions') }}"
   data-show-url="{{ url('/coach/schedule/sessions') }}"
   data-view="{{ $viewMode }}"
@@ -972,7 +982,11 @@
   </div>
 
       <p class="avail-note">
-        Open marketplace requests need CoachNow Plus. Direct Book works on every active plan.
+        @if (\App\Models\Coach::freeMarketplaceActive())
+          Open marketplace requests are free for all coaches during launch{{ \App\Models\Coach::freeMarketplaceEndsAt() ? ' (until '.\App\Models\Coach::freeMarketplaceEndsAt()->format('M j, Y').')' : '' }}. Direct Book works on every plan.
+        @else
+          Open marketplace requests need a CoachNow subscription. Direct Book works on every active plan.
+        @endif
       </p>
     </div>
   </div>

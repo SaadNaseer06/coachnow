@@ -47,6 +47,9 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:athlete')->group(function () {
         Route::get('/player-dashboard', [PageController::class, 'playerDashboard'])->name('player-dashboard');
+        Route::post('/membership/checkout', [\App\Http\Controllers\SubscriptionController::class, 'checkout'])->name('subscription.checkout');
+        Route::get('/membership/return', [\App\Http\Controllers\SubscriptionController::class, 'returnFromCheckout'])->name('subscription.return');
+        Route::post('/membership', [\App\Http\Controllers\SubscriptionController::class, 'update'])->name('subscription.update');
         Route::get('/book/{coach}', [PageController::class, 'bookCoach'])->name('book-coach');
         Route::get('/request-session', [PageController::class, 'requestSession'])->name('request-session');
         Route::post('/api/session-requests', [SessionRequestController::class, 'store'])->name('session-requests.store');

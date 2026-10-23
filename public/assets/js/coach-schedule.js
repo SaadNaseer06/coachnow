@@ -4,6 +4,8 @@
 
   const csrf = app.dataset.csrf || document.querySelector('meta[name="csrf-token"]')?.content || '';
   const calStart = parseInt(app.dataset.calStart || '4', 10);
+  // Calendar rows are 15 minutes; sessions snap to and span real 15-minute steps.
+  const slotMinutes = parseInt(app.dataset.slotMinutes || '15', 10);
   const baseUrl = app.dataset.moveUrl || '/coach/schedule/sessions';
   const view = app.dataset.view || 'week';
   const week = app.dataset.week || '';
@@ -403,10 +405,53 @@
   const gridForTime = (hhmm, durationMins, slotCount) => {
     const [h, m] = String(hhmm).split(':').map(Number);
     const offset = (h * 60 + m) - (calStart * 60);
-    const start = Math.max(1, Math.floor(offset / 30) + 1);
-    const span = Math.max(2, Math.ceil((durationMins || 60) / 30));
-    const rows = slotCount || 34;
+    const start = Math.max(1, Math.floor(offset / slotMinutes) + 1);
+    const span = Math.max(1, Math.ceil(Math.max(slotMinutes, durationMins || 60) / slotMinutes));
+    const rows = slotCount || 68;
     return { start, end: Math.min(rows + 1, start + span) };
+  };
+
+  const parseGridRow = (el) => {
+    const raw = String(el.style.gridRow || getComputedStyle(el).gridRow || '').trim();
+    const parts = raw.match(/(\d+)/g);
+    if (!parts || parts.length < 1) return { start: 1, end: 2 };
+    const start = Number(parts[0]) || 1;
+    const end = Number(parts[1] || start + 1) || (start + 1);
+    return { start, end: Math.max(start + 1, end) };
+  };
+
+  const reflowColumnLanes = (columnEl) => {
+    if (!columnEl) return;
+    const events = Array.from(columnEl.querySelectorAll('.sched-event'))
+      .filter((el) => !el.classList.contains('sched-drag-snap') && !el.classList.contains('sched-drag-float'));
+    if (!events.length) return;
+
+    const items = events.map((el) => {
+      const { start, end } = parseGridRow(el);
+      return { el, start, end, lane: 0, laneCount: 1 };
+    });
+
+    items.sort((a, b) => (a.start - b.start) || (b.end - a.end));
+
+    const laneEnds = [];
+    items.forEach((item) => {
+      let lane = 0;
+      while (laneEnds[lane] != null && laneEnds[lane] > item.start) lane += 1;
+      item.lane = lane;
+      laneEnds[lane] = item.end;
+    });
+
+    items.forEach((item) => {
+      let maxLane = item.lane;
+      items.forEach((other) => {
+        if (other.start < item.end && other.end > item.start) {
+          maxLane = Math.max(maxLane, other.lane);
+        }
+      });
+      item.laneCount = maxLane + 1;
+      item.el.style.setProperty('--lane', String(item.lane));
+      item.el.style.setProperty('--lane-count', String(item.laneCount));
+    });
   };
 
   const eventTitleText = (eventEl) => {
@@ -434,6 +479,7 @@
     const eventEl = document.querySelector(`.sched-event[data-booking-id="${bookingId}"]`);
     if (!eventEl) return;
 
+    const originCol = eventEl.parentElement;
     const targetCol = document.querySelector(`.sched-calendar-column[data-date="${date}"]`);
     const duration = Number(eventEl.dataset.duration || 60);
     const timeLabel = formatTimeLabel(time);
@@ -450,8 +496,11 @@
       const typeText = eventEl.querySelector('.sched-event-type')?.textContent || '';
       eventEl.title = [timeLabel, titleText, typeText, duration ? `${duration} min` : ''].filter(Boolean).join(' · ');
       targetCol.appendChild(eventEl);
+      if (originCol && originCol !== targetCol) reflowColumnLanes(originCol);
+      reflowColumnLanes(targetCol);
     } else {
       eventEl.remove();
+      reflowColumnLanes(originCol);
     }
 
     eventEl?.classList.remove('is-drag-origin');
@@ -469,11 +518,18 @@
   };
 
   removeBookingFromUi = (bookingId, groupId) => {
+    const cols = new Set();
     if (groupId) {
-      document.querySelectorAll(`.sched-event[data-group-id="${groupId}"]`).forEach((el) => el.remove());
+      document.querySelectorAll(`.sched-event[data-group-id="${groupId}"]`).forEach((el) => {
+        if (el.parentElement) cols.add(el.parentElement);
+        el.remove();
+      });
     }
-    document.querySelector(`.sched-event[data-booking-id="${bookingId}"]`)?.remove();
+    const single = document.querySelector(`.sched-event[data-booking-id="${bookingId}"]`);
+    if (single?.parentElement) cols.add(single.parentElement);
+    single?.remove();
     document.querySelector(`.sched-agenda-item[data-booking-id="${bookingId}"]`)?.remove();
+    cols.forEach((col) => reflowColumnLanes(col));
   };
 
   applyManageSaveToUi = (bookingId, data) => {
@@ -561,13 +617,15 @@
   const slotAtPointer = (col, clientY) => {
     const rect = col.getBoundingClientRect();
     const slots = col.querySelectorAll('.sched-calendar-slot');
-    const rowHeight = slots[0]?.offsetHeight || 48;
-    const slotCount = slots.length || 34;
-    const durationSlots = Math.max(2, Math.ceil(Number(drag.active?.duration || 60) / 30));
+    const rowHeight = slots[0]?.offsetHeight || 24;
+    const slotCount = slots.length || 68;
+    const durationSlots = Math.max(1, Math.ceil(Number(drag.active?.duration || 60) / slotMinutes));
     const maxStart = Math.max(0, slotCount - durationSlots);
-    const raw = Math.floor((clientY - rect.top) / rowHeight);
+    // Pointer marks where the top of the session lands (minus where it was grabbed).
+    const grabRows = drag.active ? Math.floor((drag.active.offsetY || 0) / rowHeight) : 0;
+    const raw = Math.floor((clientY - rect.top) / rowHeight) - grabRows;
     const slotIndex = Math.max(0, Math.min(maxStart, raw));
-    const mins = calStart * 60 + slotIndex * 30;
+    const mins = calStart * 60 + slotIndex * slotMinutes;
     const time = `${pad2(Math.floor(mins / 60))}:${pad2(mins % 60)}`;
     const { start, end } = gridForTime(time, drag.active?.duration || 60, slotCount);
     return { date: col.dataset.date, time, start, end, slotIndex };
@@ -817,6 +875,7 @@
 
     if (!target || !target.date || (target.date === originDate && target.time === originTime)) {
       el.classList.remove('is-drag-origin');
+      reflowColumnLanes(el.parentElement);
       return;
     }
 

@@ -22,6 +22,21 @@ return [
         'timeout' => (int) env('GROQ_TIMEOUT', 90),
     ],
 
+    'marketplace' => [
+        // Launch day (YYYY-MM-DD). Unset = pre-launch: every coach has marketplace access.
+        'launch_date' => env('COACHNOW_LAUNCH_DATE'),
+        // All coaches get open-request access for this many months after launch.
+        'free_months' => (int) env('COACHNOW_FREE_MARKETPLACE_MONTHS', 3),
+    ],
+
+    'subscription' => [
+        // Parent "Family membership": waives the $2 fee, unlocks session requests + coach reports.
+        'price' => (float) env('COACHNOW_PARENT_SUBSCRIPTION_PRICE', 10),
+        'name' => env('COACHNOW_PARENT_SUBSCRIPTION_NAME', 'CoachNow Family Membership'),
+        // false = everyone can use member features (handy while testing); the fee waiver still needs a membership.
+        'gate_features' => filter_var(env('COACHNOW_GATE_MEMBER_FEATURES', true), FILTER_VALIDATE_BOOL),
+    ],
+
     'payments' => [
         // When true: skip live Stripe Connect/checkout and use sample bookings + card-on-file.
         'sample_mode' => filter_var(env('COACHNOW_SAMPLE_PAYMENTS', false), FILTER_VALIDATE_BOOL),

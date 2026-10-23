@@ -102,6 +102,11 @@
   };
 
   let countdownTimer = null;
+  const appRoot = document.getElementById('requestSessionApp');
+  const depositTotal = appRoot?.dataset.depositTotal || '$12';
+  const depositTotalNote = appRoot?.dataset.depositTotalNote || '$12 ($10 deposit + $2 fee)';
+  // Requests stay open to coaches (and joiners) until 1 hour before the session.
+  const CUTOFF_MS = 60 * 60 * 1000;
 
   function setMinDate() {
     if (!els.dateInput) return;
@@ -677,7 +682,7 @@
     els.knowByInput.min = toDateTimeLocal(now);
     const session = sessionDateTime();
     if (session) {
-      const max = new Date(session.getTime() - 30 * 60 * 1000);
+      const max = new Date(session.getTime() - CUTOFF_MS);
       if (max > now) els.knowByInput.max = toDateTimeLocal(max);
       else els.knowByInput.removeAttribute('max');
     }
@@ -717,7 +722,7 @@
 
     const cardNote = document.getElementById('reqCardOnFileNote');
     if (cardNote && cardLabel && !hosted) {
-      cardNote.textContent = `Saved ${cardLabel}. $12 ($10 deposit + $2 fee) charges automatically when a coach accepts. Keep this tab open, then Accept & host on the coach dashboard.`;
+      cardNote.textContent = `Saved ${cardLabel}. ${depositTotalNote} charges automatically when a coach accepts. Keep this tab open, then Accept & host on the coach dashboard.`;
     }
 
     if (!hosted) {
@@ -728,7 +733,7 @@
     if (hosted && requesterPaid) {
       const liveStatus = document.querySelector('.req-live-card__status');
       if (liveStatus) liveStatus.innerHTML = '<span class="req-pulse"></span> Hosted · Deposit charged';
-      if (els.countdownHint) els.countdownHint.textContent = 'Coach accepted — $12 charged · session open for others to join';
+      if (els.countdownHint) els.countdownHint.textContent = `Coach accepted — ${depositTotal} charged · session open for others to join`;
       const paidLabel = document.getElementById('reqPaidWith');
       if (paidLabel && (requester?.paid_with || cardLabel)) {
         paidLabel.textContent = `Charged to ${requester?.paid_with || cardLabel}`;
@@ -1092,7 +1097,15 @@
             : `Coaches can accept until ${formatKnowBy(state.knowByAt)}`;
           startCutoffCountdown(state.knowByAt.getTime());
         } else {
-          els.countdownHint.textContent = 'No deadline — coaches can accept anytime before the session.';
+          // "Anytime" = open until 1 hour before the session.
+          const session = sessionDateTime();
+          if (session) {
+            const cutoff = new Date(session.getTime() - CUTOFF_MS);
+            els.countdownHint.textContent = `Coaches can accept until ${formatKnowBy(cutoff)} (1 hour before the session)`;
+            startCutoffCountdown(cutoff.getTime());
+          } else {
+            els.countdownHint.textContent = 'Coaches can accept until 1 hour before the session.';
+          }
         }
       }
       showDepositState('open', request);

@@ -69,6 +69,10 @@ class SessionRequestController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        if (! $request->user()?->hasMemberAccess()) {
+            return response()->json(['message' => 'Session requests are part of the Family Membership.', 'membership_required' => true], 403);
+        }
+
         $data = $request->validate([
             'location_id' => ['nullable', 'string'],
             'location_name' => ['required', 'string', 'max:120'],
@@ -233,10 +237,11 @@ class SessionRequestController extends Controller
             return response()->json(['message' => 'Only active coaches can accept session requests.'], 422);
         }
 
-        // Open marketplace (not targeted to specific coaches) requires a paid/comp marketplace plan
-        if (! $session->isTargeted() && ! $coach->isPlusPlan()) {
+        // Open marketplace (not targeted to specific coaches): free for everyone during the
+        // launch window, then subscribed coaches only. Direct requests/bookings are always allowed.
+        if (! $session->isTargeted() && ! $coach->hasMarketplaceAccess()) {
             return response()->json([
-                'message' => 'Open session requests require a CoachNow plan with marketplace access. Ask an admin to update your plan, or wait for a request sent directly to you.',
+                'message' => 'Open session requests require a CoachNow subscription with marketplace access. You can still accept requests sent directly to you and take direct bookings.',
             ], 403);
         }
 
@@ -372,6 +377,10 @@ class SessionRequestController extends Controller
 
     public function join(Request $request, string $reference, StripeService $stripe): JsonResponse
     {
+        if (! $request->user()?->hasMemberAccess()) {
+            return response()->json(['message' => 'Joining session requests is part of the Family Membership.', 'membership_required' => true], 403);
+        }
+
         $data = $request->validate([
             'paid' => ['sometimes', 'boolean'],
             'paid_with' => ['nullable', 'string', 'max:120'],
@@ -397,7 +406,7 @@ class SessionRequestController extends Controller
         }
 
         if ($session->isJoinClosed()) {
-            return response()->json(['message' => 'Joining closed 30 minutes before the session starts.'], 422);
+            return response()->json(['message' => 'Joining closed 1 hour before the session starts.'], 422);
         }
 
         if ($session->max_players !== null && $session->players->count() >= $session->max_players) {
@@ -418,7 +427,7 @@ class SessionRequestController extends Controller
 
         if ($stripe->enabled() && blank($data['stripe_payment_method_id'] ?? null)) {
             return response()->json([
-                'message' => 'Add a card to pay the join deposit ($'.number_format($stripe->depositChargeCents() / 100, 2).' incl. CoachNow fee).',
+                'message' => 'Add a card to pay the join deposit ($'.number_format($stripe->depositChargeCents($user) / 100, 2).' incl. CoachNow fee).',
             ], 422);
         }
 
@@ -603,7 +612,7 @@ class SessionRequestController extends Controller
             $intent = $stripe->createDestinationPaymentIntent(
                 $payer,
                 $coach,
-                $stripe->depositChargeCents(),
+                $stripe->depositChargeCents($payer),
                 [
                     'purpose' => 'session_request_deposit',
                     'session_request_reference' => (string) $session->reference,

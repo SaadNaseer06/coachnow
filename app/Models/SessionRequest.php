@@ -452,20 +452,37 @@ class SessionRequest extends Model
         return collect([$date, $time])->filter()->implode(' · ');
     }
 
+    /** Coaches can accept, and families can join, until this long before the session. */
+    public const CUTOFF_MINUTES = 60;
+
     public function knowByLabel(): string
     {
-        return $this->know_by_at
-            ? $this->know_by_at->format('D, M j · g:i A')
-            : '';
+        return $this->acceptDeadline()?->format('D, M j · g:i A') ?? '';
+    }
+
+    /**
+     * The real "Accept by" time: the parent's chosen deadline, or — for "Anytime" —
+     * one hour before the session. Never later than that one-hour cutoff.
+     */
+    public function acceptDeadline(): ?Carbon
+    {
+        $cutoff = $this->startsAt()?->copy()->subMinutes(self::CUTOFF_MINUTES);
+
+        if ($this->know_by_at && $cutoff) {
+            return $this->know_by_at->lt($cutoff) ? $this->know_by_at->copy() : $cutoff;
+        }
+
+        return $this->know_by_at?->copy() ?? $cutoff;
     }
 
     public function acceptSeconds(): int
     {
-        if (! $this->know_by_at) {
+        $deadline = $this->acceptDeadline();
+        if (! $deadline) {
             return 0;
         }
 
-        return max(0, $this->know_by_at->getTimestamp() - now()->getTimestamp());
+        return max(0, $deadline->getTimestamp() - now()->getTimestamp());
     }
 
     public function postedLabel(): string
@@ -519,7 +536,9 @@ class SessionRequest extends Model
 
     public function isAcceptCutoffPassed(): bool
     {
-        return $this->know_by_at !== null && $this->know_by_at->lte(now());
+        $deadline = $this->acceptDeadline();
+
+        return $deadline !== null && $deadline->lte(now());
     }
 
     public function isJoinClosed(): bool
@@ -529,7 +548,7 @@ class SessionRequest extends Model
             return false;
         }
 
-        return now()->gte($start->copy()->subMinutes(30));
+        return now()->gte($start->copy()->subMinutes(self::CUTOFF_MINUTES));
     }
 
     public function canBeViewedBy(?User $user): bool
@@ -668,7 +687,7 @@ class SessionRequest extends Model
             'card_on_file' => $this->card_on_file,
             'status' => $this->status,
             'accept_seconds' => $this->acceptSeconds(),
-            'acceptExpiresAt' => $this->know_by_at ? ((int) $this->know_by_at->getTimestamp() * 1000) : null,
+            'acceptExpiresAt' => ($deadline = $this->acceptDeadline()) ? ((int) $deadline->getTimestamp() * 1000) : null,
             'posted' => $this->postedLabel(),
             'accepted_by' => $this->hostCoach?->display_name,
             'host_coach_id' => $this->host_coach_id,

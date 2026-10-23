@@ -133,7 +133,10 @@
     lastKeyword = keyword;
 
     if (input) input.value = keyword;
-    if (reportKeywords) reportKeywords.value = keyword;
+    if (reportKeywords) {
+      reportKeywords.value = keyword;
+      reportKeywords.dispatchEvent(new Event('input'));
+    }
 
     const sourceNote =
       data.source === 'ollama' || data.source === 'cloud'

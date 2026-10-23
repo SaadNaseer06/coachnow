@@ -23,7 +23,10 @@ class SessionBookingService
         $deposit = $session->deposit_amount !== null
             ? (float) $session->deposit_amount
             : (float) ($coach->rate ?? 0);
-        $fee = $deposit > 0 ? (float) config('coachnow.payments.convenience_fee', 2) : 0.0;
+        $members = User::query()
+            ->whereIn('id', $session->players->pluck('user_id')->filter()->all() ?: [0])
+            ->get()
+            ->keyBy('id');
 
         $players = $session->players;
         if ($players->isEmpty() && $session->requester_id) {
@@ -38,6 +41,8 @@ class SessionBookingService
         foreach ($players as $player) {
             $athleteId = $player->user_id ?? null;
             $athleteName = $player->name ?? 'Player';
+            // Each family's own checkout: $2 fee unless they're a member.
+            $fee = $deposit > 0 ? User::convenienceFeeFor($athleteId ? $members->get($athleteId) : null) : 0.0;
 
             $existing = Booking::query()
                 ->where('session_request_id', $session->id)
@@ -144,7 +149,7 @@ class SessionBookingService
         $match = $this->matchOpenSlot($coach, $slot);
 
         $sessionAmount = (float) ($coach->rate ?? 0);
-        $convenienceFee = (float) config('coachnow.payments.convenience_fee', 2);
+        $convenienceFee = User::convenienceFeeFor($athlete);
 
         return Booking::query()->create([
             'reference' => Booking::generateReference(),
@@ -170,13 +175,13 @@ class SessionBookingService
      *
      * @return array{price_per_player: float, session_amount: float, convenience_fee: float, total: float}
      */
-    public function groupCheckoutQuote(CoachGroupSession $group, int $playerCount): array
+    public function groupCheckoutQuote(CoachGroupSession $group, int $playerCount, ?User $payer = null): array
     {
         $price = $group->price_per_player !== null
             ? (float) $group->price_per_player
             : (float) ($group->coach?->rate ?? 0);
         $sessionAmount = round($price * max(1, $playerCount), 2);
-        $fee = $sessionAmount > 0 ? (float) config('coachnow.payments.convenience_fee', 2) : 0.0;
+        $fee = $sessionAmount > 0 ? User::convenienceFeeFor($payer) : 0.0;
 
         return [
             'price_per_player' => $price,
@@ -260,11 +265,11 @@ class SessionBookingService
      *
      * @return array{price_per_player: float, session_amount: float, convenience_fee: float, total: float}
      */
-    public function newGroupCheckoutQuote(Coach $coach, int $playerCount): array
+    public function newGroupCheckoutQuote(Coach $coach, int $playerCount, ?User $payer = null): array
     {
         $price = (float) ($coach->group_rate ?? 0);
         $sessionAmount = round($price * max(1, $playerCount), 2);
-        $fee = $sessionAmount > 0 ? (float) config('coachnow.payments.convenience_fee', 2) : 0.0;
+        $fee = $sessionAmount > 0 ? User::convenienceFeeFor($payer) : 0.0;
 
         return [
             'price_per_player' => $price,
@@ -343,7 +348,7 @@ class SessionBookingService
      */
     private function createGroupBookings(Coach $coach, User $athlete, CoachGroupSession $group, array $playerNames, ?string $paymentIntentId): array
     {
-        $quote = $this->groupCheckoutQuote($group, count($playerNames));
+        $quote = $this->groupCheckoutQuote($group, count($playerNames), $athlete);
         $price = $quote['price_per_player'];
         $bookings = [];
 
@@ -1016,6 +1021,10 @@ class SessionBookingService
             ->when($ignoreBookingIds !== [], fn ($q) => $q->whereNotIn('id', $ignoreBookingIds))
             ->get(['id', 'session_time', 'duration_minutes', 'group_session_id']);
 
+        // Coach's buffer: the new session (padded on both sides) must not touch another one.
+        $buffer = max(0, (int) (Coach::query()->whereKey($coachId)->value('buffer_minutes') ?? 0));
+        $paddedStart = Carbon::parse($date.' '.substr($time, 0, 5))->subMinutes($buffer)->format('H:i');
+
         foreach ($bookings as $booking) {
             if ($ignoreGroupId && (int) $booking->group_session_id === (int) $ignoreGroupId) {
                 continue;
@@ -1024,8 +1033,8 @@ class SessionBookingService
             // Joinable group sessions don't count as exclusive conflicts for double-book warnings
             // when moving onto their slot — coach double-book still warns on any overlap.
             if (! SessionRequest::timesOverlap(
-                $time,
-                $duration,
+                $paddedStart,
+                $duration + (2 * $buffer),
                 $booking->session_time,
                 (int) ($booking->duration_minutes ?: 60)
             )) {

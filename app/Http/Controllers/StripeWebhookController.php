@@ -50,6 +50,9 @@ class StripeWebhookController extends Controller
                 'account.updated' => $this->handleAccountUpdated($object, $stripe),
                 'payment_intent.succeeded' => $this->handlePaymentSucceeded($object),
                 'payment_intent.payment_failed' => $this->handlePaymentFailed($object),
+                'customer.subscription.created',
+                'customer.subscription.updated',
+                'customer.subscription.deleted' => $this->handleSubscription($object, $stripe),
                 default => null,
             };
         } catch (\Throwable $e) {
@@ -90,6 +93,22 @@ class StripeWebhookController extends Controller
         SessionRequestPlayer::query()
             ->where('stripe_payment_intent_id', $id)
             ->update(['paid' => true]);
+    }
+
+    /**
+     * Keep the parent Family membership in sync (renewals, failed payments, cancellations).
+     */
+    private function handleSubscription(mixed $object, StripeService $stripe): void
+    {
+        if (! is_object($object)) {
+            return;
+        }
+
+        $subscription = $object instanceof \Stripe\Subscription
+            ? $object
+            : \Stripe\Subscription::constructFrom(json_decode(json_encode($object), true));
+
+        $stripe->applySubscription($subscription);
     }
 
     private function handlePaymentFailed(mixed $intent): void

@@ -58,6 +58,10 @@ class User extends Authenticatable
         'role',
         'phone',
         'stripe_customer_id',
+        'stripe_subscription_id',
+        'subscription_status',
+        'subscription_ends_at',
+        'subscription_cancel_at_period_end',
         'sport',
     ];
 
@@ -74,7 +78,43 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'subscription_ends_at' => 'datetime',
+            'subscription_cancel_at_period_end' => 'boolean',
         ];
+    }
+
+    /**
+     * Family membership is active: paid (or trialing) and the current period hasn't ended.
+     * A membership cancelled "at period end" stays active until that date.
+     */
+    public function hasActiveSubscription(): bool
+    {
+        if (! in_array($this->subscription_status, ['active', 'trialing'], true)) {
+            return false;
+        }
+
+        return $this->subscription_ends_at === null || $this->subscription_ends_at->isFuture();
+    }
+
+    /**
+     * Member-only features (session requests, coach reports). Can be switched off
+     * with COACHNOW_GATE_MEMBER_FEATURES=false while testing.
+     */
+    public function hasMemberAccess(): bool
+    {
+        return ! config('coachnow.subscription.gate_features', true) || $this->hasActiveSubscription();
+    }
+
+    /**
+     * $2 convenience fee per checkout, waived for members.
+     */
+    public static function convenienceFeeFor(?self $user): float
+    {
+        if ($user?->hasActiveSubscription()) {
+            return 0.0;
+        }
+
+        return (float) config('coachnow.payments.convenience_fee', 2);
     }
 
     public function isAdmin(): bool

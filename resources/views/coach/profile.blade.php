@@ -242,6 +242,15 @@
         step="1"
       >
     </label>
+    <label class="admin-field">
+      <span>Buffer between sessions</span>
+      <select class="admin-select" name="buffer_minutes">
+        @foreach ([0 => 'No buffer — back-to-back', 5 => '5 minutes', 10 => '10 minutes', 15 => '15 minutes', 20 => '20 minutes', 30 => '30 minutes'] as $mins => $label)
+          <option value="{{ $mins }}" @selected((int) old('buffer_minutes', $coach->buffer_minutes ?? 0) === $mins)>{{ $label }}</option>
+        @endforeach
+      </select>
+    </label>
+
     <p class="admin-field admin-field--full" style="margin:-4px 0 0;font-size:12px;color:#71717a">
       With a group rate set, parents can book a <strong>private</strong> group for 2+ players on any open time. Open spare spots to the public later from Manage session.
     </p>

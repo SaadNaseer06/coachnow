@@ -237,3 +237,15 @@
     }
   });
 })();
+
+// Training history: open scrolled to the latest completed session (upcoming just below).
+(() => {
+  const list = document.querySelector('[data-player-history]');
+  const firstUpcoming = list?.querySelector('[data-history-upcoming]');
+  if (!list || !firstUpcoming) {
+    if (list) list.scrollTop = list.scrollHeight;
+    return;
+  }
+  const prev = firstUpcoming.previousElementSibling;
+  list.scrollTop = Math.max(0, (prev || firstUpcoming).offsetTop - list.offsetTop - 8);
+})();

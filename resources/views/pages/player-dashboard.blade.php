@@ -374,7 +374,13 @@
             @endif
           </div>
 
-          @if (! empty($skillProgress))
+          @if (! ($memberAccess ?? true))
+            <div class="player-locked">
+              <p class="player-locked__title">Members feature</p>
+              <p class="player-locked__text">Skill progress from your coach’s reports is part of the Family Membership.</p>
+              <a href="#membership" class="player-req-cta mt-3 inline-flex">See Family Membership</a>
+            </div>
+          @elseif (! empty($skillProgress))
             <div class="space-y-3 pt-2">
               @foreach ($skillProgress as $item)
                 <div class="player-skill-row">
@@ -411,38 +417,104 @@
             </div>
           </div>
 
-          <div class="player-timeline mt-2">
-            @forelse ($pastBookings as $booking)
-              <div class="player-timeline-item flex items-start justify-between gap-4">
-                <div>
-                  <p class="text-[14px] font-semibold text-white">{{ $booking->session_type ?? 'Session' }}</p>
-                  <p class="text-[12px] text-zinc-400 mt-1">{{ $booking->location?->name ?? 'Training' }} · {{ $booking->coach?->display_name ?? 'Coach' }}</p>
+          <div class="player-history-legend">
+            <span><i class="player-history-dot is-upcoming"></i> Upcoming</span>
+            <span><i class="player-history-dot is-done"></i> Completed</span>
+          </div>
+          {{-- Chronological; ~6 rows visible, scroll for more. Opens at the latest completed session. --}}
+          <div class="player-history" data-player-history>
+            @forelse ($trainingHistory ?? [] as $row)
+              @php($b = $row['booking'])
+              @php($meta = ($b->location?->name ?? 'Training').' · '.($b->coach?->display_name ?? 'Coach'))
+              @if ($row['upcoming'])
+                <div class="player-history-item is-upcoming" data-history-upcoming>
+                  <div>
+                    <p class="player-history-title">{{ $b->session_type ?? 'Session' }}</p>
+                    <p class="player-history-meta">{{ $meta }} · {{ $b->whenLabel() }}</p>
+                  </div>
+                  <span class="player-history-tag">Upcoming</span>
                 </div>
-                <span class="text-[12px] font-medium text-zinc-400 shrink-0">{{ $booking->session_date?->format('M j') }}</span>
-              </div>
+              @elseif ($row['report'] && ! ($memberAccess ?? true))
+                <a href="#membership" class="player-history-item is-done has-report">
+                  <div>
+                    <p class="player-history-title">{{ $b->session_type ?? 'Session' }}</p>
+                    <p class="player-history-meta">{{ $meta }} · {{ $b->session_date?->format('M j') }}</p>
+                  </div>
+                  <span class="player-history-tag">Report · members</span>
+                </a>
+              @elseif ($row['report'])
+                <details class="player-history-item is-done has-report">
+                  <summary>
+                    <div>
+                      <p class="player-history-title">{{ $b->session_type ?? 'Session' }}</p>
+                      <p class="player-history-meta">{{ $meta }} · {{ $b->session_date?->format('M j') }}</p>
+                    </div>
+                    <span class="player-history-tag">View report</span>
+                  </summary>
+                  <div class="player-report-body">
+                    <p><strong>Focus of the week</strong><br>{{ $row['report']['focus'] }}</p>
+                    <p><strong>What went well</strong><br>{{ $row['report']['went_well'] }}</p>
+                    <p><strong>Needs work</strong><br>{{ $row['report']['needs_work'] }}</p>
+                    <p><strong>Home training plan</strong><br>{!! nl2br(e($row['report']['home_plan'])) !!}</p>
+                  </div>
+                </details>
+              @else
+                <div class="player-history-item is-done">
+                  <div>
+                    <p class="player-history-title">{{ $b->session_type ?? 'Session' }}</p>
+                    <p class="player-history-meta">{{ $meta }} · {{ $b->session_date?->format('M j') }}</p>
+                  </div>
+                  <span class="player-history-tag">No report yet</span>
+                </div>
+              @endif
             @empty
-              <div class="player-timeline-item flex items-start justify-between gap-4">
+              <div class="player-history-item is-done">
                 <div>
-                  <p class="text-[14px] font-semibold text-white">No sessions yet</p>
-                  <p class="text-[12px] text-zinc-400 mt-1">Completed bookings will appear here</p>
+                  <p class="player-history-title">No sessions yet</p>
+                  <p class="player-history-meta">Completed and upcoming sessions will appear here</p>
                 </div>
               </div>
             @endforelse
-            @foreach ($upcomingBookings->take(3) as $booking)
-              <div class="player-timeline-item flex items-start justify-between gap-4">
-                <div>
-                  <p class="text-[14px] font-semibold text-white">{{ $booking->session_type ?? 'Session' }} (upcoming)</p>
-                  <p class="text-[12px] text-zinc-400 mt-1">{{ $booking->location?->name ?? 'Training' }} · {{ $booking->coach?->display_name ?? 'Coach' }}</p>
-                </div>
-                <span class="text-[12px] font-medium text-zinc-400 shrink-0">{{ $booking->session_date?->format('M j') }}</span>
-              </div>
-            @endforeach
           </div>
         </article>
       </div>
 
       {{-- Sidebar --}}
       <aside class="space-y-6 lg:space-y-7">
+        {{-- Family membership --}}
+        @php($ms = $membership ?? ['active' => false, 'price' => 10, 'fee' => 2, 'ends_at' => null, 'cancelling' => false])
+        <article id="membership" class="player-panel motion-item motion-soft-up {{ $ms['active'] ? '' : 'player-panel--accent' }}">
+          <p class="player-section-kicker">Membership</p>
+          @if ($ms['active'])
+            <h2 class="player-panel-title mb-2">Family Member</h2>
+            <p class="text-[13px] text-zinc-400 leading-[1.65] font-light mb-3">
+              No booking fees, session requests and coach reports are on.
+              @if ($ms['ends_at'])
+                {{ $ms['cancelling'] ? 'Ends' : 'Renews' }} {{ $ms['ends_at'] }}.
+              @endif
+            </p>
+            <form method="POST" action="{{ route('subscription.update') }}">
+              @csrf
+              <input type="hidden" name="cancel" value="{{ $ms['cancelling'] ? 0 : 1 }}">
+              <button type="submit" class="player-req-cancel" @unless($ms['cancelling']) onclick="return confirm('Cancel your Family membership? Benefits continue until {{ $ms['ends_at'] ?? 'the end of this period' }}.')" @endunless>
+                {{ $ms['cancelling'] ? 'Keep my membership' : 'Cancel membership' }}
+              </button>
+            </form>
+          @else
+            <h2 class="player-panel-title mb-2">Family Membership · ${{ number_format($ms['price'], 0) }}/mo</h2>
+            <ul class="player-membership-perks">
+              <li>No ${{ number_format($ms['fee'], 0) }} fee on any booking</li>
+              <li>Request a Session &amp; join open requests</li>
+              <li>Coach development reports &amp; skill progress</li>
+            </ul>
+            <form method="POST" action="{{ route('subscription.checkout') }}">
+              @csrf
+              <button type="submit" class="player-req-cta player-req-cta--block">Become a member</button>
+            </form>
+            <p class="text-[12px] text-zinc-500 mt-2">Booking coaches and your upcoming sessions stay free either way.</p>
+          @endif
+        </article>
+
         {{-- Quick action --}}
         <article class="player-panel player-panel--accent motion-item motion-soft-up">
           <p class="player-section-kicker">Book next</p>
@@ -475,7 +547,13 @@
         <article class="player-panel motion-item motion-soft-up" style="--motion-delay:80ms" id="coach-notes">
           <p class="player-section-kicker">From your coach</p>
           <h2 class="player-panel-title mb-2">Coach's Notes</h2>
-          @if (!empty($latestReport))
+          @if (! ($memberAccess ?? true))
+            <div class="player-locked">
+              <p class="player-locked__title">Members feature</p>
+              <p class="player-locked__text">Coach development reports are part of the Family Membership.</p>
+              <a href="#membership" class="player-req-cta mt-3 inline-flex">See Family Membership</a>
+            </div>
+          @elseif (!empty($latestReport))
             <p class="text-[12px] text-zinc-400 mb-2">
               {{ $latestReport['coach'] ? 'From '.$latestReport['coach'] : 'Shared report' }}
               @if (!empty($latestReport['created_at']))

@@ -203,6 +203,11 @@
     list.querySelectorAll('.coach-req-card.is-open').forEach((card) => {
       const el = card.querySelector('[data-countdown]');
       if (!el) return;
+      // No date/time on the request → no deadline to count down to.
+      if (!card.dataset.acceptExpires && !Number(card.dataset.acceptSeconds || 0)) {
+        el.textContent = 'Before session';
+        return;
+      }
       const left = remainingSeconds(card);
       el.textContent = formatCountdown(left);
       if (left <= 0) {
@@ -570,10 +575,12 @@
     card.dataset.coachNote = req.coach_note || '';
     card.dataset.sessionType = req.session_type || '';
     card.dataset.requestedCoachId = req.requested_coach_id != null ? String(req.requested_coach_id) : '';
-    card.dataset.acceptSeconds = String(req.accept_seconds || 900);
+    // Real deadline from the server (parent's cutoff, or 1h before the session for "Anytime").
+    card.dataset.acceptSeconds = String(req.accept_seconds || 0);
     card.dataset.countdownStarted = String(Date.now());
     setPlayers(card, players);
     if (req.acceptExpiresAt) card.dataset.acceptExpires = String(req.acceptExpiresAt);
+    else delete card.dataset.acceptExpires;
 
     if (hosted) {
       card.innerHTML = `
@@ -645,7 +652,7 @@
         <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request data-loading-text="Accepting…">Accept &amp; host</button>
         <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request data-loading-text="Declining…">Decline</button>
       </div>
-      <p class="coach-req-card__hint">If you accept, the parent’s card is charged the $10 deposit + $2 CoachNow fee (you receive the $10). You just host — and can see who’s paid.</p>
+      <p class="coach-req-card__hint">If you accept, the family’s card is charged the $10 deposit (+ $2 CoachNow fee for non-members) — you receive the $10. You just host — and can see who’s paid.</p>
       ` : `<p class="coach-req-card__hint">View only — this request is waiting for ${escapeHtml(preferredCoachName(req) || 'a coach')} to accept.</p>`}
     `;
 

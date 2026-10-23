@@ -24,7 +24,7 @@ class StripePaymentController extends Controller
             'sample_mode' => $stripe->sampleMode(),
             'publishable_key' => $stripe->enabled() ? $stripe->publishableKey() : null,
             'deposit_amount' => (float) config('coachnow.payments.deposit_amount', 10),
-            'convenience_fee' => $stripe->convenienceFeeAmount(),
+            'convenience_fee' => $stripe->convenienceFeeAmount(request()->user()),
             'currency' => config('services.stripe.currency', 'usd'),
         ]);
     }
@@ -98,7 +98,7 @@ class StripePaymentController extends Controller
                 return response()->json(['message' => collect($e->errors())->flatten()->first()], 422);
             }
 
-            $quote = $bookings->groupCheckoutQuote($group, count($players));
+            $quote = $bookings->groupCheckoutQuote($group, count($players), $user);
             $sessionCents = (int) round($quote['session_amount'] * 100);
             $convenienceCents = (int) round($quote['convenience_fee'] * 100);
             $groupMeta = [
@@ -113,7 +113,7 @@ class StripePaymentController extends Controller
                 return response()->json(['message' => collect($e->errors())->flatten()->first()], 422);
             }
 
-            $quote = $bookings->newGroupCheckoutQuote($coach, count($players));
+            $quote = $bookings->newGroupCheckoutQuote($coach, count($players), $user);
             $sessionCents = (int) round($quote['session_amount'] * 100);
             $convenienceCents = (int) round($quote['convenience_fee'] * 100);
             $groupMeta = [
@@ -122,7 +122,7 @@ class StripePaymentController extends Controller
             ];
         } else {
             $sessionCents = (int) round(((float) ($coach->rate ?: 0)) * 100);
-            $convenienceCents = $stripe->convenienceFeeCents();
+            $convenienceCents = $stripe->convenienceFeeCents($user);
         }
 
         if ($sessionCents < 50) {
@@ -352,7 +352,7 @@ class StripePaymentController extends Controller
             $intent = $stripe->createDestinationPaymentIntent(
                 $user,
                 $coach,
-                $stripe->depositChargeCents(),
+                $stripe->depositChargeCents($user),
                 [
                     'purpose' => $data['purpose'] ?? 'deposit',
                     'session_request_reference' => (string) ($data['session_request_reference'] ?? ''),

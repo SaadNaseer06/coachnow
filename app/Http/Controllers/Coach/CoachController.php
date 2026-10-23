@@ -31,10 +31,81 @@ use Illuminate\View\View;
 
 class CoachController extends Controller
 {
-    /** Calendar spans 4:00 AM – 9:00 PM in 30 minute rows (matches admin-schedule.css). */
+    /** Calendar spans 4:00 AM – 9:00 PM in 15-minute rows (matches admin-schedule.css). */
     private const CAL_START_HOUR = 4;
 
     private const CAL_END_HOUR = 21;
+
+    public const CAL_SLOT_MINUTES = 15;
+
+    /**
+     * Grid rows for an event: starts on its exact 15-minute row and spans its real length.
+     *
+     * @return array{0:int,1:int} [gridStart, gridEnd]
+     */
+    private function calendarRows(int $hours, int $minutes, int $duration): array
+    {
+        $rows = (self::CAL_END_HOUR - self::CAL_START_HOUR) * (60 / self::CAL_SLOT_MINUTES);
+        $offset = ($hours * 60 + $minutes) - (self::CAL_START_HOUR * 60);
+        $start = max(1, (int) floor($offset / self::CAL_SLOT_MINUTES) + 1);
+        $span = max(1, (int) ceil(max(self::CAL_SLOT_MINUTES, $duration) / self::CAL_SLOT_MINUTES));
+
+        return [$start, min($rows + 1, $start + $span)];
+    }
+
+    /**
+     * Pack overlapping day events into side-by-side lanes (Google Calendar style).
+     *
+     * @param  list<array<string, mixed>>  $events
+     * @return list<array<string, mixed>>
+     */
+    private function assignCalendarLanes(array $events): array
+    {
+        $byDay = [];
+        foreach ($events as $index => $event) {
+            $day = (int) ($event['day'] ?? 0);
+            $byDay[$day][] = $index;
+        }
+
+        foreach ($byDay as $indexes) {
+            usort($indexes, function (int $a, int $b) use ($events) {
+                $startCmp = ((int) ($events[$a]['gridStart'] ?? 1)) <=> ((int) ($events[$b]['gridStart'] ?? 1));
+                if ($startCmp !== 0) {
+                    return $startCmp;
+                }
+
+                return ((int) ($events[$b]['gridEnd'] ?? 1)) <=> ((int) ($events[$a]['gridEnd'] ?? 1));
+            });
+
+            $laneEnds = [];
+            foreach ($indexes as $index) {
+                $start = (int) ($events[$index]['gridStart'] ?? 1);
+                $end = (int) ($events[$index]['gridEnd'] ?? ($start + 1));
+                $lane = 0;
+                while (isset($laneEnds[$lane]) && $laneEnds[$lane] > $start) {
+                    $lane++;
+                }
+                $events[$index]['lane'] = $lane;
+                $laneEnds[$lane] = $end;
+            }
+
+            foreach ($indexes as $index) {
+                $start = (int) ($events[$index]['gridStart'] ?? 1);
+                $end = (int) ($events[$index]['gridEnd'] ?? ($start + 1));
+                $maxLane = (int) ($events[$index]['lane'] ?? 0);
+                foreach ($indexes as $otherIndex) {
+                    $otherStart = (int) ($events[$otherIndex]['gridStart'] ?? 1);
+                    $otherEnd = (int) ($events[$otherIndex]['gridEnd'] ?? ($otherStart + 1));
+                    if ($otherStart < $end && $otherEnd > $start) {
+                        $maxLane = max($maxLane, (int) ($events[$otherIndex]['lane'] ?? 0));
+                    }
+                }
+                $events[$index]['laneCount'] = $maxLane + 1;
+            }
+        }
+
+        return $events;
+    }
 
     public function schedule(Request $request): View
     {
@@ -101,7 +172,9 @@ class CoachController extends Controller
 
         $sessions = $this->mapBookingsToCalendar($bookings, $gridOrigin);
         $personalEvents = $this->mapTimeBlocksToCalendar($timeBlocks, $gridOrigin);
-        $calendarEvents = collect($sessions)->merge($personalEvents)->values()->all();
+        $calendarEvents = $this->assignCalendarLanes(
+            collect($sessions)->merge($personalEvents)->values()->all()
+        );
 
         $uniquePlayers = $bookings->map(fn (Booking $b) => $b->athlete_id ?: Str::lower($b->displayName()))->unique()->count();
         $hours = round($bookings->sum(fn (Booking $b) => ($b->duration_minutes ?? 60) / 60), 1);
@@ -178,6 +251,7 @@ class CoachController extends Controller
             'monthCells' => $monthCells,
             'monthStart' => $monthStart->toDateString(),
             'calStartHour' => self::CAL_START_HOUR,
+            'calSlotMinutes' => self::CAL_SLOT_MINUTES,
             'sessionTypes' => [
                 'Private 1-on-1',
                 'Small Group',
@@ -833,6 +907,7 @@ class CoachController extends Controller
         $data = $request->validate([
             'player' => ['required', 'string', 'max:120'],
             'keywords' => ['nullable', 'string', 'max:255'],
+            'skill_statuses' => ['nullable', 'string', 'max:2000'],
             'coach_notes_wins' => ['nullable', 'string', 'max:2000'],
             'coach_notes_work_ons' => ['nullable', 'string', 'max:2000'],
             'focus' => ['required', 'string', 'max:5000'],
@@ -871,11 +946,21 @@ class CoachController extends Controller
 
         $share = $request->boolean('share');
 
+        // Coach-picked status per skill (shown on the player's Skill progress).
+        $skillStatuses = collect(json_decode((string) ($data['skill_statuses'] ?? '[]'), true) ?: [])
+            ->filter(fn ($row) => is_array($row) && filled($row['skill'] ?? null)
+                && in_array($row['status'] ?? null, ['strong', 'developing', 'needs_work'], true))
+            ->map(fn ($row) => ['skill' => Str::limit(trim((string) $row['skill']), 60, ''), 'status' => $row['status']])
+            ->take(5)
+            ->values()
+            ->all();
+
         $report = SessionReport::query()->create([
             'coach_id' => $coach->id,
             'athlete_id' => $profile['athlete_id'] ?? null,
             'athlete_name' => $profile['name'] ?? null,
             'keywords' => $data['keywords'] ?? null,
+            'skill_statuses' => $skillStatuses ?: null,
             'coach_notes_wins' => $data['coach_notes_wins'] ?? null,
             'coach_notes_work_ons' => $data['coach_notes_work_ons'] ?? null,
             'focus' => $data['focus'],
@@ -954,6 +1039,7 @@ class CoachController extends Controller
             'rate' => ['required', 'numeric', 'min:0', 'max:9999'],
             'group_rate' => ['nullable', 'numeric', 'min:0', 'max:9999'],
             'max_group_size' => ['nullable', 'integer', 'min:2', 'max:30'],
+            'buffer_minutes' => ['nullable', 'integer', Rule::in([0, 5, 10, 15, 20, 30])],
             'bio' => ['nullable', 'string', 'max:2000'],
             'languages_spoken' => ['nullable', 'string', 'max:255'],
             'coaching_philosophy' => ['nullable', 'string', 'max:5000'],
@@ -966,6 +1052,7 @@ class CoachController extends Controller
         ]);
 
         $data['max_group_size'] = (int) ($data['max_group_size'] ?? 6);
+        $data['buffer_minutes'] = (int) ($data['buffer_minutes'] ?? 0);
 
         $sports = array_values(array_unique($data['sports']));
         $specialties = array_values(array_unique($data['specialties']));
@@ -1087,7 +1174,6 @@ class CoachController extends Controller
      */
     private function mapBookingsToCalendar(Collection $bookings, Carbon $weekStart): array
     {
-        $rows = (self::CAL_END_HOUR - self::CAL_START_HOUR) * 2;
         $seenGroups = [];
         $events = [];
 
@@ -1111,9 +1197,7 @@ class CoachController extends Controller
             $duration = (int) ($booking->duration_minutes ?? 60);
 
             [$hours, $minutes] = array_map('intval', explode(':', $time));
-            $offset = ($hours * 60 + $minutes) - (self::CAL_START_HOUR * 60);
-            $start = max(1, (int) floor($offset / 30) + 1);
-            $span = max(2, (int) ceil($duration / 30));
+            [$gridStart, $gridEnd] = $this->calendarRows($hours, $minutes, $duration);
 
             $timeLabel = $booking->session_time
                 ? Carbon::parse($booking->session_time)->format('g:i A')
@@ -1146,8 +1230,8 @@ class CoachController extends Controller
                 'location' => $booking->location?->name,
                 'location_id' => $booking->location_id,
                 'date_label' => $booking->session_date?->format('D, M j') ?? '',
-                'gridStart' => $start,
-                'gridEnd' => min($rows + 1, $start + $span),
+                'gridStart' => $gridStart,
+                'gridEnd' => $gridEnd,
                 'draggable' => true,
             ];
         }
@@ -1160,9 +1244,7 @@ class CoachController extends Controller
      */
     private function mapTimeBlocksToCalendar(Collection $blocks, Carbon $weekStart): array
     {
-        $rows = (self::CAL_END_HOUR - self::CAL_START_HOUR) * 2;
-
-        return $blocks->map(function (CoachTimeBlock $block) use ($weekStart, $rows) {
+        return $blocks->map(function (CoachTimeBlock $block) use ($weekStart) {
             $sessionDay = $block->block_date?->copy()->startOfDay();
             $weekDay = $weekStart->copy()->startOfDay();
             $dayIndex = $sessionDay
@@ -1173,9 +1255,7 @@ class CoachController extends Controller
             $duration = $block->durationMinutes();
 
             [$hours, $minutes] = array_map('intval', explode(':', $time));
-            $offset = ($hours * 60 + $minutes) - (self::CAL_START_HOUR * 60);
-            $start = max(1, (int) floor($offset / 30) + 1);
-            $span = max(1, (int) ceil($duration / 30));
+            [$gridStart, $gridEnd] = $this->calendarRows($hours, $minutes, $duration);
 
             return [
                 'kind' => 'personal',
@@ -1191,8 +1271,8 @@ class CoachController extends Controller
                 'tone' => 'personal',
                 'location' => null,
                 'date_label' => $block->block_date?->format('D, M j') ?? '',
-                'gridStart' => $start,
-                'gridEnd' => min($rows + 1, $start + $span),
+                'gridStart' => $gridStart,
+                'gridEnd' => $gridEnd,
             ];
         })->values()->all();
     }

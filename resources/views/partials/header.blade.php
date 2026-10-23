@@ -33,7 +33,7 @@
       <ul class="flex items-center gap-0.5 list-none m-0 p-0 text-[12px] font-normal">
         <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $navActive : $navIdle }}">Home</a></li>
         <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile', 'book-coach') ? $navActive : $navIdle }}">Find a Coach</a></li>
-        <li><a href="{{ route('training-near-you') }}" class="{{ request()->routeIs('training-near-you', 'group-session.share') ? $navActive : $navIdle }}">Training Near You</a></li>
+        <li><a href="{{ route('training-near-you') }}" class="{{ request()->routeIs('training-near-you', 'group-session.share') ? $navActive : $navIdle }}">Open Group Sessions</a></li>
         @if ($showRequestSession)
           <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $navActive : $navIdle }}">Request Session</a></li>
         @endif
@@ -99,7 +99,7 @@
     <ul class="flex flex-col gap-2 text-sm font-medium text-zinc-200">
       <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? $mobileActive : $mobileIdle }}">Home</a></li>
       <li><a href="{{ route('find-a-coach') }}" class="{{ request()->routeIs('find-a-coach', 'coach-profile', 'book-coach') ? $mobileActive : $mobileIdle }}">Find a Coach</a></li>
-      <li><a href="{{ route('training-near-you') }}" class="{{ request()->routeIs('training-near-you', 'group-session.share') ? $mobileActive : $mobileIdle }}">Training Near You</a></li>
+      <li><a href="{{ route('training-near-you') }}" class="{{ request()->routeIs('training-near-you', 'group-session.share') ? $mobileActive : $mobileIdle }}">Open Group Sessions</a></li>
       @if ($showRequestSession)
         <li><a href="{{ route('request-session') }}" class="{{ request()->routeIs('request-session') ? $mobileActive : $mobileIdle }}">Request Session</a></li>
       @endif

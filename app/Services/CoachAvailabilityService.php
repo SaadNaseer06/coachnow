@@ -9,6 +9,9 @@ use Illuminate\Support\Carbon;
 
 class CoachAvailabilityService
 {
+    /** Book Now start times snap to quarter hours. */
+    private const STEP_MINUTES = 15;
+
     /**
      * Expand weekly availability into bookable open slots between $from and $to (inclusive dates).
      *
@@ -31,7 +34,8 @@ class CoachAvailabilityService
             ->get();
 
         $occupancy = Coach::occupancyByCoachIds([$coach->id])[$coach->id] ?? [];
-        $busy = $this->busyWindows($occupancy);
+        // Coach's buffer keeps a gap around every booked session.
+        $busy = $this->busyWindows($occupancy, max(0, (int) ($coach->buffer_minutes ?? 0)));
 
         $groups = CoachGroupSession::query()
             ->with('location')
@@ -76,7 +80,12 @@ class CoachAvailabilityService
 
                     $busyHit = $this->overlapsBusy($dateStr, $startKey, $duration, $busy);
                     if ($busyHit && ! $group) {
-                        $slotStart->addMinutes($duration);
+                        // Next bookable start = right after the clashing session (+ buffer),
+                        // on a 15-minute boundary — not a whole slot later.
+                        $freeAt = $this->busyEndMinute($dateStr, $startKey, $duration, $busy);
+                        $current = $this->timeToMinutes($startKey);
+                        $next = max($current + self::STEP_MINUTES, (int) (ceil($freeAt / self::STEP_MINUTES) * self::STEP_MINUTES));
+                        $slotStart = Carbon::parse($dateStr)->startOfDay()->addMinutes($next);
                         continue;
                     }
 
@@ -158,7 +167,7 @@ class CoachAvailabilityService
      * @param  list<array{date:string,time:?string,minutes:int}>  $occupancy
      * @return list<array{date:string,start:int,end:int}>
      */
-    private function busyWindows(array $occupancy): array
+    private function busyWindows(array $occupancy, int $bufferMinutes = 0): array
     {
         $windows = [];
         foreach ($occupancy as $row) {
@@ -171,8 +180,8 @@ class CoachAvailabilityService
             $start = $this->timeToMinutes(substr((string) $time, 0, 5));
             $windows[] = [
                 'date' => $date,
-                'start' => $start,
-                'end' => $start + $minutes,
+                'start' => $start - $bufferMinutes,
+                'end' => $start + $minutes + $bufferMinutes,
             ];
         }
 
@@ -197,6 +206,26 @@ class CoachAvailabilityService
         }
 
         return false;
+    }
+
+    /**
+     * Latest end (in minutes after midnight) among busy windows that clash with this slot.
+     *
+     * @param  list<array{date:string,start:int,end:int}>  $busy
+     */
+    private function busyEndMinute(string $date, string $timeHi, int $duration, array $busy): int
+    {
+        $start = $this->timeToMinutes($timeHi);
+        $end = $start + $duration;
+        $latest = $start;
+
+        foreach ($busy as $window) {
+            if ($window['date'] === $date && $start < $window['end'] && $end > $window['start']) {
+                $latest = max($latest, $window['end']);
+            }
+        }
+
+        return $latest;
     }
 
     private function timeToMinutes(string $hi): int

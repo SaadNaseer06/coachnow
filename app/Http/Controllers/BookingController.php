@@ -74,7 +74,7 @@ class BookingController extends Controller
 
         $newGroup = (bool) ($data['new_group'] ?? false);
         $price = $newGroup
-            ? $bookings->newGroupCheckoutQuote($coach, count($data['players'] ?? []))['total']
+            ? $bookings->newGroupCheckoutQuote($coach, count($data['players'] ?? []), $user)['total']
             : (float) ($coach->rate ?? 0);
 
         $stripe = app(StripeService::class);
@@ -206,7 +206,7 @@ class BookingController extends Controller
         }
 
         $players = $data['players'] ?? [$user->name];
-        $quote = $bookings->groupCheckoutQuote($group, count($players));
+        $quote = $bookings->groupCheckoutQuote($group, count($players), $user);
 
         if ($stripe->enabled() && $quote['total'] > 0) {
             return response()->json([

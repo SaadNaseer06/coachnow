@@ -77,6 +77,9 @@
   @if (! empty($request['accept_seconds']) && $isOpen)
     data-accept-seconds="{{ $request['accept_seconds'] }}"
   @endif
+  @if (! empty($request['acceptExpiresAt']) && $isOpen)
+    data-accept-expires="{{ $request['acceptExpiresAt'] }}"
+  @endif
 >
   <div class="coach-req-card__top">
     <div class="coach-req-card__player">
@@ -177,7 +180,7 @@
         <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request>Accept &amp; host</button>
         <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request>Decline</button>
       </div>
-      <p class="coach-req-card__hint">If you accept, the parent’s card is charged the $10 deposit + $2 CoachNow fee (you receive the $10). You don’t handle payment — you just see who’s confirmed and paid.</p>
+      <p class="coach-req-card__hint">If you accept, the family’s card is charged the $10 deposit (+ $2 CoachNow fee for non-members) — you receive the $10. You don’t handle payment — you just see who’s confirmed and paid.</p>
     @else
       <p class="coach-req-card__hint">View only — this request is waiting for {{ $isTargeted && $preferredCoach !== '' ? $preferredCoach : 'a coach' }} to accept.</p>
     @endif

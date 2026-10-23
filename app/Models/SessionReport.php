@@ -14,6 +14,7 @@ class SessionReport extends Model
         'athlete_id',
         'athlete_name',
         'keywords',
+        'skill_statuses',
         'coach_notes_wins',
         'coach_notes_work_ons',
         'focus',
@@ -31,6 +32,7 @@ class SessionReport extends Model
     {
         return [
             'recommended_videos' => 'array',
+            'skill_statuses' => 'array',
             'shared_with_player' => 'boolean',
             'shared_at' => 'datetime',
         ];

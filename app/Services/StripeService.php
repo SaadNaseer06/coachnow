@@ -71,26 +71,27 @@ class StripeService
     /**
      * What a family pays for a Request a Session deposit: deposit + one convenience fee.
      */
-    public function depositChargeCents(): int
+    public function depositChargeCents(?User $payer = null): int
     {
-        return $this->depositAmountCents() + $this->convenienceFeeCents();
+        return $this->depositAmountCents() + $this->convenienceFeeCents($payer);
     }
 
-    public function convenienceFeeCents(): int
+    /** One fee per checkout; $0 for parents with a Family membership. */
+    public function convenienceFeeCents(?User $payer = null): int
     {
-        return max(0, (int) round(((float) config('coachnow.payments.convenience_fee', 2)) * 100));
+        return max(0, (int) round(User::convenienceFeeFor($payer) * 100));
     }
 
-    public function convenienceFeeAmount(): float
+    public function convenienceFeeAmount(?User $payer = null): float
     {
-        return round($this->convenienceFeeCents() / 100, 2);
+        return round($this->convenienceFeeCents($payer) / 100, 2);
     }
 
     /**
      * Platform take per booking transaction (not per player).
      * Launch default: flat $2 convenience fee (+ optional percent/fixed from env).
      */
-    public function platformFeeCents(int $amountCents, bool $includeConvenience = true): int
+    public function platformFeeCents(int $amountCents, bool $includeConvenience = true, ?User $payer = null): int
     {
         if ($amountCents <= 0) {
             return 0;
@@ -98,7 +99,7 @@ class StripeService
 
         $percent = (float) config('coachnow.payments.platform_fee_percent', 0);
         $fixed = (int) round(((float) config('coachnow.payments.platform_fee_fixed', 0)) * 100);
-        $fee = ($includeConvenience ? $this->convenienceFeeCents() : 0)
+        $fee = ($includeConvenience ? $this->convenienceFeeCents($payer) : 0)
             + (int) round($amountCents * ($percent / 100))
             + $fixed;
 
@@ -178,7 +179,7 @@ class StripeService
 
         $customerId = $this->ensureCustomer($payer);
         // Every checkout (booking, group join, request deposit) carries one convenience fee.
-        $fee = $this->platformFeeCents($amountCents);
+        $fee = $this->platformFeeCents($amountCents, true, $payer);
         $destination = $coach->canReceivePayouts();
 
         $params = [
@@ -333,6 +334,79 @@ class StripeService
         }
 
         return $this->client()->refunds->create($params);
+    }
+
+    /**
+     * Hosted Stripe Checkout for the parent Family membership (monthly).
+     */
+    public function createSubscriptionCheckout(User $user, string $successUrl, string $cancelUrl): \Stripe\Checkout\Session
+    {
+        return $this->client()->checkout->sessions->create([
+            'mode' => 'subscription',
+            'customer' => $this->ensureCustomer($user),
+            'client_reference_id' => (string) $user->id,
+            'line_items' => [[
+                'quantity' => 1,
+                'price_data' => [
+                    'currency' => config('services.stripe.currency', 'usd'),
+                    'unit_amount' => (int) round(((float) config('coachnow.subscription.price', 10)) * 100),
+                    'recurring' => ['interval' => 'month'],
+                    'product_data' => ['name' => (string) config('coachnow.subscription.name', 'CoachNow Family Membership')],
+                ],
+            ]],
+            'subscription_data' => ['metadata' => ['user_id' => (string) $user->id, 'purpose' => 'parent_membership']],
+            'metadata' => ['user_id' => (string) $user->id, 'purpose' => 'parent_membership'],
+            'success_url' => $successUrl,
+            'cancel_url' => $cancelUrl,
+        ]);
+    }
+
+    public function syncSubscriptionFromCheckout(User $user, string $checkoutSessionId): void
+    {
+        $session = $this->client()->checkout->sessions->retrieve($checkoutSessionId);
+        if ((string) ($session->client_reference_id ?? '') !== (string) $user->id || ! $session->subscription) {
+            return;
+        }
+
+        $this->applySubscription($this->client()->subscriptions->retrieve((string) $session->subscription));
+    }
+
+    public function setSubscriptionCancelAtPeriodEnd(User $user, bool $cancel): void
+    {
+        $subscription = $this->client()->subscriptions->update((string) $user->stripe_subscription_id, [
+            'cancel_at_period_end' => $cancel,
+        ]);
+        $this->applySubscription($subscription);
+    }
+
+    /**
+     * Copy a Stripe subscription's state onto its user (checkout return + webhooks).
+     */
+    public function applySubscription(\Stripe\Subscription $subscription): ?User
+    {
+        $userId = $subscription->metadata['user_id'] ?? null;
+        $user = $userId
+            ? User::query()->find($userId)
+            : User::query()->where('stripe_subscription_id', $subscription->id)
+                ->orWhere('stripe_customer_id', (string) $subscription->customer)
+                ->first();
+
+        if (! $user) {
+            return null;
+        }
+
+        // current_period_end moved onto subscription items in newer API versions.
+        $periodEnd = $subscription->current_period_end
+            ?? ($subscription->items->data[0]->current_period_end ?? null);
+
+        $user->forceFill([
+            'stripe_subscription_id' => $subscription->id,
+            'subscription_status' => (string) $subscription->status,
+            'subscription_ends_at' => $periodEnd ? \Illuminate\Support\Carbon::createFromTimestamp((int) $periodEnd) : null,
+            'subscription_cancel_at_period_end' => (bool) ($subscription->cancel_at_period_end ?? false),
+        ])->save();
+
+        return $user;
     }
 
     public function retrievePaymentIntent(string $id): \Stripe\PaymentIntent

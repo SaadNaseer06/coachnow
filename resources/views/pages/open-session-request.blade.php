@@ -55,7 +55,7 @@
           @if ($waiting)
             Join now to share the session. Your card is saved and the ${{ number_format($depositAmount, 0) }} deposit + ${{ number_format($convenienceFee, 0) }} CoachNow fee is charged only if a coach accepts.
           @else
-            A coach is hosting this session. Join with a ${{ number_format($depositAmount, 0) }} deposit + ${{ number_format($convenienceFee, 0) }} CoachNow fee until 30 minutes before it starts.
+            A coach is hosting this session. Join with a ${{ number_format($depositAmount, 0) }} deposit + ${{ number_format($convenienceFee, 0) }} CoachNow fee until 1 hour before it starts.
           @endif
         </p>
       </div>
@@ -69,7 +69,7 @@
           @elseif ($isFull)
             <p class="book-error" style="display:block">This session is full.</p>
           @elseif ($joinClosed)
-            <p class="book-error" style="display:block">Joining closed 30 minutes before the session.</p>
+            <p class="book-error" style="display:block">Joining closed 1 hour before the session.</p>
           @elseif (! auth()->check())
             <a href="{{ route('login') }}?redirect={{ urlencode(request()->getRequestUri()) }}" class="book-btn">Sign in to join</a>
           @elseif (! $isAthlete)
@@ -77,6 +77,12 @@
             @if (auth()->user()->isCoach() && $waiting)
               <a href="{{ route('coach.dashboard', ['requests' => 'open']) }}" class="book-btn">View &amp; accept as coach</a>
             @endif
+          @elseif (! auth()->user()->hasMemberAccess())
+            <p class="book-hint">Joining session requests is part of the Family Membership (${{ number_format((float) config('coachnow.subscription.price', 10), 0) }}/month — also waives booking fees).</p>
+            <form method="POST" action="{{ route('subscription.checkout') }}">
+              @csrf
+              <button type="submit" class="book-btn">Become a member</button>
+            </form>
           @else
             @include('partials.payment-methods', ['payPrefix' => 'openReqPay'])
             <p class="book-error" id="openRequestError" hidden></p>

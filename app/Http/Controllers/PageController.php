@@ -638,7 +638,7 @@ class PageController extends Controller
             'availableDates' => $dates,
             'slotsJson' => $slots,
             'focusGroupId' => $focusGroupId,
-            'convenienceFee' => (float) config('coachnow.payments.convenience_fee', 2),
+            'convenienceFee' => User::convenienceFeeFor(request()->user()),
         ]);
     }
 
@@ -668,7 +668,7 @@ class PageController extends Controller
             'alreadyIn' => $alreadyIn,
             'joinClosed' => $session->isJoinClosed(),
             'depositAmount' => (float) config('coachnow.payments.deposit_amount', 10),
-            'convenienceFee' => (float) config('coachnow.payments.convenience_fee', 2),
+            'convenienceFee' => User::convenienceFeeFor(request()->user()),
         ]);
     }
 
@@ -692,7 +692,7 @@ class PageController extends Controller
                 'coach' => $group->coach->publicToken(),
                 'group' => $group->id,
             ]),
-            'convenienceFee' => (float) config('coachnow.payments.convenience_fee', 2),
+            'convenienceFee' => User::convenienceFeeFor(request()->user()),
         ]);
     }
 
@@ -713,6 +713,8 @@ class PageController extends Controller
             ->with(['coach.user', 'location', 'groupSession'])
             ->limit(8)
             ->get();
+
+        $trainingHistory = $this->trainingHistory($user);
 
         $groupJoined = Booking::query()
             ->forAthlete($user->id)
@@ -838,6 +840,16 @@ class PageController extends Controller
             'initials' => $initials,
             'upcomingBookings' => $upcoming,
             'pastBookings' => $past,
+            'trainingHistory' => $trainingHistory,
+            // Same layout for everyone; member panels show a locked preview for non-members.
+            'memberAccess' => $user->hasMemberAccess(),
+            'membership' => [
+                'active' => $user->hasActiveSubscription(),
+                'ends_at' => $user->subscription_ends_at?->format('M j, Y'),
+                'cancelling' => (bool) $user->subscription_cancel_at_period_end,
+                'price' => (float) config('coachnow.subscription.price', 10),
+                'fee' => (float) config('coachnow.payments.convenience_fee', 2),
+            ],
             'groupJoinedBookings' => $groupJoined,
             'pendingGroupJoins' => $pendingGroupJoins,
             'completedCount' => $completedCount,
@@ -862,12 +874,84 @@ class PageController extends Controller
     }
 
     /**
+     * Completed + upcoming sessions in chronological order. Each completed session is
+     * matched to the shared report its coach wrote for this player on or after that
+     * day (before their next session together), so parents can open it from the list.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function trainingHistory(User $user): array
+    {
+        $completed = Booking::query()
+            ->forAthlete($user->id)
+            ->past()
+            ->with(['coach', 'location'])
+            ->limit(30)
+            ->get()
+            ->reverse()
+            ->values();
+
+        $upcoming = Booking::query()
+            ->forAthlete($user->id)
+            ->upcoming()
+            ->with(['coach', 'location'])
+            ->limit(10)
+            ->get();
+
+        $reports = SessionReport::query()
+            ->with('coach.user')
+            ->forAthlete($user)
+            ->shared()
+            ->orderBy('created_at')
+            ->get();
+
+        $used = [];
+        $rows = [];
+        foreach ($completed as $i => $booking) {
+            $from = $booking->session_date?->copy()->startOfDay();
+            $next = $completed->slice($i + 1)->first(fn ($b) => (int) $b->coach_id === (int) $booking->coach_id);
+            $until = $next?->session_date?->copy()->startOfDay();
+
+            $report = $from ? $reports->first(fn (SessionReport $r) => ! isset($used[$r->id])
+                && (int) $r->coach_id === (int) $booking->coach_id
+                && $r->created_at?->gte($from)
+                && (! $until || $r->created_at->lt($until))) : null;
+            if ($report) {
+                $used[$report->id] = true;
+            }
+
+            $rows[] = ['booking' => $booking, 'upcoming' => false, 'report' => $report?->toDisplayArray()];
+        }
+
+        foreach ($upcoming as $booking) {
+            $rows[] = ['booking' => $booking, 'upcoming' => true, 'report' => null];
+        }
+
+        return $rows;
+    }
+
+    /**
      * Build a small skill snapshot from a shared coach report (no fake defaults).
      *
      * @return list<array{skill: string, tone: string, label: string}>
      */
     private static function skillProgressFromReport(SessionReport $report): array
     {
+        // Statuses the coach chose on the report win. Older reports (before the picker)
+        // fall back to keywords, which were always shown as "Developing".
+        $chosen = collect($report->skill_statuses ?? [])
+            ->filter(fn ($row) => filled($row['skill'] ?? null))
+            ->map(fn ($row) => match ($row['status'] ?? 'developing') {
+                'strong' => ['skill' => Str::title($row['skill']), 'tone' => 'green', 'label' => 'Strong'],
+                'needs_work' => ['skill' => Str::title($row['skill']), 'tone' => 'red', 'label' => 'Needs work'],
+                default => ['skill' => Str::title($row['skill']), 'tone' => 'yellow', 'label' => 'Developing'],
+            })
+            ->values()
+            ->all();
+        if ($chosen !== []) {
+            return array_slice($chosen, 0, 5);
+        }
+
         $items = [];
 
         $keywords = collect(preg_split('/[,|\/]+/', (string) $report->keywords) ?: [])
@@ -917,6 +1001,10 @@ class PageController extends Controller
 
     public function requestSession(Request $request): View|RedirectResponse
     {
+        if (! $request->user()?->hasMemberAccess()) {
+            return view('pages.membership-required', ['feature' => 'Request a Session']);
+        }
+
         $locations = Location::query()
             ->where('status', 'live')
             ->withCount(['coaches' => fn ($q) => $q->where('status', 'active')])

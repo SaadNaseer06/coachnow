@@ -96,6 +96,13 @@
           </p>
         </div>
 
+        <div class="coach-form-block" id="reportSkillStatusBlock" hidden>
+          <span class="coach-field-label">Skill status</span>
+          <p class="coach-field-hint" style="margin-top:0">Shown on the player’s Skill progress. Update it as they improve.</p>
+          <div id="reportSkillStatuses" class="coach-skill-status-list"></div>
+          <input type="hidden" name="skill_statuses" id="reportSkillStatusesJson" value="{{ old('skill_statuses', '[]') }}">
+        </div>
+
         <input type="hidden" name="coach_notes_wins" id="reportNotesWins" value="{{ old('coach_notes_wins') }}">
         <input type="hidden" name="coach_notes_work_ons" id="reportNotesWorkOns" value="{{ old('coach_notes_work_ons') }}">
 
@@ -140,4 +147,62 @@
 
 @push('scripts')
   <script src="{{ asset('assets/js/coach-portal.js') }}?v={{ @filemtime(public_path('assets/js/coach-portal.js')) ?: time() }}"></script>
+  <script>
+  // One status per keyword → hidden JSON. The coach decides; nothing is guessed.
+  (() => {
+    const input = document.getElementById('reportKeywords');
+    const block = document.getElementById('reportSkillStatusBlock');
+    const list = document.getElementById('reportSkillStatuses');
+    const hidden = document.getElementById('reportSkillStatusesJson');
+    if (!input || !block || !list || !hidden) return;
+
+    const OPTIONS = [['needs_work', 'Needs work'], ['developing', 'Developing'], ['strong', 'Strong']];
+    const chosen = {};
+    try {
+      (JSON.parse(hidden.value || '[]') || []).forEach((r) => { chosen[String(r.skill).toLowerCase()] = r.status; });
+    } catch (_) { /* ignore */ }
+
+    const skills = () => [...new Set(input.value.split(/[,|/]+/).map((s) => s.trim()).filter(Boolean))].slice(0, 5);
+
+    const sync = () => {
+      hidden.value = JSON.stringify(skills().map((skill) => ({ skill, status: chosen[skill.toLowerCase()] || 'developing' })));
+    };
+
+    const render = () => {
+      const items = skills();
+      block.hidden = items.length === 0;
+      list.innerHTML = '';
+      items.forEach((skill) => {
+        const row = document.createElement('label');
+        row.className = 'coach-skill-status-row';
+        const name = document.createElement('span');
+        name.textContent = skill;
+        const select = document.createElement('select');
+        select.className = 'admin-select';
+        OPTIONS.forEach(([value, label]) => {
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = label;
+          opt.selected = (chosen[skill.toLowerCase()] || 'developing') === value;
+          select.appendChild(opt);
+        });
+        select.addEventListener('change', () => { chosen[skill.toLowerCase()] = select.value; sync(); });
+        row.append(name, select);
+        list.appendChild(row);
+      });
+      sync();
+    };
+
+    input.addEventListener('input', render);
+    input.addEventListener('change', render);
+    render();
+  })();
+  </script>
+@endpush
+
+@push('styles')
+<style>
+  .coach-skill-status-list { display: grid; gap: 8px; }
+  .coach-skill-status-row { display: grid; grid-template-columns: 1fr 160px; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; }
+</style>
 @endpush
