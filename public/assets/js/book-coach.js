@@ -216,7 +216,9 @@
     if (noDates) {
       noDates.hidden = openDays > 0 || calStatus.textContent !== '';
       const what = { group: 'open group sessions', camp: 'camps or clinics' }[serviceKind()] || 'open times';
-      noDates.firstChild.textContent = `No ${what} this month. Try the next month, or `;
+      noDates.firstChild.textContent = calNext.disabled && horizon
+        ? `No ${what} this month — bookings open up to ${formatDateLabel(horizon)}. You can still `
+        : `No ${what} this month. Try the next month, or `;
     }
   }
 

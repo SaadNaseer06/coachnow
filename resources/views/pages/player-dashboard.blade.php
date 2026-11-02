@@ -343,7 +343,11 @@
               <div class="player-req-card">
                 <div class="player-req-card__main">
                   <div class="player-req-card__top">
-                    <span class="player-req-badge player-req-badge--hosted">Joined</span>
+                    @if ($booking->isUpcoming())
+                      <span class="player-req-badge player-req-badge--hosted">Joined</span>
+                    @else
+                      <span class="player-req-badge player-req-badge--zinc">Completed</span>
+                    @endif
                   </div>
                   <p class="player-req-card__title">{{ $booking->session_type ?? 'Group session' }}</p>
                   <p class="player-req-card__meta">{{ $booking->whenLabel() }} · {{ $booking->location?->name ?? 'Field TBD' }}</p>
