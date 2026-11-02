@@ -29,6 +29,13 @@ return [
         'free_months' => (int) env('COACHNOW_FREE_MARKETPLACE_MONTHS', 3),
     ],
 
+    'booking' => [
+        // How far ahead parents can book on Book Now (month calendar).
+        'horizon_days' => (int) env('COACHNOW_BOOKING_HORIZON_DAYS', 180),
+        // Most sessions in one checkout (multi-date / recurring).
+        'max_sessions_per_checkout' => (int) env('COACHNOW_MAX_SESSIONS_PER_CHECKOUT', 24),
+    ],
+
     'subscription' => [
         // Parent "Family membership": waives the $2 fee, unlocks session requests + coach reports.
         'price' => (float) env('COACHNOW_PARENT_SUBSCRIPTION_PRICE', 10),

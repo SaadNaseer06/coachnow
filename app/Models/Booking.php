@@ -34,6 +34,7 @@ class Booking extends Model
         'notes',
         'max_players',
         'group_session_id',
+        'series_id',
     ];
 
     protected function casts(): array

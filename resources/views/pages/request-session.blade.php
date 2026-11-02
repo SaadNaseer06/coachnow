@@ -288,30 +288,36 @@
 
                 <form id="reqFormStep4" class="req-form" novalidate>
                   <div class="req-field">
-                    <label for="reqAgeRange">Age range</label>
-                      <select id="reqAgeRange" name="age_range" required autocomplete="off">
-                      <option value="" disabled selected>Select age range</option>
-                      <option value="U8 (7–8 years)">U8 (7–8 years)</option>
-                      <option value="U10 (9–10 years)">U10 (9–10 years)</option>
-                      <option value="U12 (11–12 years)">U12 (11–12 years)</option>
-                      <option value="U14 (13–14 years)">U14 (13–14 years)</option>
-                      <option value="U16 (15–16 years)">U16 (15–16 years)</option>
-                      <option value="U18 (17–18 years)">U18 (17–18 years)</option>
-                      <option value="Adult (18+)">Adult (18+)</option>
-                    </select>
+                    <span class="req-field-label">Age groups <span class="req-optional">(optional — select all that apply)</span></span>
+                    <p class="req-help">Booking for a 10- and an 11-year-old? Pick U11 and U12 for one session.</p>
+                    {{-- Individual U-groups work across sports; stored as "U11, U12". --}}
+                    <div class="req-age-chips" id="reqAgeGroups" role="group" aria-label="Age groups">
+                      @foreach (array_merge(array_map(fn ($n) => 'U'.$n, range(6, 19)), ['Adult']) as $group)
+                        <label class="req-chip req-age-chip">
+                          <input type="checkbox" value="{{ $group }}">
+                          <span>{{ $group }}</span>
+                        </label>
+                      @endforeach
+                    </div>
+                    <input type="hidden" id="reqAgeRange" name="age_range" value="">
                   </div>
 
                   <div class="req-field">
-                    <label for="reqPriceRange">Budget per player <span class="req-optional">(optional)</span></label>
-                    <p class="req-help">This is what you’re willing to pay <strong>per player</strong> — not a total for the whole group.</p>
+                    <label for="reqPriceRange">Max budget per player <span class="req-optional">(optional)</span></label>
+                    <p class="req-help">The most you’re willing to pay <strong>per player</strong> — not a total for the whole group.</p>
                       <select id="reqPriceRange" name="price_range" autocomplete="off">
                       <option value="" selected>No preference</option>
                       <option value="Up to $25 / player">Up to $25 / player</option>
-                      <option value="$25 – $50 / player">$25 – $50 / player</option>
-                      <option value="$50 – $100 / player">$50 – $100 / player</option>
-                      <option value="$100 – $150 / player">$100 – $150 / player</option>
-                      <option value="$150+ / player">$150+ / player</option>
+                      <option value="Up to $30 / player">Up to $30 / player</option>
+                      <option value="Up to $40 / player">Up to $40 / player</option>
+                      <option value="Up to $50 / player">Up to $50 / player</option>
+                      <option value="custom">Custom amount…</option>
                     </select>
+                    <div class="req-budget-custom" id="reqBudgetCustomWrap" hidden>
+                      <span>Up to $</span>
+                      <input type="number" id="reqBudgetCustom" min="5" max="1000" step="1" inputmode="numeric" placeholder="35" aria-label="Custom max budget per player">
+                      <span>/ player</span>
+                    </div>
                   </div>
 
                   <div class="req-field">
@@ -324,6 +330,7 @@
                       <option value="Small-Sided Games — Group Session">Small-Sided Games — Group Session</option>
                       <option value="Goalkeeper Training — Group Session">Goalkeeper Training — Group Session</option>
                       <option value="Private 1-on-1 Session">Private 1-on-1 Session</option>
+                      <option value="Team Training — Group Session">Team Training — Group Session</option>
                     </select>
                   </div>
 

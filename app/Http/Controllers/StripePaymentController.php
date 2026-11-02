@@ -68,6 +68,13 @@ class StripePaymentController extends Controller
             'session_type' => ['nullable', 'string', 'max:160'],
             'group_session_id' => ['nullable', 'integer'],
             'new_group' => ['nullable', 'boolean'],
+            // Several 1-on-1 sessions in one checkout (multi-date / weekly series).
+            'slots' => ['nullable', 'array', 'min:1', 'max:'.(int) config('coachnow.booking.max_sessions_per_checkout', 24)],
+            'slots.*.date' => ['required_with:slots', 'date', 'after_or_equal:today'],
+            'slots.*.time' => ['required_with:slots', 'date_format:H:i'],
+            'slots.*.location_id' => ['required_with:slots', 'integer', 'exists:locations,id'],
+            'slots.*.duration_minutes' => ['nullable', 'integer', 'min:30', 'max:180'],
+            'recurring' => ['nullable', 'boolean'],
             'players' => ['nullable', 'array', 'min:1', 'max:30'],
             'players.*' => ['required', 'string', 'max:120'],
         ]);
@@ -104,6 +111,21 @@ class StripePaymentController extends Controller
             $groupMeta = [
                 'group_session_id' => (string) $group->id,
                 'player_count' => (string) count($players),
+            ];
+        } elseif (! empty($data['slots'])) {
+            try {
+                $bookings->assertSlotsBookable($coach, $data['slots']);
+            } catch (ValidationException $e) {
+                return response()->json(['message' => collect($e->errors())->flatten()->first()], 422);
+            }
+
+            $quote = $bookings->multiSessionQuote($coach, count($data['slots']), $user);
+            $sessionCents = (int) round($quote['session_amount'] * 100);
+            $convenienceCents = (int) round($quote['convenience_fee'] * 100);
+            $groupMeta = [
+                'slot_count' => (string) count($data['slots']),
+                'slots_hash' => self::slotsHash($data['slots']),
+                'recurring' => ! empty($data['recurring']) ? '1' : '0',
             ];
         } elseif (! empty($data['new_group'])) {
             $players = $this->playerNames($data, $user);
@@ -144,7 +166,7 @@ class StripePaymentController extends Controller
                     'session_time' => $data['time'],
                     'location_id' => (string) $data['location_id'],
                     'duration_minutes' => (string) ($data['duration_minutes'] ?? 60),
-                    'session_type' => (string) ($data['session_type'] ?? 'Private 1-on-1'),
+                    'session_type' => $coach->resolveSessionType($data['session_type'] ?? null),
                 ] + $groupMeta
             );
         } catch (\Throwable $e) {
@@ -186,6 +208,13 @@ class StripePaymentController extends Controller
             'session_type' => ['nullable', 'string', 'max:160'],
             'group_session_id' => ['nullable', 'integer'],
             'new_group' => ['nullable', 'boolean'],
+            // Several 1-on-1 sessions in one checkout (multi-date / weekly series).
+            'slots' => ['nullable', 'array', 'min:1', 'max:'.(int) config('coachnow.booking.max_sessions_per_checkout', 24)],
+            'slots.*.date' => ['required_with:slots', 'date', 'after_or_equal:today'],
+            'slots.*.time' => ['required_with:slots', 'date_format:H:i'],
+            'slots.*.location_id' => ['required_with:slots', 'integer', 'exists:locations,id'],
+            'slots.*.duration_minutes' => ['nullable', 'integer', 'min:30', 'max:180'],
+            'recurring' => ['nullable', 'boolean'],
             'players' => ['nullable', 'array', 'min:1', 'max:30'],
             'players.*' => ['required', 'string', 'max:120'],
         ]);
@@ -216,6 +245,44 @@ class StripePaymentController extends Controller
             ->get();
         if ($existing->isNotEmpty()) {
             return $this->bookingConfirmedResponse($existing->first(), $coach, $existing->count(), ((int) $intent->amount) / 100);
+        }
+
+        // Several sessions in one checkout: the request must carry exactly the paid-for slots.
+        $slotsHash = (string) ($intent->metadata['slots_hash'] ?? '');
+        if ($slotsHash !== '') {
+            if (empty($data['slots']) || ! hash_equals($slotsHash, self::slotsHash($data['slots']))) {
+                return response()->json(['message' => 'Payment does not match these sessions.'], 422);
+            }
+
+            try {
+                $created = $bookings->createMultipleDirectBookings(
+                    $coach,
+                    $user,
+                    $data['slots'],
+                    (string) ($intent->metadata['recurring'] ?? '0') === '1',
+                    $intent->id,
+                    (string) ($intent->metadata['session_type'] ?? '')
+                );
+            } catch (ValidationException $e) {
+                // A slot was taken between paying and confirming: refund in full rather than book part of it.
+                $reason = collect($e->errors())->flatten()->first() ?: 'One of those times is no longer available.';
+                try {
+                    $stripe->refundPaymentIntent($intent->id, (int) $intent->amount, ['reason' => 'slot_unavailable']);
+                    $reason .= ' Your payment has been refunded in full.';
+                } catch (\Throwable $refundError) {
+                    report($refundError);
+                    $reason .= ' Contact support and we’ll refund your payment.';
+                }
+
+                return response()->json(['message' => $reason], 422);
+            }
+
+            app(AppMailer::class)->notifyBookingCreated($created, 'single', $user);
+
+            return response()->json(
+                BookingController::multiBookingPayload($created, $coach, ((int) $intent->amount) / 100),
+                201
+            );
         }
 
         $groupId = (string) ($intent->metadata['group_session_id'] ?? '');
@@ -277,7 +344,7 @@ class StripePaymentController extends Controller
                 'time' => $data['time'],
                 'location_id' => (int) $data['location_id'],
                 'duration_minutes' => $data['duration_minutes'] ?? 60,
-                'session_type' => $data['session_type'] ?? 'Private 1-on-1',
+                'session_type' => $coach->resolveSessionType($data['session_type'] ?? null),
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -309,6 +376,22 @@ class StripePaymentController extends Controller
                 'payment_status' => $booking->payment_status,
             ],
         ], 201);
+    }
+
+    /**
+     * Order-independent fingerprint of the sessions being paid for.
+     *
+     * @param  list<array<string, mixed>>  $slots
+     */
+    private static function slotsHash(array $slots): string
+    {
+        $keys = array_map(
+            fn ($slot) => Carbon::parse($slot['date'])->toDateString().'|'.substr((string) $slot['time'], 0, 5).'|'.(int) $slot['location_id'],
+            $slots
+        );
+        sort($keys);
+
+        return sha1(implode(',', $keys));
     }
 
     /**

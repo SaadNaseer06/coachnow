@@ -632,7 +632,25 @@ class PageController extends Controller
         $dates = collect($slots)->pluck('date')->unique()->values()->all();
         $focusGroupId = $request->integer('group') ?: null;
 
+        // Step 1 on Book Now: the training types this coach offers.
+        $services = $coach->bookableServices();
+        $hasPublicGroups = CoachGroupSession::query()
+            ->where('coach_id', $coach->id)
+            ->where('is_public', true)
+            ->where('status', 'open')
+            ->whereDate('session_date', '>=', now()->toDateString())
+            ->exists();
+        if ($hasPublicGroups && ! collect($services)->whereIn('kind', ['group', 'camp'])->count()) {
+            // Never hide open groups just because the coach didn't tick "Small Group Training".
+            $services[] = ['key' => 'small-group', 'label' => 'Small Group Training', 'kind' => 'group', 'session_type' => 'Small Group'];
+        }
+        $requestedService = (string) $request->query('service', '');
+
         return view('pages.book-coach', [
+            'services' => $services,
+            'initialService' => $focusGroupId
+                ? (collect($services)->firstWhere('kind', 'group')['key'] ?? collect($services)->firstWhere('kind', 'camp')['key'] ?? null)
+                : (collect($services)->contains('key', $requestedService) ? $requestedService : (count($services) === 1 ? $services[0]['key'] : null)),
             'coach' => $coach,
             'slots' => $slots,
             'availableDates' => $dates,

@@ -2,48 +2,87 @@
   const root = document.getElementById('bookCoachApp');
   if (!root) return;
 
-  const slots = JSON.parse(root.dataset.slots || '[]');
+  const seedSlots = JSON.parse(root.dataset.slots || '[]');
   const bookUrl = root.dataset.bookUrl;
+  const bookMultiUrl = root.dataset.bookMultiUrl;
+  const slotsUrl = root.dataset.slotsUrl;
   const joinUrlBase = root.dataset.joinUrl || '/api/group-sessions';
   const coachToken = root.dataset.coach;
+  const horizon = root.dataset.horizon || '';
+  const maxSessions = Number(root.dataset.maxSessions || 24);
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-  const datesEl = document.getElementById('bookDates');
-  const timesEl = document.getElementById('bookTimes');
-  const fieldEl = document.getElementById('bookField');
-  const hintEl = document.getElementById('bookTimeHint');
-  const noDates = document.getElementById('bookNoDates');
-  const slotSteps = document.getElementById('bookSlotSteps');
-  const confirmBtn = document.getElementById('bookConfirmBtn');
-  const errorEl = document.getElementById('bookError');
-  const successEl = document.getElementById('bookSuccess');
-  const successText = document.getElementById('bookSuccessText');
-  const sumDate = document.getElementById('sumDate');
-  const sumTime = document.getElementById('sumTime');
-  const sumField = document.getElementById('sumField');
-  const sumPrice = document.getElementById('sumPrice');
-  const sumTypeRow = document.getElementById('sumTypeRow');
-  const sumType = document.getElementById('sumType');
-  const sumAgeRow = document.getElementById('sumAgeRow');
-  const sumAge = document.getElementById('sumAge');
-  const sumSpotsRow = document.getElementById('sumSpotsRow');
-  const sumSpots = document.getElementById('sumSpots');
+  const $ = (id) => document.getElementById(id);
+  const timesEl = $('bookTimes');
+  const fieldEl = $('bookField');
+  const hintEl = $('bookTimeHint');
+  const noDates = $('bookNoDates');
+  const confirmBtn = $('bookConfirmBtn');
+  const errorEl = $('bookError');
+  const successEl = $('bookSuccess');
+  const successText = $('bookSuccessText');
+  const sumDate = $('sumDate');
+  const sumTime = $('sumTime');
+  const sumField = $('sumField');
+  const sumPrice = $('sumPrice');
+  const sumTypeRow = $('sumTypeRow');
+  const sumType = $('sumType');
+  const sumAgeRow = $('sumAgeRow');
+  const sumAge = $('sumAge');
+  const sumSpotsRow = $('sumSpotsRow');
+  const sumSpots = $('sumSpots');
+  const sumSessionsRow = $('sumSessionsRow');
+  const sumSessions = $('sumSessions');
   const defaultRate = Number(root.dataset.rate || 0);
   const convenienceFee = Number(root.dataset.convenienceFee || 0);
   const focusGroupId = root.dataset.focusGroup ? Number(root.dataset.focusGroup) : null;
   const userName = root.dataset.userName || '';
-  const playersEl = document.getElementById('bookPlayers');
-  const playerCountEl = document.getElementById('bookPlayerCount');
-  const playerNamesEl = document.getElementById('bookPlayerNames');
-  const sumTotalRow = document.getElementById('sumTotalRow');
-  const sumTotal = document.getElementById('sumTotal');
+  const playersEl = $('bookPlayers');
+  const playerCountEl = $('bookPlayerCount');
+  const playerNamesEl = $('bookPlayerNames');
+  const sumTotalRow = $('sumTotalRow');
+  const sumTotal = $('sumTotal');
 
   const groupRate = root.dataset.groupRate !== '' && root.dataset.groupRate != null ? Number(root.dataset.groupRate) : null;
   const maxGroupSize = Math.max(2, Number(root.dataset.maxGroupSize || 6));
-  const modeEl = document.getElementById('bookMode');
+  const modeEl = $('bookMode');
+
+  // Calendar / repeat elements.
+  const calGrid = $('bookCalGrid');
+  const calMonth = $('bookCalMonth');
+  const calStatus = $('bookCalStatus');
+  const calPrev = $('bookCalPrev');
+  const calNext = $('bookCalNext');
+  const repeatEl = $('bookRepeat');
+  const repeatLabel = $('bookRepeatLabel');
+  const repeatResult = $('bookRepeatResult');
+  const repeatWeeks = $('bookRepeatWeeks');
+
+  // —— Training type (step 1): decides which slots show and how they book ——
+  const services = JSON.parse(root.dataset.services || '[]');
+  const servicesEl = $('bookServices');
+  const afterService = $('bookAfterService');
+  const teamPanel = $('bookTeamPanel');
+  let service = null;
+  const serviceKind = () => service?.kind || 'private';
+
+  // Which slots belong to the chosen training type.
+  const slotVisible = (slot) => {
+    switch (serviceKind()) {
+      case 'group':
+        return Boolean(slot.group_session_id) || groupRate != null;
+      case 'camp':
+        return Boolean(slot.group_session_id) && /camp|clinic/i.test(slot.session_type || '');
+      default:
+        return !slot.group_session_id;
+    }
+  };
 
   let selectedDate = '';
+  // Group join / private group: one slot. 1-on-1: `basket` may hold several.
   let selected = null;
+  let basket = [];
+  let recurring = false;
   let playerNames = [userName];
   let bookingMode = 'single';
 
@@ -56,6 +95,43 @@
     return `$${Number.isInteger(n) ? n.toFixed(0) : n.toFixed(2)}`;
   };
 
+  const pad = (n) => String(n).padStart(2, '0');
+  const isoDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const todayIso = isoDate(new Date());
+  const slotKey = (s) => `${s.date}|${s.time}|${s.group_session_id || ''}`;
+
+  // —— Slots by date, loaded a month at a time ——
+  const byDate = {};
+  const loadedMonths = new Set();
+  const addSlots = (list) => {
+    list.forEach((slot) => {
+      const day = (byDate[slot.date] ||= []);
+      if (!day.some((s) => slotKey(s) === slotKey(slot))) day.push(slot);
+    });
+    Object.values(byDate).forEach((day) => day.sort((a, b) => a.time.localeCompare(b.time)));
+  };
+  addSlots(seedSlots);
+
+  const monthKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+
+  async function loadMonth(firstOfMonth) {
+    const key = monthKey(firstOfMonth);
+    if (loadedMonths.has(key)) return;
+    const last = new Date(firstOfMonth.getFullYear(), firstOfMonth.getMonth() + 1, 0);
+    const res = await fetch(`${slotsUrl}?from=${isoDate(firstOfMonth)}&to=${isoDate(last)}`, {
+      headers: { Accept: 'application/json' },
+      credentials: 'same-origin',
+    });
+    if (!res.ok) throw new Error('Could not load open times.');
+    const json = await res.json();
+    // A month replaces the seed for its dates (fresh availability).
+    Object.keys(byDate).filter((d) => d.startsWith(key)).forEach((d) => delete byDate[d]);
+    addSlots(json.slots || []);
+    loadedMonths.add(key);
+  }
+
+  const bookable = (slot) => !(slot.full || (slot.group_session_id && !slot.joinable));
+
   // Joining a coach's public group (yellow slot).
   const isGroupSelection = () => Boolean(selected?.joinable && selected?.group_session_id);
 
@@ -64,6 +140,9 @@
 
   const usesPlayers = () => isGroupSelection() || isNewGroup();
 
+  // Several 1-on-1 sessions in one checkout.
+  const isMulti = () => !usesPlayers() && basket.length > 1;
+
   const groupPrice = () => {
     if (isNewGroup()) return groupRate;
     return selected?.price_per_player != null ? Number(selected.price_per_player) : defaultRate;
@@ -71,9 +150,227 @@
 
   const currentPlayers = () => playerNames.map((name) => String(name || '').trim()).filter(Boolean);
 
+  function formatDateLabel(iso) {
+    const d = new Date(`${iso}T12:00:00`);
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  const slotLabel = (s) => `${formatDateLabel(s.date)} · ${String(s.time_label || s.time).replace(/ · .*$/, '')}`;
+
+  // —— Month calendar ——
+  let cursor = new Date();
+  cursor = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  const horizonDate = horizon ? new Date(`${horizon}T12:00:00`) : null;
+
+  async function showMonth(first) {
+    cursor = first;
+    calMonth.textContent = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    calPrev.disabled = monthKey(first) <= monthKey(new Date());
+    calNext.disabled = Boolean(horizonDate) && monthKey(new Date(first.getFullYear(), first.getMonth() + 1, 1)) > monthKey(horizonDate);
+    calStatus.textContent = 'Loading open times…';
+    renderCalendar();
+    try {
+      await loadMonth(first);
+      calStatus.textContent = '';
+    } catch (err) {
+      calStatus.textContent = err.message;
+    }
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    calGrid.innerHTML = '';
+    const first = cursor;
+    const lead = (first.getDay() + 6) % 7; // Monday-first grid
+    const daysInMonth = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+    for (let i = 0; i < lead; i += 1) calGrid.appendChild(document.createElement('span'));
+
+    let openDays = 0;
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const iso = isoDate(new Date(first.getFullYear(), first.getMonth(), day));
+      const slots = (byDate[iso] || []).filter(bookable).filter(slotVisible);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = String(day);
+      btn.className = 'book-cal__day';
+      const outOfRange = iso < todayIso || (horizon && iso > horizon);
+      if (outOfRange || !slots.length) {
+        btn.disabled = true;
+      } else {
+        openDays += 1;
+        btn.classList.add('is-open');
+        if (slots.some((s) => s.joinable)) btn.classList.add('has-group');
+        btn.setAttribute('aria-label', `${formatDateLabel(iso)} — ${slots.length} open time${slots.length === 1 ? '' : 's'}`);
+        btn.addEventListener('click', () => {
+          selectedDate = iso;
+          renderCalendar();
+          renderTimes();
+          updateSummary();
+        });
+      }
+      if (iso === selectedDate) btn.classList.add('is-selected');
+      if (basket.some((s) => s.date === iso) || (selected && selected.date === iso && usesPlayers())) btn.classList.add('is-picked');
+      if (iso === todayIso) btn.classList.add('is-today');
+      calGrid.appendChild(btn);
+    }
+    if (noDates) {
+      noDates.hidden = openDays > 0 || calStatus.textContent !== '';
+      const what = { group: 'open group sessions', camp: 'camps or clinics' }[serviceKind()] || 'open times';
+      noDates.firstChild.textContent = `No ${what} this month. Try the next month, or `;
+    }
+  }
+
+  calPrev?.addEventListener('click', () => showMonth(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1)));
+  calNext?.addEventListener('click', () => showMonth(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)));
+
+  // —— Times for the selected day ——
+  function inBasket(slot) {
+    return basket.some((s) => slotKey(s) === slotKey(slot));
+  }
+
+  function pickSlot(slot) {
+    if (slot.joinable && slot.group_session_id) {
+      // Group join is its own single-slot checkout.
+      basket = [];
+      recurring = false;
+      selected = slot;
+    } else if (bookingMode === 'group' && groupRate != null) {
+      basket = [];
+      recurring = false;
+      selected = slot;
+    } else if (inBasket(slot)) {
+      basket = basket.filter((s) => slotKey(s) !== slotKey(slot));
+      selected = basket[basket.length - 1] || null;
+    } else {
+      if (selected && usesPlayers()) selected = null;
+      if (basket.length >= maxSessions) {
+        showError(`You can book up to ${maxSessions} sessions at once.`);
+        return;
+      }
+      basket.push(slot);
+      selected = slot;
+    }
+    renderCalendar();
+    renderTimes();
+    updateSummary();
+  }
+
+  function renderTimes() {
+    timesEl.innerHTML = '';
+    if (!selectedDate) {
+      hintEl.hidden = false;
+      hintEl.textContent = 'Select a date to see open times.';
+      return;
+    }
+    const list = (byDate[selectedDate] || []).filter(slotVisible);
+    if (!list.length) {
+      hintEl.hidden = false;
+      hintEl.textContent = 'No open times on this day.';
+      return;
+    }
+    hintEl.hidden = true;
+    list.forEach((slot) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const isFull = !bookable(slot);
+      const isPicked = inBasket(slot) || (selected && slotKey(selected) === slotKey(slot));
+      btn.className = 'book-chip'
+        + (isPicked ? ' is-selected' : '')
+        + (slot.joinable ? ' is-group' : '')
+        + (isFull ? ' is-full' : '');
+      if (isFull) {
+        btn.textContent = `${String(slot.time_label || '').replace(' · Full', '').replace(' · Group', '')} · Full`;
+        btn.disabled = true;
+        btn.setAttribute('aria-disabled', 'true');
+      } else if (slot.joinable) {
+        btn.textContent = `${String(slot.time_label || '').replace(' · Group', '')} · ${slot.spots_remaining} left`;
+      } else {
+        btn.textContent = slot.time_label;
+      }
+      btn.setAttribute('aria-pressed', isPicked ? 'true' : 'false');
+      if (slot.label) btn.title = slot.label;
+      if (!isFull) btn.addEventListener('click', () => pickSlot(slot));
+      timesEl.appendChild(btn);
+    });
+  }
+
+  // —— Weekly repeat ——
+  let repeatAnchorKey = '';
+
+  function syncRepeat() {
+    if (!repeatEl) return;
+    const anchor = !usesPlayers() ? basket[0] : null;
+    repeatEl.hidden = !anchor;
+    if (!anchor) return;
+    const d = new Date(`${anchor.date}T12:00:00`);
+    repeatLabel.textContent = `Every week at ${String(anchor.time_label || anchor.time).replace(/ · .*$/, '')}, starting ${formatDateLabel(anchor.date)}.`;
+    // New first session → default to its weekday again (don't keep a stale day).
+    const key = slotKey(anchor);
+    if (key !== repeatAnchorKey) {
+      repeatAnchorKey = key;
+      repeatEl.querySelectorAll('input[type="checkbox"]').forEach((b) => { b.checked = Number(b.value) === d.getDay(); });
+      if (repeatResult) repeatResult.textContent = '';
+    }
+  }
+
+  $('bookRepeatAdd')?.addEventListener('click', async () => {
+    const anchor = basket[0];
+    if (!anchor) return;
+    const days = [...repeatEl.querySelectorAll('input:checked')].map((b) => Number(b.value));
+    if (!days.length) {
+      repeatResult.textContent = 'Pick at least one day of the week.';
+      return;
+    }
+    const weeks = Number(repeatWeeks.value || 4);
+    const start = new Date(`${anchor.date}T12:00:00`);
+    const end = new Date(start);
+    end.setDate(end.getDate() + weeks * 7 - 1);
+
+    repeatResult.textContent = 'Checking the coach’s availability…';
+    try {
+      for (let m = new Date(start.getFullYear(), start.getMonth(), 1); m <= end; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
+        // eslint-disable-next-line no-await-in-loop
+        await loadMonth(m);
+      }
+    } catch (err) {
+      repeatResult.textContent = err.message;
+      return;
+    }
+
+    const wanted = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const iso = isoDate(d);
+      if (!days.includes(d.getDay()) || (horizon && iso > horizon)) continue;
+      wanted.push(iso);
+    }
+
+    const added = [];
+    const skipped = [];
+    wanted.forEach((iso) => {
+      const day = (byDate[iso] || []).filter((s) => bookable(s) && !s.group_session_id && s.time === anchor.time);
+      const match = day.find((s) => Number(s.location_id) === Number(anchor.location_id)) || day[0];
+      if (!match) {
+        skipped.push(iso);
+      } else if (!inBasket(match) && basket.length < maxSessions) {
+        basket.push(match);
+        added.push(iso);
+      }
+    });
+    basket.sort((a, b) => (`${a.date} ${a.time}`).localeCompare(`${b.date} ${b.time}`));
+    recurring = basket.length > 1;
+
+    repeatResult.textContent = `${basket.length} weekly session${basket.length === 1 ? '' : 's'} selected.`
+      + (skipped.length ? ` Not available (coach is busy or off): ${skipped.map(formatDateLabel).join(', ')}.` : '');
+    renderCalendar();
+    renderTimes();
+    updateSummary();
+  });
+
+  // —— Players (group join / private group) ——
   function renderMode() {
     if (!modeEl) return;
-    const show = Boolean(selected && !selected.group_session_id && groupRate != null);
+    // The training type (step 1) now decides 1-on-1 vs private group.
+    const show = false;
     modeEl.hidden = !show;
     modeEl.querySelectorAll('[data-book-mode]').forEach((btn) => {
       const on = btn.dataset.bookMode === bookingMode;
@@ -85,6 +382,14 @@
   modeEl?.querySelectorAll('[data-book-mode]').forEach((btn) => {
     btn.addEventListener('click', () => {
       bookingMode = btn.dataset.bookMode === 'group' ? 'group' : 'single';
+      if (bookingMode === 'group') {
+        selected = basket[0] || selected;
+        basket = [];
+        recurring = false;
+      } else if (selected && !selected.group_session_id) {
+        basket = [selected];
+      }
+      renderTimes();
       updateSummary();
     });
   });
@@ -137,101 +442,48 @@
     updateTotals();
   });
 
+  // —— Summary ——
   function updateTotals() {
     if (!sumTotalRow || !sumTotal) return;
-    if (!selected) {
+    if (!selected && !basket.length) {
       sumTotalRow.hidden = true;
       return;
     }
-    const players = usesPlayers() ? Math.max(1, playerNames.length) : 1;
-    const session = usesPlayers() ? groupPrice() * players : defaultRate;
+    let session;
+    let breakdown;
+    if (usesPlayers()) {
+      const players = Math.max(1, playerNames.length);
+      session = groupPrice() * players;
+      breakdown = `${players} × ${money(groupPrice())}`;
+    } else {
+      const n = Math.max(1, basket.length);
+      session = defaultRate * n;
+      breakdown = n > 1 ? `${n} × ${money(defaultRate)}` : money(session);
+    }
     const fee = session > 0 ? convenienceFee : 0;
     sumTotalRow.hidden = false;
-    sumTotal.textContent = fee > 0
-      ? `${money(session + fee)} (${usesPlayers() ? `${players} × ${money(groupPrice())}` : money(session)} + ${money(fee)} fee)`
-      : money(session);
+    sumTotal.textContent = fee > 0 ? `${money(session + fee)} (${breakdown} + ${money(fee)} fee)` : money(session);
   }
 
-  const byDate = slots.reduce((acc, slot) => {
-    (acc[slot.date] ||= []).push(slot);
-    return acc;
-  }, {});
-
-  const dates = Object.keys(byDate).sort();
-
-  function formatDateLabel(iso) {
-    const d = new Date(`${iso}T12:00:00`);
-    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-  }
-
-  function renderDates() {
-    datesEl.innerHTML = '';
-    if (!dates.length) {
-      noDates.hidden = false;
-      if (slotSteps) slotSteps.hidden = true;
-      return;
-    }
-    noDates.hidden = true;
-    if (slotSteps) slotSteps.hidden = false;
-    dates.forEach((date) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'book-chip' + (selectedDate === date ? ' is-selected' : '');
-      btn.textContent = formatDateLabel(date);
-      btn.addEventListener('click', () => {
-        selectedDate = date;
-        selected = null;
-        renderDates();
-        renderTimes();
-        updateSummary();
-      });
-      datesEl.appendChild(btn);
-    });
-  }
-
-  function renderTimes() {
-    timesEl.innerHTML = '';
-    if (!selectedDate) {
-      hintEl.hidden = false;
-      hintEl.textContent = 'Select a date to see open times.';
-      return;
-    }
-    const list = byDate[selectedDate] || [];
-    if (!list.length) {
-      hintEl.hidden = false;
-      hintEl.textContent = 'No open times on this day.';
-      return;
-    }
-    hintEl.hidden = true;
-    list.forEach((slot) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      const isFull = Boolean(slot.full) || (slot.group_session_id && !slot.joinable && Number(slot.spots_remaining) <= 0);
-      const selectedMatch = selected?.time === slot.time
-        && selected?.date === slot.date
-        && (selected?.group_session_id || null) === (slot.group_session_id || null);
-      btn.className = 'book-chip'
-        + (selectedMatch ? ' is-selected' : '')
-        + (slot.joinable ? ' is-group' : '')
-        + (isFull ? ' is-full' : '');
-      if (isFull) {
-        btn.textContent = `${String(slot.time_label || '').replace(' · Full', '').replace(' · Group', '')} · Full`;
-        btn.disabled = true;
-        btn.setAttribute('aria-disabled', 'true');
-      } else if (slot.joinable) {
-        btn.textContent = `${String(slot.time_label || '').replace(' · Group', '')} · ${slot.spots_remaining} left`;
-      } else {
-        btn.textContent = slot.time_label;
-      }
-      if (slot.label) btn.title = slot.label;
-      if (!isFull) {
-        btn.addEventListener('click', () => {
-          selected = slot;
-          renderTimes();
-          updateSummary();
-        });
-      }
-      timesEl.appendChild(btn);
+  function renderSessionList() {
+    if (!sumSessionsRow || !sumSessions) return;
+    const show = isMulti();
+    sumSessionsRow.hidden = !show;
+    sumDate.closest('div').hidden = show;
+    sumTime.closest('div').hidden = show;
+    if (!show) return;
+    sumSessions.innerHTML = '';
+    basket.forEach((slot) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${escapeHtml(slotLabel(slot))}</span>`;
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'book-sessions__remove';
+      rm.setAttribute('aria-label', `Remove ${slotLabel(slot)}`);
+      rm.textContent = '×';
+      rm.addEventListener('click', () => pickSlot(slot));
+      li.appendChild(rm);
+      sumSessions.appendChild(li);
     });
   }
 
@@ -242,19 +494,24 @@
     if (show) valueEl.textContent = value;
   }
 
+  function showError(message) {
+    errorEl.hidden = false;
+    errorEl.textContent = message;
+  }
+
   function updateSummary() {
-    sumDate.textContent = selectedDate ? formatDateLabel(selectedDate) : '—';
-    sumTime.textContent = selected?.time_label || '—';
-    const fieldLabel = selected
-      ? `${selected.location_name}${selected.location_area ? ' · ' + selected.location_area : ''}`
+    const multiHint = $('bookMultiHint');
+    if (multiHint) multiHint.hidden = serviceKind() !== 'private';
+    const current = selected || basket[basket.length - 1] || null;
+    sumDate.textContent = current ? formatDateLabel(current.date) : (selectedDate ? formatDateLabel(selectedDate) : '—');
+    sumTime.textContent = current?.time_label || '—';
+    sumField.textContent = current
+      ? `${current.location_name}${current.location_area ? ' · ' + current.location_area : ''}`
       : '—';
-    sumField.textContent = fieldLabel;
 
     const isGroup = Boolean(selected?.joinable || (selected?.group_session_id && selected?.is_public));
     if (selected && isGroup) {
-      const price = selected.price_per_player != null
-        ? Number(selected.price_per_player)
-        : defaultRate;
+      const price = selected.price_per_player != null ? Number(selected.price_per_player) : defaultRate;
       const booked = selected.booked_count != null ? selected.booked_count : '—';
       const max = selected.max_players != null ? selected.max_players : '—';
       const spots = selected.spots_remaining != null ? selected.spots_remaining : '—';
@@ -275,53 +532,61 @@
       setRow(sumSpotsRow, sumSpots, `${booked} booked · ${spots} left`);
       if (sumPrice) {
         sumPrice.textContent = convenienceFee > 0
-          ? `$${Number(price).toFixed(0)} / player + $${convenienceFee.toFixed(0)} fee`
-          : `$${Number(price).toFixed(0)} / player`;
+          ? `${money(price)} / player + ${money(convenienceFee)} fee`
+          : `${money(price)} / player`;
       }
-    } else if (selected) {
+    } else if (current) {
       const newGroup = isNewGroup();
       fieldEl.classList.remove('is-group');
-      fieldEl.innerHTML = `<strong>${escapeHtml(selected.location_name)}</strong><span>${escapeHtml(selected.location_area || 'Training location for this slot')}</span>`
-        + (newGroup ? '<span>Private group — your places are reserved and not shown to other families.</span>' : '');
-      setRow(sumTypeRow, sumType, newGroup ? 'Private group' : '');
+      fieldEl.innerHTML = `<strong>${escapeHtml(current.location_name)}</strong><span>${escapeHtml(current.location_area || 'Training location for this slot')}</span>`
+        + (newGroup ? '<span>Private group — your places are reserved and not shown to other families.</span>' : '')
+        + (isMulti() ? `<span>${basket.length} sessions selected${recurring ? ' (weekly)' : ''} — one checkout, one CoachNow fee.</span>` : '');
+      const typeLabel = newGroup ? 'Private group' : (service && service.session_type !== 'Private 1-on-1' ? service.label : '');
+      setRow(sumTypeRow, sumType, [typeLabel, isMulti() && recurring ? 'weekly' : ''].filter(Boolean).join(' · '));
       setRow(sumAgeRow, sumAge, '');
       setRow(sumSpotsRow, sumSpots, '');
       if (sumPrice) {
         const price = newGroup ? groupRate : defaultRate;
-        const unit = newGroup ? ' / player' : '';
+        const unit = newGroup ? ' / player' : (isMulti() ? ' / session' : '');
         sumPrice.textContent = convenienceFee > 0
           ? `${money(price)}${unit} + ${money(convenienceFee)} fee`
           : `${money(price)}${unit}`;
       }
     } else {
       fieldEl.classList.remove('is-group');
-      fieldEl.innerHTML = `<strong>Pick a time</strong><span>Location and group details appear when you choose a slot.</span>`;
+      fieldEl.innerHTML = '<strong>Pick a time</strong><span>Location and group details appear when you choose a slot.</span>';
       setRow(sumTypeRow, sumType, '');
       setRow(sumAgeRow, sumAge, '');
       setRow(sumSpotsRow, sumSpots, '');
       if (sumPrice) {
-        sumPrice.textContent = convenienceFee > 0
-          ? `$${Number(defaultRate).toFixed(0)} + $${convenienceFee.toFixed(0)} fee`
-          : `$${Number(defaultRate).toFixed(0)}`;
+        // Groups and camps are priced per player, per session — not the 1-on-1 rate.
+        sumPrice.textContent = ['group', 'camp'].includes(serviceKind())
+          ? 'Per player — pick a time'
+          : (convenienceFee > 0 ? `${money(defaultRate)} + ${money(convenienceFee)} fee` : money(defaultRate));
       }
     }
 
     if (confirmBtn) {
-      const canBook = Boolean(selected) && !selected.full && (selected.joinable || !selected.group_session_id);
+      const canBook = usesPlayers() ? Boolean(selected) && !selected.full : basket.length > 0;
       confirmBtn.disabled = !canBook;
-      confirmBtn.textContent = selected?.joinable ? 'Join Group Session' : 'Confirm booking';
+      confirmBtn.textContent = selected?.joinable
+        ? 'Join Group Session'
+        : (isMulti() ? `Book ${basket.length} sessions` : 'Confirm booking');
     }
     errorEl.hidden = true;
     renderMode();
     renderPlayers();
+    renderSessionList();
+    syncRepeat();
     updateTotals();
   }
 
-  const payPanel = document.getElementById('bookPayPanel');
-  const payMount = document.getElementById('bookStripeMount');
-  const payConfirmBtn = document.getElementById('bookPayConfirmBtn');
-  const payCancelBtn = document.getElementById('bookPayCancelBtn');
-  const payHint = document.getElementById('bookPayHint');
+  // —— Checkout ——
+  const payPanel = $('bookPayPanel');
+  const payMount = $('bookStripeMount');
+  const payConfirmBtn = $('bookPayConfirmBtn');
+  const payCancelBtn = $('bookPayCancelBtn');
+  const payHint = $('bookPayHint');
   let activeCheckout = null;
 
   const hidePayPanel = () => {
@@ -329,6 +594,43 @@
     if (confirmBtn) confirmBtn.hidden = false;
     activeCheckout = null;
   };
+
+  const slotPayload = (s) => ({
+    date: s.date,
+    time: s.time,
+    location_id: s.location_id,
+    duration_minutes: s.duration_minutes,
+  });
+
+  function showSuccess(data, fallbackSlot) {
+    document.querySelector('.book-summary')?.setAttribute('hidden', '');
+    successEl.hidden = false;
+    const d = data?.data || {};
+    if (Number(d.sessions || 0) > 1) {
+      successText.textContent = `${d.sessions} sessions booked with ${d.coach || 'your coach'}${d.series ? ' (weekly)' : ''}: ${(d.dates || []).join(', ')}.`;
+      return;
+    }
+    const playerCount = Number(d.players || 1);
+    const slot = fallbackSlot || {};
+    successText.textContent = `Confirmed with ${d.coach || 'your coach'} on ${formatDateLabel(d.date || slot.date)} at ${slot.time_label || ''}${d.location ? ' · ' + d.location : ''}${playerCount > 1 ? ` · ${playerCount} players` : ''}.`;
+  }
+
+  async function postJson(url, body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-CSRF-TOKEN': csrf,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Could not complete booking.');
+    return data;
+  }
 
   payCancelBtn?.addEventListener('click', () => {
     hidePayPanel();
@@ -342,62 +644,49 @@
     errorEl.hidden = true;
     try {
       const booking = await activeCheckout.confirm();
-      document.querySelector('.book-summary')?.setAttribute('hidden', '');
-      successEl.hidden = false;
-      const playerCount = Number(booking.data?.players || 1);
-      successText.textContent = `Confirmed with ${booking.data?.coach || 'your coach'} on ${booking.data?.date || selected.date} at ${selected.time_label}${booking.data?.location ? ' · ' + booking.data.location : ''}${playerCount > 1 ? ` · ${playerCount} players` : ''}.`;
+      showSuccess(booking, selected || basket[0]);
     } catch (err) {
-      errorEl.hidden = false;
-      errorEl.textContent = err.message || 'Payment failed.';
+      showError(err.message || 'Payment failed.');
       payConfirmBtn.disabled = false;
     }
   });
 
   confirmBtn?.addEventListener('click', async () => {
-    if (!selected) return;
+    const first = usesPlayers() ? selected : basket[0];
+    if (!first) return;
     confirmBtn.disabled = true;
     errorEl.hidden = true;
     try {
       const isGroup = isGroupSelection();
       const newGroup = isNewGroup();
+      const multi = isMulti();
       const players = currentPlayers();
       if ((isGroup || newGroup) && players.length !== playerNames.length) {
         throw new Error('Enter a name for each player.');
       }
       const newGroupPayload = newGroup ? { new_group: true, players } : {};
+      const sessionType = !usesPlayers() ? (service?.session_type || 'Private 1-on-1') : undefined;
+      const multiPayload = multi ? { slots: basket.map(slotPayload), recurring, session_type: sessionType } : {};
 
       const groupTotal = isGroup ? groupPrice() * players.length : 0;
       const stripeOn = window.CoachNowStripe && await window.CoachNowStripe.enabled();
 
       if (isGroup && !(stripeOn && groupTotal > 0)) {
-        const res = await fetch(`${joinUrlBase}/${selected.group_session_id}/join`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'X-CSRF-TOKEN': csrf,
-            'X-Requested-With': 'XMLHttpRequest',
-          },
-          credentials: 'same-origin',
-          body: JSON.stringify({ players }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.message || 'Could not join this group session.');
+        const data = await postJson(`${joinUrlBase}/${selected.group_session_id}/join`, { players });
         document.querySelector('.book-summary')?.setAttribute('hidden', '');
         successEl.hidden = false;
         successText.textContent = `${data.message || 'You’re in.'} ${formatDateLabel(selected.date)} at ${selected.time_label}${selected.location_name ? ' · ' + selected.location_name : ''}.`;
         return;
       }
 
-      if (stripeOn && payMount && payPanel) {
+      if (stripeOn && payMount && payPanel && (defaultRate > 0 || usesPlayers())) {
         activeCheckout = await window.CoachNowStripe.payAndBook({
           coach: coachToken,
-          date: selected.date,
-          time: selected.time,
-          location_id: selected.location_id,
-          duration_minutes: selected.duration_minutes,
+          ...slotPayload(first),
+          ...(sessionType ? { session_type: sessionType } : {}),
           ...(isGroup ? { group_session_id: selected.group_session_id, players } : {}),
           ...newGroupPayload,
+          ...multiPayload,
         }, payMount);
         if (payHint) {
           const fee = Number(activeCheckout.convenience_fee ?? convenienceFee ?? 0);
@@ -412,46 +701,61 @@
         return;
       }
 
-      const res = await fetch(bookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          'X-CSRF-TOKEN': csrf,
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          coach: coachToken,
-          date: selected.date,
-          time: selected.time,
-          location_id: selected.location_id,
-          duration_minutes: selected.duration_minutes,
-          ...newGroupPayload,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || 'Could not complete booking.');
-      document.querySelector('.book-summary')?.setAttribute('hidden', '');
-      successEl.hidden = false;
-      const bookedPlayers = Number(data.data?.players || 1);
-      successText.textContent = `Confirmed with ${data.data?.coach || 'your coach'} on ${data.data?.date || selected.date} at ${selected.time_label}${data.data?.location ? ' · ' + data.data.location : ''}${bookedPlayers > 1 ? ` · private group of ${bookedPlayers}` : ''}.`;
+      const data = multi
+        ? await postJson(bookMultiUrl, { coach: coachToken, ...multiPayload })
+        : await postJson(bookUrl, { coach: coachToken, ...slotPayload(first), ...(sessionType ? { session_type: sessionType } : {}), ...newGroupPayload });
+      showSuccess(data, first);
     } catch (err) {
-      errorEl.hidden = false;
-      errorEl.textContent = err.message || 'Booking failed.';
+      showError(err.message || 'Booking failed.');
       confirmBtn.disabled = false;
     }
   });
 
+  function chooseService(key, { keepFocus = false } = {}) {
+    service = services.find((s) => s.key === key) || null;
+    servicesEl?.querySelectorAll('[data-service]').forEach((btn) => {
+      const on = btn.dataset.service === key;
+      btn.classList.toggle('is-selected', on);
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    const team = serviceKind() === 'team';
+    if (teamPanel) teamPanel.hidden = !team;
+    if (afterService) afterService.hidden = !service || team;
+    // Group service: an open (non-group) time books as a private group for your players.
+    bookingMode = serviceKind() === 'group' && groupRate != null ? 'group' : 'single';
+    if (!keepFocus) {
+      selected = null;
+      selectedDate = '';
+      basket = [];
+      recurring = false;
+    }
+    renderCalendar();
+    renderTimes();
+    updateSummary();
+  }
+
+  servicesEl?.querySelectorAll('[data-service]').forEach((btn) => {
+    btn.addEventListener('click', () => chooseService(btn.dataset.service));
+  });
+
+  // —— Start ——
+  let startMonth = cursor;
   if (focusGroupId) {
-    const focusSlot = slots.find((s) => Number(s.group_session_id) === focusGroupId && s.joinable);
+    const focusSlot = seedSlots.find((s) => Number(s.group_session_id) === focusGroupId && s.joinable);
     if (focusSlot) {
       selectedDate = focusSlot.date;
       selected = focusSlot;
+      const d = new Date(`${focusSlot.date}T12:00:00`);
+      startMonth = new Date(d.getFullYear(), d.getMonth(), 1);
     }
   }
 
-  renderDates();
-  renderTimes();
-  updateSummary();
+  const initialService = root.dataset.initialService || (services.length === 1 ? services[0].key : '');
+  if (initialService) {
+    chooseService(initialService, { keepFocus: Boolean(selected) });
+  } else {
+    renderTimes();
+    updateSummary();
+  }
+  showMonth(startMonth);
 })();

@@ -491,7 +491,32 @@
           <span>End</span>
           <input class="admin-input" type="time" name="end_time" id="personalEnd" value="{{ old('end_time', '17:00') }}" required>
         </label>
+        {{-- Block whole days (vacation, tournaments): parents can't book anything on them. --}}
+        <label class="admin-field admin-field--full" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" name="all_day" id="personalAllDay" value="1" @checked(old('all_day'))>
+          <span style="margin:0">Block the whole day</span>
+        </label>
+        <label class="admin-field" id="personalThroughField" @unless(old('all_day')) hidden @endunless>
+          <span>Through (optional)</span>
+          <input class="admin-input" type="date" name="end_date" id="personalThrough" value="{{ old('end_date') }}">
+        </label>
       </div>
+      <script>
+        (() => {
+          const box = document.getElementById('personalAllDay');
+          const sync = () => {
+            const on = box.checked;
+            document.getElementById('personalThroughField').hidden = !on;
+            ['personalStart', 'personalEnd'].forEach((id) => {
+              const el = document.getElementById(id);
+              el.disabled = on;
+              el.closest('label').style.opacity = on ? '0.45' : '';
+            });
+          };
+          box?.addEventListener('change', sync);
+          sync();
+        })();
+      </script>
 
       <div class="admin-modal__footer" style="margin-top:1rem;padding:0;border:0">
         <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-close>Cancel</button>
@@ -746,6 +771,13 @@
           <input type="text" class="admin-input" id="manageAddWalkIn" placeholder="Or walk-in name" maxlength="120" autocomplete="off">
           <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" id="manageAddPlayerBtn">Add</button>
         </div>
+      </div>
+      <div id="manageSeriesWrap" class="sched-manage-series" hidden>
+        <div>
+          <strong>Weekly series</strong>
+          <span id="manageSeriesText">Part of a parent’s recurring booking.</span>
+        </div>
+        <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" id="manageCancelSeries" style="color:#b91c1c">Cancel all upcoming in series</button>
       </div>
       <div class="admin-modal__footer" style="margin-top:1rem;padding:0;border:0;display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" class="admin-btn admin-btn-ghost" id="manageCancelSession" style="margin-right:auto;color:#b91c1c">Cancel session</button>

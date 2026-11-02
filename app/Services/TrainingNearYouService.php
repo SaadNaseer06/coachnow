@@ -394,8 +394,15 @@ class TrainingNearYouService
             return [min((int) $m[1], (int) $m[2]), max((int) $m[1], (int) $m[2])];
         }
 
-        if (preg_match('/u\s*(\d{1,2})/i', $value, $m)) {
-            return [0, (int) $m[1]];
+        // Request age groups: "U11, U12" or "U10, Adult". Each U-group covers its two
+        // ages (U12 = 11–12); the list spans from the youngest to the oldest group.
+        preg_match_all('/\bu\s*(\d{1,2})\b/i', $value, $groups);
+        $bounds = array_map(fn ($n) => [max(0, (int) $n - 1), (int) $n], $groups[1] ?? []);
+        if (stripos($value, 'adult') !== false) {
+            $bounds[] = [18, 99];
+        }
+        if ($bounds !== []) {
+            return [min(array_column($bounds, 0)), max(array_column($bounds, 1))];
         }
 
         if (preg_match('/(\d{1,2})\s*\+/', $value, $m)) {

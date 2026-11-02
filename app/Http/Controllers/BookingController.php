@@ -23,15 +23,18 @@ class BookingController extends Controller
         $data = $request->validate([
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
-            'days' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'days' => ['nullable', 'integer', 'min:1', 'max:62'],
         ]);
 
+        // Month-at-a-time for the Book Now calendar, never past today or the booking horizon.
+        $horizon = Carbon::today()->addDays((int) config('coachnow.booking.horizon_days', 180));
         $from = isset($data['from'])
-            ? Carbon::parse($data['from'])->startOfDay()
+            ? Carbon::parse($data['from'])->startOfDay()->max(Carbon::today())
             : Carbon::today();
         $to = isset($data['to'])
             ? Carbon::parse($data['to'])->startOfDay()
             : $from->copy()->addDays((int) ($data['days'] ?? 14));
+        $to = $to->min($from->copy()->addDays(62))->min($horizon);
 
         $slots = $availability->openSlotsForCoach($coach, $from, $to);
 
@@ -44,6 +47,7 @@ class BookingController extends Controller
             ],
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
+            'horizon' => $horizon->toDateString(),
             'slots' => $slots,
         ]);
     }
@@ -132,7 +136,7 @@ class BookingController extends Controller
                 'time' => $data['time'],
                 'location_id' => (int) $data['location_id'],
                 'duration_minutes' => $data['duration_minutes'] ?? 60,
-                'session_type' => $data['session_type'] ?? 'Private 1-on-1',
+                'session_type' => $coach->resolveSessionType($data['session_type'] ?? null),
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -156,6 +160,83 @@ class BookingController extends Controller
                 'amount' => (float) $booking->amount,
             ],
         ], 201);
+    }
+
+    /**
+     * Several 1-on-1 sessions with the same coach in one checkout (picked dates or a weekly
+     * series). Paid sessions go through Stripe (booking-intent with `slots`); this handles
+     * sample mode and free sessions.
+     */
+    public function storeMultiple(Request $request, SessionBookingService $bookings, StripeService $stripe): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user?->isAthlete()) {
+            return response()->json(['message' => 'Only athletes can book sessions.'], 403);
+        }
+
+        $data = $request->validate(self::multiSlotRules());
+        $coach = Coach::resolveFromPublicToken($data['coach']);
+        if (! $coach || $coach->status !== 'active') {
+            return response()->json(['message' => 'That coach is not available.'], 422);
+        }
+
+        $quote = $bookings->multiSessionQuote($coach, count($data['slots']), $user);
+        if ($stripe->enabled() && $quote['total'] > 0) {
+            return response()->json([
+                'message' => 'Paid bookings must complete Stripe checkout on this page.',
+                'requires_stripe' => true,
+            ], 422);
+        }
+
+        try {
+            $created = $bookings->createMultipleDirectBookings($coach, $user, $data['slots'], (bool) ($data['recurring'] ?? false), null, $data['session_type'] ?? null);
+        } catch (ValidationException $e) {
+            return response()->json(['message' => collect($e->errors())->flatten()->first() ?: 'Could not book those sessions.'], 422);
+        }
+
+        $coach->forceFill(['last_active_at' => now()])->save();
+        app(AppMailer::class)->notifyBookingCreated($created, 'single', $user);
+
+        return response()->json(self::multiBookingPayload($created, $coach, $quote['total']), 201);
+    }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    public static function multiSlotRules(): array
+    {
+        $max = (int) config('coachnow.booking.max_sessions_per_checkout', 24);
+
+        return [
+            'coach' => ['required', 'string', 'max:120'],
+            'slots' => ['required', 'array', 'min:1', "max:{$max}"],
+            'slots.*.date' => ['required', 'date', 'after_or_equal:today'],
+            'slots.*.time' => ['required', 'date_format:H:i'],
+            'slots.*.location_id' => ['required', 'integer', 'exists:locations,id'],
+            'slots.*.duration_minutes' => ['nullable', 'integer', 'min:30', 'max:180'],
+            'recurring' => ['nullable', 'boolean'],
+            'session_type' => ['nullable', 'string', 'max:160'],
+        ];
+    }
+
+    /**
+     * @param  list<Booking>  $created
+     * @return array<string, mixed>
+     */
+    public static function multiBookingPayload(array $created, Coach $coach, float $total): array
+    {
+        $count = count($created);
+
+        return [
+            'message' => $count === 1 ? 'Session booked.' : "{$count} sessions booked.",
+            'data' => [
+                'coach' => $coach->display_name,
+                'sessions' => count($created),
+                'series' => (bool) ($created[0]->series_id ?? null),
+                'amount' => $total,
+                'dates' => array_map(fn (Booking $b) => $b->whenLabel(), $created),
+            ],
+        ];
     }
 
     public function cancel(Request $request, string $reference, SessionBookingService $bookings): JsonResponse

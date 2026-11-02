@@ -151,7 +151,7 @@
     </div>
 
     <div class="admin-field admin-field--full">
-      <span>Specialties <span style="font-weight:400;color:#6b6560">(select all that apply)</span></span>
+      <span>Training services you offer <span style="font-weight:400;color:#6b6560">(parents choose from these on Book Now)</span></span>
       <div class="coach-multi-check" id="coachFieldSpecialty">
         @foreach ($specialtyChoices as $specialty)
           <label class="coach-multi-check__item">
@@ -161,6 +161,13 @@
         @endforeach
       </div>
     </div>
+
+    <label class="admin-field admin-field--full">
+      <span>Other services <span style="font-weight:400;color:#6b6560">(optional, comma separated)</span></span>
+      <input class="admin-input" type="text" name="custom_services" maxlength="300"
+        value="{{ old('custom_services', implode(', ', $coach->customServicesList())) }}"
+        placeholder="e.g. Goalkeeper Training, Strength & Conditioning">
+    </label>
 
     <label class="admin-field">
       <span>Experience</span>
@@ -177,7 +184,8 @@
       <select class="admin-select" name="ages" required>
         <option value="">Select ages…</option>
         @foreach ($ageOptions as $option)
-          <option value="{{ $option }}" @selected(old('ages', $coach->ages) === $option)>{{ $option }}</option>
+          {{-- Older profiles saved "Ages 8–14" with an en dash. --}}
+          <option value="{{ $option }}" @selected(str_replace('–', '-', (string) old('ages', $coach->ages)) === $option)>{{ $option }}</option>
         @endforeach
       </select>
     </label>

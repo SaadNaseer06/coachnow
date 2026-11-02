@@ -315,6 +315,10 @@ class CoachScheduleSessionController extends Controller
                 'is_public' => (bool) ($group?->is_public ?? false),
                 'share_url' => $group?->is_public ? $group->shareUrl() : null,
                 'is_group' => (bool) $booking->group_session_id,
+                'series' => $booking->series_id ? [
+                    'id' => $booking->series_id,
+                    'upcoming' => Booking::query()->where('coach_id', $coach->id)->where('series_id', $booking->series_id)->upcoming()->count(),
+                ] : null,
                 'players' => $players,
                 'capacity_label' => $group?->capacityLabel(),
                 'spots_remaining' => $group?->spotsRemaining(),
@@ -344,6 +348,37 @@ class CoachScheduleSessionController extends Controller
         }
 
         return back()->with('success', $booking->displayName().' joined the group session.');
+    }
+
+    /**
+     * Cancel every upcoming session in a parent's weekly series (refunds paid sessions).
+     */
+    public function cancelSeries(Request $request, string $series, SessionBookingService $bookings): JsonResponse
+    {
+        $coach = $this->currentCoach();
+
+        try {
+            $result = $bookings->cancelSeriesByCoach($coach, $series);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            report($e);
+
+            return response()->json(['message' => 'A refund failed: '.$e->getMessage()], 422);
+        }
+
+        $count = count($result['cancelled']);
+        if ($count === 0) {
+            return response()->json(['message' => 'No upcoming sessions left in this series.'], 404);
+        }
+
+        app(AppMailer::class)->notifySeriesCancelled($result['cancelled'], $result['refunded']);
+        $this->forgetCoachCaches($coach);
+
+        return response()->json([
+            'message' => "Cancelled {$count} upcoming session".($count === 1 ? '' : 's').' in this series.'
+                .($result['refunded'] > 0 ? ' $'.number_format($result['refunded'], 2).' refunded.' : '')
+                .' The parent has been notified.',
+            'cancelled_ids' => array_map(fn (Booking $b) => $b->id, $result['cancelled']),
+        ]);
     }
 
     /**

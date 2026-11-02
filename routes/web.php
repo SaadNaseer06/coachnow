@@ -56,6 +56,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/api/session-requests/{reference}/join', [SessionRequestController::class, 'join'])->name('session-requests.join');
         Route::post('/api/session-requests/{reference}/cancel', [SessionRequestController::class, 'cancel'])->name('session-requests.cancel');
         Route::post('/api/bookings', [\App\Http\Controllers\BookingController::class, 'store'])->name('bookings.store');
+        Route::post('/api/bookings/multi', [\App\Http\Controllers\BookingController::class, 'storeMultiple'])->name('bookings.store-multiple');
         Route::post('/api/bookings/{reference}/cancel', [\App\Http\Controllers\BookingController::class, 'cancel'])->name('bookings.cancel');
         Route::post('/api/group-sessions/{group}/join', [\App\Http\Controllers\BookingController::class, 'requestJoin'])->name('group-sessions.join');
     });
@@ -101,6 +102,7 @@ Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach'])->grou
     Route::delete('/schedule/sessions/{booking}', [CoachScheduleSessionController::class, 'destroy'])->name('schedule.sessions.destroy');
     Route::post('/schedule/joins/{join}/accept', [CoachScheduleSessionController::class, 'acceptJoin'])->name('schedule.joins.accept');
     Route::post('/schedule/joins/{join}/decline', [CoachScheduleSessionController::class, 'declineJoin'])->name('schedule.joins.decline');
+    Route::post('/schedule/series/{series}/cancel', [CoachScheduleSessionController::class, 'cancelSeries'])->name('schedule.series.cancel');
     Route::patch('/group-sessions/{group}/visibility', [CoachScheduleSessionController::class, 'visibility'])->name('group-sessions.visibility');
     Route::post('/schedule/blocks', [CoachController::class, 'storeTimeBlock'])->name('schedule.blocks.store');
     Route::delete('/schedule/blocks/{block}', [CoachController::class, 'destroyTimeBlock'])->name('schedule.blocks.destroy');

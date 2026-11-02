@@ -277,20 +277,32 @@ class CoachController extends Controller
         $data = $request->validate([
             'title' => ['nullable', 'string', 'max:160'],
             'block_date' => ['required', 'date'],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            'all_day' => ['nullable', 'boolean'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:block_date'],
+            'start_time' => ['exclude_if:all_day,1', 'required', 'date_format:H:i'],
+            'end_time' => ['exclude_if:all_day,1', 'required', 'date_format:H:i', 'after:start_time'],
             'view' => ['nullable', Rule::in(['day', 'week', 'month'])],
             'week' => ['nullable', 'date'],
             'date' => ['nullable', 'date'],
         ]);
 
-        $coach->timeBlocks()->create([
-            'title' => trim((string) ($data['title'] ?? '')) ?: 'Personal time',
-            'block_date' => $data['block_date'],
-            'start_time' => $data['start_time'],
-            'end_time' => $data['end_time'],
-            'type' => 'personal',
-        ]);
+        // Whole-day blocks can span several days (vacation, tournament weekend).
+        $allDay = $request->boolean('all_day');
+        $first = Carbon::parse($data['block_date'])->startOfDay();
+        $last = $allDay && ! empty($data['end_date']) ? Carbon::parse($data['end_date'])->startOfDay() : $first->copy();
+        if ($first->diffInDays($last) > 62) {
+            return back()->withInput()->withErrors(['end_date' => 'Block up to about two months at a time.']);
+        }
+
+        for ($day = $first->copy(); $day->lte($last); $day->addDay()) {
+            $coach->timeBlocks()->create([
+                'title' => trim((string) ($data['title'] ?? '')) ?: ($allDay ? 'Unavailable' : 'Personal time'),
+                'block_date' => $day->toDateString(),
+                'start_time' => $allDay ? '00:00' : $data['start_time'],
+                'end_time' => $allDay ? '23:59' : $data['end_time'],
+                'type' => 'personal',
+            ]);
+        }
 
         $coach->forceFill(['last_active_at' => now()])->save();
 
@@ -1040,6 +1052,7 @@ class CoachController extends Controller
             'group_rate' => ['nullable', 'numeric', 'min:0', 'max:9999'],
             'max_group_size' => ['nullable', 'integer', 'min:2', 'max:30'],
             'buffer_minutes' => ['nullable', 'integer', Rule::in([0, 5, 10, 15, 20, 30])],
+            'custom_services' => ['nullable', 'string', 'max:300'],
             'bio' => ['nullable', 'string', 'max:2000'],
             'languages_spoken' => ['nullable', 'string', 'max:255'],
             'coaching_philosophy' => ['nullable', 'string', 'max:5000'],
@@ -1052,6 +1065,14 @@ class CoachController extends Controller
         ]);
 
         $data['max_group_size'] = (int) ($data['max_group_size'] ?? 6);
+        // "Goalkeeper Training, Strength & Conditioning" → up to 6 extra bookable services.
+        $data['custom_services'] = collect(explode(',', (string) ($data['custom_services'] ?? '')))
+            ->map(fn ($s) => Str::limit(trim($s), 40, ''))
+            ->filter()
+            ->unique()
+            ->take(6)
+            ->values()
+            ->all() ?: null;
         $data['buffer_minutes'] = (int) ($data['buffer_minutes'] ?? 0);
 
         $sports = array_values(array_unique($data['sports']));

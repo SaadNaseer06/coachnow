@@ -11,6 +11,7 @@ use App\Models\SessionRequest;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class SessionBookingService
@@ -167,6 +168,109 @@ class SessionBookingService
             'coach_payout_amount' => $sessionAmount,
             'status' => 'confirmed',
         ]);
+    }
+
+    /**
+     * Quote for several 1-on-1 sessions in one checkout: rate × sessions + one convenience fee.
+     *
+     * @return array{rate: float, session_amount: float, convenience_fee: float, total: float}
+     */
+    public function multiSessionQuote(Coach $coach, int $sessions, ?User $payer = null): array
+    {
+        $rate = (float) ($coach->rate ?? 0);
+        $sessionAmount = round($rate * max(1, $sessions), 2);
+        $fee = $sessionAmount > 0 ? User::convenienceFeeFor($payer) : 0.0;
+
+        return [
+            'rate' => $rate,
+            'session_amount' => $sessionAmount,
+            'convenience_fee' => $fee,
+            'total' => round($sessionAmount + $fee, 2),
+        ];
+    }
+
+    /**
+     * Every requested date/time must be an open slot right now, and the picks must not
+     * overlap each other. Returns the matched slots (with real durations).
+     *
+     * @param  list<array{date: string, time: string, location_id: int, duration_minutes?: int}>  $slots
+     * @return list<array<string, mixed>>
+     */
+    public function assertSlotsBookable(Coach $coach, array $slots): array
+    {
+        $max = (int) config('coachnow.booking.max_sessions_per_checkout', 24);
+        if ($slots === [] || count($slots) > $max) {
+            throw ValidationException::withMessages(['slots' => "Choose between 1 and {$max} sessions."]);
+        }
+
+        $horizon = now()->startOfDay()->addDays((int) config('coachnow.booking.horizon_days', 180));
+        $matched = [];
+        foreach ($slots as $slot) {
+            if (Carbon::parse($slot['date'])->gt($horizon)) {
+                throw ValidationException::withMessages(['slots' => 'Sessions can be booked up to '.$horizon->format('M j, Y').'.']);
+            }
+
+            try {
+                $match = $this->matchOpenSlot($coach, $slot);
+            } catch (ValidationException) {
+                $when = Carbon::parse($slot['date'].' '.substr((string) $slot['time'], 0, 5))->format('D, M j \a\t g:i A');
+                throw ValidationException::withMessages(['slots' => "{$when} is no longer available. Remove it and try again."]);
+            }
+
+            foreach ($matched as $other) {
+                if ($other['date'] === $match['date'] && SessionRequest::timesOverlap(
+                    $other['time'], (int) $other['duration_minutes'], $match['time'], (int) $match['duration_minutes']
+                )) {
+                    throw ValidationException::withMessages(['slots' => 'Two of your picks overlap on '.Carbon::parse($match['date'])->format('D, M j').'.']);
+                }
+            }
+            $matched[] = $match;
+        }
+
+        return $matched;
+    }
+
+    /**
+     * Book several 1-on-1 sessions in one checkout (picked dates, or a weekly series).
+     * One convenience fee for the whole checkout, recorded on the first session.
+     *
+     * @param  list<array{date: string, time: string, location_id: int, duration_minutes?: int}>  $slots
+     * @return list<Booking>
+     */
+    public function createMultipleDirectBookings(Coach $coach, User $athlete, array $slots, bool $recurring = false, ?string $paymentIntentId = null, ?string $sessionType = null): array
+    {
+        $sessionType = $coach->resolveSessionType($sessionType);
+
+        return DB::transaction(function () use ($coach, $athlete, $slots, $recurring, $paymentIntentId, $sessionType) {
+            $matched = collect($this->assertSlotsBookable($coach, $slots))
+                ->sortBy(fn ($m) => $m['date'].' '.$m['time'])
+                ->values();
+            $quote = $this->multiSessionQuote($coach, $matched->count(), $athlete);
+            $seriesId = $recurring ? (string) Str::uuid() : null;
+
+            return $matched->map(function (array $match, int $index) use ($coach, $athlete, $quote, $seriesId, $paymentIntentId, $sessionType) {
+                $fee = $index === 0 ? $quote['convenience_fee'] : 0.0;
+
+                return Booking::query()->create([
+                    'reference' => Booking::generateReference(),
+                    'coach_id' => $coach->id,
+                    'athlete_id' => $athlete->id,
+                    'location_id' => (int) $match['location_id'],
+                    'athlete_name' => $athlete->name,
+                    'session_type' => $sessionType,
+                    'session_date' => $match['date'],
+                    'session_time' => $match['time'],
+                    'duration_minutes' => (int) $match['duration_minutes'],
+                    'amount' => $quote['rate'] + $fee,
+                    'platform_fee_amount' => $fee,
+                    'coach_payout_amount' => $quote['rate'],
+                    'stripe_payment_intent_id' => $paymentIntentId,
+                    'payment_status' => $paymentIntentId ? 'paid' : 'unpaid',
+                    'status' => 'confirmed',
+                    'series_id' => $seriesId,
+                ]);
+            })->all();
+        });
     }
 
     /**
@@ -886,6 +990,41 @@ class SessionBookingService
         });
 
         return $refundCents / 100;
+    }
+
+    /**
+     * Coach cancels every upcoming session in a parent's weekly series. Paid sessions are
+     * refunded in full (the coach cancelled, so the family shouldn't lose the fee).
+     *
+     * @return array{cancelled: list<Booking>, refunded: float}
+     */
+    public function cancelSeriesByCoach(Coach $coach, string $seriesId): array
+    {
+        $upcoming = Booking::query()
+            ->where('coach_id', $coach->id)
+            ->where('series_id', $seriesId)
+            ->upcoming()
+            ->get();
+
+        $stripe = app(StripeService::class);
+        $refunded = 0.0;
+
+        foreach ($upcoming as $booking) {
+            if ($booking->stripe_payment_intent_id && $booking->payment_status === 'paid' && $stripe->enabled()) {
+                $cents = (int) round(((float) $booking->amount) * 100);
+                $stripe->refundPaymentIntent($booking->stripe_payment_intent_id, $cents, [
+                    'booking_reference' => (string) $booking->reference,
+                    'reason' => 'coach_cancelled_series',
+                ]);
+                $refunded += $cents / 100;
+                $booking->payment_status = 'refunded';
+            }
+
+            $booking->status = 'cancelled';
+            $booking->save();
+        }
+
+        return ['cancelled' => $upcoming->all(), 'refunded' => $refunded];
     }
 
     public function cancelCoachBooking(Coach $coach, Booking $booking): void

@@ -81,8 +81,8 @@ class SessionRequestController extends Controller
             'session_time' => ['nullable', 'string', 'max:20'],
             'session_type' => ['required', 'string', 'max:160'],
             'sport' => ['required', 'string', Rule::in(User::SPORTS)],
-            'age_range' => ['nullable', 'string', 'max:80'],
-            'price_range' => ['nullable', 'string', 'max:80'],
+            'age_range' => ['nullable', 'string', 'max:255'], // e.g. "U10, U11" — optional, multi-select
+            'price_range' => ['nullable', 'string', 'max:80'], // e.g. "Up to $30 / player"
             'player_level' => ['nullable', 'string', 'max:80'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'min_players' => ['nullable', 'integer', 'min:1', 'max:30'],

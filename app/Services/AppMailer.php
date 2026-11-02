@@ -10,6 +10,7 @@ use App\Mail\CoachStatusChangedMail;
 use App\Mail\ContactMessageMail;
 use App\Mail\SessionRequestAcceptedMail;
 use App\Mail\SessionRequestConfirmationMail;
+use App\Mail\SeriesCancelledMail;
 use App\Mail\SessionRescheduledMail;
 use App\Mail\WelcomeUserMail;
 use App\Models\Booking;
@@ -131,6 +132,21 @@ class AppMailer
         }
 
         return $sent;
+    }
+
+    /**
+     * @param  list<Booking>  $cancelled
+     */
+    public function notifySeriesCancelled(array $cancelled, float $refund): void
+    {
+        if ($cancelled === []) {
+            return;
+        }
+
+        $cancelled[0]->loadMissing(['coach', 'athlete']);
+        if ($cancelled[0]->athlete?->email) {
+            $this->deliver($cancelled[0]->athlete->email, new SeriesCancelledMail($cancelled, $refund));
+        }
     }
 
     public function notifyBookingCancelled(Booking $booking, float $refund): void

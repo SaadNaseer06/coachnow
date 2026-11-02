@@ -46,9 +46,16 @@
     const status = document.getElementById('managePublicStatus');
     const shareWrap = document.getElementById('manageShareWrap');
     if (!box || !status) return;
-    status.textContent = box.checked
-      ? 'Open to public — remaining spots show on Book Now for other families.'
-      : 'Private — only reserved players. Not shown on Book Now.';
+    // Opening needs an age range — say so right here, not only after Save.
+    const min = document.getElementById('manageAgeMin')?.value;
+    const max = document.getElementById('manageAgeMax')?.value;
+    const needsAges = box.checked && !min && !max;
+    status.classList.toggle('is-warning', needsAges);
+    status.textContent = needsAges
+      ? 'Add an age range (Min / Max) above — it’s required before the group can go public.'
+      : (box.checked
+        ? 'Open to public — remaining spots show on Book Now for other families.'
+        : 'Private — only reserved players. Not shown on Book Now.');
     if (shareWrap) {
       const url = document.getElementById('manageShareUrl')?.value || '';
       shareWrap.hidden = !(box.checked && url);
@@ -114,6 +121,41 @@
   const manageError = document.getElementById('sessionManageError');
   const manageErrorText = document.getElementById('sessionManageErrorText');
   let currentBookingId = null;
+  let currentSeriesId = null;
+
+  document.getElementById('manageCancelSeries')?.addEventListener('click', async (e) => {
+    if (!currentSeriesId) return;
+    // currentTarget is cleared once the confirm dialog is awaited.
+    const btn = e.currentTarget;
+    const ok = window.CoachNowDialog?.confirm
+      ? await window.CoachNowDialog.confirm({
+          title: 'Cancel the whole series?',
+          message: 'All upcoming sessions in this weekly series will be cancelled, paid sessions refunded, and the parent emailed.',
+          confirmLabel: 'Cancel series',
+          cancelLabel: 'Keep series',
+        })
+      : window.confirm('Cancel all upcoming sessions in this series?');
+    if (!ok) return;
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${baseUrl.replace(/\/sessions$/, '')}/series/${encodeURIComponent(currentSeriesId)}/cancel`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || 'Could not cancel the series.');
+      (json.cancelled_ids || []).forEach((id) => removeBookingFromUi(id, null));
+      closeModal('sessionManageModal');
+      if (window.CoachNowDialog?.alert) {
+        await window.CoachNowDialog.alert({ title: 'Series cancelled', message: json.message });
+      }
+    } catch (err) {
+      alert(err.message || 'Could not cancel the series.');
+    } finally {
+      btn.disabled = false;
+    }
+  });
   let currentGroupId = null;
   let removeIds = [];
   let addPlayers = [];
@@ -129,6 +171,7 @@
     if (managePlayersWrap) managePlayersWrap.hidden = !isGroupType(manageType.value);
   });
   document.getElementById('manageIsPublic')?.addEventListener('change', syncPublicStatus);
+  ['manageAgeMin', 'manageAgeMax'].forEach((id) => document.getElementById(id)?.addEventListener('input', syncPublicStatus));
   document.getElementById('manageShareCopy')?.addEventListener('click', async () => {
     const input = document.getElementById('manageShareUrl');
     const url = input?.value || '';
@@ -247,6 +290,16 @@
     manageGroupFields.forEach((el) => { if (el) el.hidden = !showGroup; });
     if (managePlayersWrap) managePlayersWrap.hidden = !showGroup;
     renderPlayers(d.players || []);
+    // Weekly series (parent's recurring booking): show + allow cancelling the rest.
+    const seriesWrap = document.getElementById('manageSeriesWrap');
+    currentSeriesId = d.series?.id || null;
+    if (seriesWrap) {
+      seriesWrap.hidden = !currentSeriesId;
+      const text = document.getElementById('manageSeriesText');
+      if (text && d.series) {
+        text.textContent = `Part of a parent’s weekly booking · ${d.series.upcoming} upcoming session${d.series.upcoming === 1 ? '' : 's'}`;
+      }
+    }
     openModal('sessionManageModal');
   };
 
@@ -313,6 +366,15 @@
       if (!res.ok) {
         manageError.hidden = false;
         manageErrorText.textContent = json.message || 'Could not save.';
+        // Errors sit at the top of a long form — bring them (and the field) into view.
+        if (json.errors?.age_range) {
+          syncPublicStatus();
+          const ageMin = document.getElementById('manageAgeMin');
+          ageMin?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          ageMin?.focus({ preventScroll: true });
+        } else {
+          manageError.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
         return;
       }
       applyManageSaveToUi(currentBookingId, json.data || body);

@@ -3,7 +3,14 @@
 
 **{{ $kindLabel }}** with **{{ $first->coach?->display_name ?? 'your coach' }}**.
 
+@if (count($sessions) > 1)
+- {{ count($sessions) }} sessions{{ $isSeries ? ' (weekly series)' : '' }}:
+@foreach ($sessions as $when)
+    - {{ $when }}
+@endforeach
+@else
 - When: {{ $first->session_date?->format('l, M j, Y') }} · {{ \Illuminate\Support\Carbon::parse($first->session_time)->format('g:i A') }}
+@endif
 - Where: {{ $first->location?->name ?? 'Field TBD' }}{{ $first->location?->area ? ' · '.$first->location->area : '' }}
 - Player{{ count($players) === 1 ? '' : 's' }}: {{ implode(', ', $players) }}
 @if ($first->groupSession?->age_range)

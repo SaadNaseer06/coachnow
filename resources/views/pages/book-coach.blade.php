@@ -22,6 +22,12 @@
   data-max-group-size="{{ (int) ($coach->max_group_size ?? 6) }}"
   data-slots='@json($slotsJson)'
   data-book-url="{{ route('bookings.store') }}"
+  data-book-multi-url="{{ route('bookings.store-multiple') }}"
+  data-slots-url="{{ route('coaches.slots', $coach->publicToken()) }}"
+  data-horizon="{{ now()->addDays((int) config('coachnow.booking.horizon_days', 180))->toDateString() }}"
+  data-max-sessions="{{ (int) config('coachnow.booking.max_sessions_per_checkout', 24) }}"
+  data-services='@json($services ?? [])'
+  data-initial-service="{{ $initialService ?? '' }}"
   data-join-url="{{ url('/api/group-sessions') }}"
   data-dashboard-url="{{ route('player-dashboard') }}"
 >
@@ -29,7 +35,7 @@
     <div class="book-wrap">
       <p class="book-kicker">Direct booking</p>
       <h1>Book {{ $coach->display_name }}</h1>
-      <p class="book-lead">Pick an open time — the field for that slot fills in automatically. Confirm and you’re done.</p>
+      <p class="book-lead">Pick one or more open times — or repeat weekly — and confirm them all in one checkout.</p>
       <div class="book-coach-chip">
         <img src="{{ $coach->photoUrl() }}" alt="">
         <div>
@@ -43,9 +49,44 @@
   <section class="book-body">
     <div class="book-wrap book-grid">
       <div class="book-panel">
-        <h2>1. Choose a date</h2>
-        <div class="book-dates" id="bookDates" role="listbox" aria-label="Available dates"></div>
-        <p class="book-empty" id="bookNoDates" hidden>This coach has no open times in the next two weeks. Try <a href="{{ route('request-session', ['coach' => $coach->publicToken()]) }}">Request a session</a> instead.</p>
+        @php
+          $serviceHints = [
+              'private' => 'Book open times — one, several dates, or weekly.',
+              'group' => 'Join an open group, or book a private group for your players.',
+              'camp' => 'Join an upcoming camp or clinic.',
+              'team' => 'Arranged with the coach — send a team training request.',
+          ];
+        @endphp
+        <h2>1. Choose the type of training</h2>
+        <div class="book-services" id="bookServices" role="radiogroup" aria-label="Type of training">
+          @foreach ($services ?? [] as $service)
+            <button type="button" class="book-service" data-service="{{ $service['key'] }}" role="radio" aria-checked="false">
+              <strong>{{ $service['label'] }}</strong>
+              <span>{{ $serviceHints[$service['kind']] ?? $serviceHints['private'] }}</span>
+            </button>
+          @endforeach
+        </div>
+
+        <div class="book-team" id="bookTeamPanel" hidden>
+          <strong>Team training is arranged with {{ $coach->display_name }}</strong>
+          <p>Tell the coach your team size, ages and preferred times — they’ll confirm the details with you.</p>
+          <a class="book-btn book-btn--small" href="{{ route('request-session', ['coach' => $coach->publicToken(), 'session' => 'Team Training — Group Session']) }}">Request team training</a>
+        </div>
+
+        <div id="bookAfterService" hidden>
+        <h2 class="book-step">2. Choose a date</h2>
+        {{-- Month calendar: only days with the coach's open times can be picked. --}}
+        <div class="book-cal" id="bookCalendar">
+          <div class="book-cal__head">
+            <button type="button" class="book-cal__nav" id="bookCalPrev" aria-label="Previous month">&lsaquo;</button>
+            <strong id="bookCalMonth">—</strong>
+            <button type="button" class="book-cal__nav" id="bookCalNext" aria-label="Next month">&rsaquo;</button>
+          </div>
+          <div class="book-cal__dow"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+          <div class="book-cal__grid" id="bookCalGrid" role="grid" aria-label="Available dates"></div>
+          <p class="book-hint" id="bookCalStatus" aria-live="polite"></p>
+        </div>
+        <p class="book-empty" id="bookNoDates" hidden>No open times this month. Try the next month, or <a href="{{ route('request-session', ['coach' => $coach->publicToken()]) }}">request a session</a>.</p>
 
         <div id="bookSlotSteps">
           <div class="book-legend" aria-label="Slot color guide">
@@ -54,15 +95,38 @@
             <span class="book-legend__item"><i class="book-legend__swatch is-full"></i> Full</span>
           </div>
 
-          <h2 class="book-step">2. Choose a time</h2>
+          <h2 class="book-step">3. Choose a time</h2>
+          <p class="book-hint" id="bookMultiHint">Tip: pick times on several dates to book them together.</p>
           <div class="book-times" id="bookTimes"></div>
           <p class="book-hint" id="bookTimeHint">Select a date to see open times.</p>
 
-          <h2 class="book-step">3. Session details</h2>
+          {{-- Weekly repeat: only weeks where the coach is free get added. --}}
+          <div class="book-repeat" id="bookRepeat" hidden>
+            <strong>Repeat weekly</strong>
+            <p class="book-hint" id="bookRepeatLabel">Same time each week.</p>
+            <div class="book-repeat__days" id="bookRepeatDays" role="group" aria-label="Days of the week">
+              @foreach (['Mon' => 1, 'Tue' => 2, 'Wed' => 3, 'Thu' => 4, 'Fri' => 5, 'Sat' => 6, 'Sun' => 0] as $label => $dow)
+                <label class="book-repeat__day"><input type="checkbox" value="{{ $dow }}"><span>{{ $label }}</span></label>
+              @endforeach
+            </div>
+            <div class="book-repeat__row">
+              <label for="bookRepeatWeeks">For</label>
+              <select id="bookRepeatWeeks">
+                <option value="4">4 weeks</option>
+                <option value="8">8 weeks</option>
+                <option value="12">12 weeks</option>
+              </select>
+              <button type="button" class="book-btn book-btn--small" id="bookRepeatAdd">Add weekly sessions</button>
+            </div>
+            <p class="book-hint" id="bookRepeatResult" aria-live="polite"></p>
+          </div>
+
+          <h2 class="book-step">4. Session details</h2>
           <div class="book-field" id="bookField" aria-live="polite">
             <strong>Pick a time</strong>
             <span>Location and group details appear when you choose a slot.</span>
           </div>
+        </div>
         </div>
       </div>
 
@@ -73,6 +137,7 @@
             <div><dt>Coach</dt><dd id="sumCoach">{{ $coach->display_name }}</dd></div>
             <div><dt>Date</dt><dd id="sumDate">—</dd></div>
             <div><dt>Time</dt><dd id="sumTime">—</dd></div>
+            <div id="sumSessionsRow" class="book-sessions" hidden><dt>Sessions</dt><dd><ul id="sumSessions"></ul></dd></div>
             <div><dt>Field</dt><dd id="sumField">—</dd></div>
             <div id="sumTypeRow" hidden><dt>Type</dt><dd id="sumType">—</dd></div>
             <div id="sumAgeRow" hidden><dt>Ages</dt><dd id="sumAge">—</dd></div>

@@ -524,41 +524,45 @@
     };
   }
 
+  // Suggest the smallest "Up to $X" option that covers the coach's rate.
   function budgetFromRate(rate) {
     if (!rate) return '';
-    if (rate <= 25) return 'Up to $25 / player';
-    if (rate <= 50) return '$25 – $50 / player';
-    if (rate <= 100) return '$50 – $100 / player';
-    if (rate <= 150) return '$100 – $150 / player';
-    return '$150+ / player';
+    const preset = [25, 30, 40, 50].find((max) => rate <= max);
+    return preset ? `Up to $${preset} / player` : '';
   }
 
-  function ageFromCoachAges(ages) {
-    const map = {
-      'Ages 5-10': 'U10 (9–10 years)',
-      'Ages 6-12': 'U12 (11–12 years)',
-      'Ages 8-14': 'U14 (13–14 years)',
-      'Ages 10-16': 'U16 (15–16 years)',
-      'Ages 12-18': 'U18 (17–18 years)',
-    };
-    if (!ages || ages === 'All ages') return '';
-    return map[ages] || '';
+  // Max budget: preset "Up to $X / player", or the custom amount as the same format.
+  function readBudget() {
+    const select = document.getElementById('reqPriceRange');
+    if (!select || select.value !== 'custom') return select?.value || '';
+    const amount = Math.round(Number(document.getElementById('reqBudgetCustom')?.value || 0));
+    return amount > 0 ? `Up to $${amount} / player` : '';
+  }
+
+  function syncBudgetCustom() {
+    const select = document.getElementById('reqPriceRange');
+    const wrap = document.getElementById('reqBudgetCustomWrap');
+    if (wrap) wrap.hidden = select?.value !== 'custom';
+  }
+
+  // Age groups (optional, multi-select) → hidden field "U11, U12".
+  function syncAgeGroups() {
+    const hidden = document.getElementById('reqAgeRange');
+    if (!hidden) return;
+    hidden.value = [...document.querySelectorAll('#reqAgeGroups input:checked')].map((i) => i.value).join(', ');
   }
 
   function applyDetailsFromPreviousSteps() {
     const meta = selectedCoachMeta();
-    const ageEl = document.getElementById('reqAgeRange');
     const priceEl = document.getElementById('reqPriceRange');
     const typeEl = document.getElementById('reqSessionType');
 
-    if (ageEl && !ageEl.value) {
-      const mapped = ageFromCoachAges(meta.ages);
-      if (mapped) ageEl.value = mapped;
-    }
+    // Ages are optional and picked by the parent — no guessing from the coach's range.
     if (priceEl && !priceEl.value) {
       const mapped = budgetFromRate(meta.rate);
       if (mapped) priceEl.value = mapped;
     }
+    syncBudgetCustom();
     if (typeEl && !typeEl.value && /1-on-1|private/i.test(meta.specialty || '')) {
       typeEl.value = 'Private 1-on-1 Session';
     }
@@ -649,7 +653,7 @@
     extra.push(`<div><dt>Date</dt><dd>${escapeHtml(dateStr)}</dd></div>`);
     extra.push(`<div><dt>Time</dt><dd>${escapeHtml(state.selectedTime)}</dd></div>`);
     extra.push(`<div><dt>Session</dt><dd>${escapeHtml(state.sessionType)}</dd></div>`);
-    extra.push(`<div><dt>Age range</dt><dd>${escapeHtml(state.ageRange)}</dd></div>`);
+    extra.push(`<div><dt>Age groups</dt><dd>${escapeHtml(state.ageRange || 'Any age')}</dd></div>`);
     extra.push(`<div><dt>Budget / player</dt><dd>${escapeHtml(state.priceRange || 'No preference')}</dd></div>`);
     if (playersLabel()) extra.push(`<div><dt>Players</dt><dd>${escapeHtml(playersLabel())}</dd></div>`);
     if (state.playerLevel) extra.push(`<div><dt>Level</dt><dd>${escapeHtml(state.playerLevel)}</dd></div>`);
@@ -968,9 +972,21 @@
   });
 
   if (els.form4) {
-    ['reqAgeRange', 'reqPriceRange', 'reqSessionType'].forEach((id) => {
+    ['reqPriceRange', 'reqSessionType'].forEach((id) => {
       document.getElementById(id)?.addEventListener('change', updateSummary);
     });
+    document.getElementById('reqPriceRange')?.addEventListener('change', syncBudgetCustom);
+    document.getElementById('reqBudgetCustom')?.addEventListener('input', updateSummary);
+    document.querySelectorAll('#reqAgeGroups input').forEach((box) => {
+      box.addEventListener('change', () => {
+        syncAgeGroups();
+        updateSummary();
+      });
+    });
+    els.form4.addEventListener('reset', () => setTimeout(() => {
+      syncAgeGroups();
+      syncBudgetCustom();
+    }, 0));
 
     els.form4.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -1008,8 +1024,16 @@
         }
       }
 
+      syncAgeGroups();
+      if (document.getElementById('reqPriceRange')?.value === 'custom' && !readBudget()) {
+        const custom = document.getElementById('reqBudgetCustom');
+        custom?.setCustomValidity('Enter your max budget per player, or choose No preference.');
+        custom?.reportValidity();
+        custom?.setCustomValidity('');
+        return;
+      }
       state.ageRange = document.getElementById('reqAgeRange')?.value || '';
-      state.priceRange = document.getElementById('reqPriceRange')?.value || '';
+      state.priceRange = readBudget();
       state.sessionType = document.getElementById('reqSessionType')?.value || '';
       state.knowByAt = knowByAt;
       state.minPlayers = minPlayers;
@@ -1091,18 +1115,20 @@
             : 'Nearby coaches have been notified. The first coach to accept hosts this session.');
       }
       if (els.countdownHint) {
+        // The server's deadline is in the coach's time zone, so it stays right in any browser.
+        const serverDeadline = Number(request.acceptExpiresAt) || 0;
         if (state.knowByAt) {
           els.countdownHint.textContent = request.requested_coach
             ? `${request.requested_coach} can accept until ${formatKnowBy(state.knowByAt)}`
             : `Coaches can accept until ${formatKnowBy(state.knowByAt)}`;
-          startCutoffCountdown(state.knowByAt.getTime());
+          startCutoffCountdown(serverDeadline || state.knowByAt.getTime());
         } else {
           // "Anytime" = open until 1 hour before the session.
           const session = sessionDateTime();
           if (session) {
             const cutoff = new Date(session.getTime() - CUTOFF_MS);
             els.countdownHint.textContent = `Coaches can accept until ${formatKnowBy(cutoff)} (1 hour before the session)`;
-            startCutoffCountdown(cutoff.getTime());
+            startCutoffCountdown(serverDeadline || cutoff.getTime());
           } else {
             els.countdownHint.textContent = 'Coaches can accept until 1 hour before the session.';
           }

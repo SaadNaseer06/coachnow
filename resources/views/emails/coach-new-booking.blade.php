@@ -3,7 +3,14 @@
 
 **{{ $parentName }}** booked {{ count($players) }} player{{ count($players) === 1 ? '' : 's' }} with you.
 
+@if (count($sessions) > 1)
+- {{ count($sessions) }} sessions{{ $isSeries ? ' (weekly series)' : '' }}:
+@foreach ($sessions as $when)
+    - {{ $when }}
+@endforeach
+@else
 - When: {{ $first->session_date?->format('l, M j, Y') }} · {{ \Illuminate\Support\Carbon::parse($first->session_time)->format('g:i A') }}
+@endif
 - Where: {{ $first->location?->name ?? 'Field TBD' }}
 - Player{{ count($players) === 1 ? '' : 's' }}: {{ implode(', ', $players) }}
 @if ($payout > 0)

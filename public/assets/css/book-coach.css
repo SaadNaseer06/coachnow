@@ -441,3 +441,298 @@ body.book-flow #coachnowPreloader {
   background: rgba(218, 2, 12, 0.12);
   color: #fafafa;
 }
+
+/* —— Month calendar (Book Now) —— */
+.book-cal {
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #15171a;
+}
+
+.book-cal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+  font-size: 0.95rem;
+}
+
+.book-cal__nav {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #1b1e22;
+  color: #f4f4f5;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.book-cal__nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.book-cal__dow,
+.book-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.3rem;
+}
+
+.book-cal__dow span {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #71717a;
+  padding-bottom: 0.25rem;
+}
+
+.book-cal__day {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  min-height: 38px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #52525b;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.book-cal__day.is-open {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: #1b1e22;
+  color: #f4f4f5;
+  cursor: pointer;
+}
+
+.book-cal__day.is-open::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #4ade80;
+  transform: translateX(-50%);
+}
+
+.book-cal__day.has-group::after {
+  background: #facc15;
+}
+
+.book-cal__day.is-open:hover {
+  border-color: rgba(218, 2, 12, 0.5);
+}
+
+.book-cal__day.is-today {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.book-cal__day.is-picked {
+  background: rgba(218, 2, 12, 0.22);
+  border-color: rgba(218, 2, 12, 0.6);
+}
+
+.book-cal__day.is-selected {
+  outline: 2px solid #da020c;
+  outline-offset: 1px;
+}
+
+/* —— Weekly repeat —— */
+.book-repeat {
+  margin-top: 1rem;
+  padding: 0.9rem;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.book-repeat strong {
+  font-size: 0.875rem;
+}
+
+.book-repeat__days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.6rem 0;
+}
+
+.book-repeat__day {
+  cursor: pointer;
+}
+
+.book-repeat__day input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.book-repeat__day span {
+  display: inline-block;
+  min-width: 46px;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #1b1e22;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.book-repeat__day input:checked + span {
+  border-color: rgba(218, 2, 12, 0.7);
+  background: rgba(218, 2, 12, 0.24);
+}
+
+.book-repeat__day input:focus-visible + span {
+  outline: 2px solid #da020c;
+  outline-offset: 2px;
+}
+
+.book-repeat__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.book-repeat__row select {
+  min-height: 38px;
+  padding: 0 0.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #15171a;
+  color: #f4f4f5;
+}
+
+.book-btn.book-btn--small {
+  width: auto;
+  height: 38px;
+  padding: 0 1rem;
+  font-size: 0.8125rem;
+}
+
+/* —— Selected sessions in the summary —— */
+.book-sessions {
+  flex-direction: column;
+  align-items: stretch !important;
+}
+
+.book-sessions ul {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.book-sessions li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  background: #15171a;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.book-sessions__remove {
+  border: 0;
+  background: transparent;
+  color: #a1a1aa;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.book-sessions__remove:hover {
+  color: #f87171;
+}
+
+/* Rows toggled with [hidden] (Ages, Spots, Date/Time when several sessions) must really hide. */
+.book-summary [hidden],
+.book-field [hidden] {
+  display: none !important;
+}
+
+/* Each line in the session details box on its own line. */
+.book-field > span {
+  display: block;
+}
+
+/* —— Step 1: type of training —— */
+.book-services {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.book-service {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #1b1e22;
+  color: #f4f4f5;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.book-service strong {
+  font-size: 0.9rem;
+}
+
+.book-service span {
+  font-size: 0.78rem;
+  color: #a1a1aa;
+  line-height: 1.45;
+}
+
+.book-service:hover {
+  border-color: rgba(218, 2, 12, 0.45);
+}
+
+.book-service.is-selected {
+  border-color: #da020c;
+  background: rgba(218, 2, 12, 0.14);
+}
+
+.book-team {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.book-team p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #a1a1aa;
+}
+
+#bookAfterService[hidden],
+#bookTeamPanel[hidden],
+#bookMultiHint[hidden] {
+  display: none !important;
+}

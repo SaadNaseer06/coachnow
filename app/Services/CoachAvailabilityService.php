@@ -33,7 +33,8 @@ class CoachAvailabilityService
             ->orderBy('start_time')
             ->get();
 
-        $occupancy = Coach::occupancyByCoachIds([$coach->id])[$coach->id] ?? [];
+        // Busy time for exactly the dates being shown (Book Now can look months ahead).
+        $occupancy = Coach::occupancyByCoachIds([$coach->id], $from, $to)[$coach->id] ?? [];
         // Coach's buffer keeps a gap around every booked session.
         $busy = $this->busyWindows($occupancy, max(0, (int) ($coach->buffer_minutes ?? 0)));
 

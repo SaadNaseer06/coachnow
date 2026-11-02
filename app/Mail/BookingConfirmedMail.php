@@ -39,7 +39,10 @@ class BookingConfirmedMail extends Mailable
             with: [
                 'first' => $first,
                 'kindLabel' => self::kindLabel($this->kind),
-                'players' => array_map(fn (Booking $b) => $b->athlete_name, $this->bookings),
+                'players' => array_values(array_unique(array_map(fn (Booking $b) => $b->athlete_name, $this->bookings))),
+                // Several dates in one checkout (multi-date or weekly series).
+                'sessions' => array_values(array_unique(array_map(fn (Booking $b) => $b->whenLabel(), $this->bookings))),
+                'isSeries' => (bool) ($this->bookings[0]->series_id ?? null),
                 'total' => array_sum(array_map(fn (Booking $b) => (float) $b->amount, $this->bookings)),
                 'fee' => array_sum(array_map(fn (Booking $b) => (float) $b->platform_fee_amount, $this->bookings)),
                 'dashboardUrl' => route('player-dashboard', absolute: true),

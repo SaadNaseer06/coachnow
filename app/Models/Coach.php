@@ -76,6 +76,7 @@ class Coach extends Model
         'slug',
         'specialty',
         'specialties',
+        'custom_services',
         'sport',
         'sports',
         'experience',
@@ -116,6 +117,7 @@ class Coach extends Model
             'credentials' => 'array',
             'sports' => 'array',
             'specialties' => 'array',
+            'custom_services' => 'array',
             'stripe_charges_enabled' => 'boolean',
             'stripe_payouts_enabled' => 'boolean',
             'stripe_details_submitted' => 'boolean',
@@ -317,6 +319,93 @@ class Coach extends Model
         }
 
         return array_values(array_unique(array_filter(array_map('strval', $list))));
+    }
+
+    /**
+     * Profile specialty → how parents book it on Book Now.
+     *  - private: the coach's open times (1-on-1; multi-date and weekly allowed)
+     *  - group:   the coach's open group sessions (+ booking a private group if a group rate is set)
+     *  - camp:    open camp / clinic group sessions
+     *  - team:    arranged with the coach through Request a Session
+     */
+    private const SERVICE_MAP = [
+        '1-on-1 / Private Training' => ['private', 'private', 'Private / One-on-One Training', 'Private 1-on-1'],
+        'Private Soccer Training' => ['private', 'private', 'Private / One-on-One Training', 'Private 1-on-1'],
+        '1-on-1 Skills' => ['private', 'private', 'Private / One-on-One Training', 'Private 1-on-1'],
+        'Small Group Training' => ['small-group', 'group', 'Small Group Training', 'Small Group'],
+        'Small Group Soccer' => ['small-group', 'group', 'Small Group Training', 'Small Group'],
+        'Group Training' => ['small-group', 'group', 'Small Group Training', 'Small Group'],
+        'Speed & Agility' => ['speed-agility', 'private', 'Speed & Agility', 'Speed & Agility'],
+        'Performance & Speed' => ['speed-agility', 'private', 'Speed & Agility', 'Speed & Agility'],
+        'Team Training' => ['team', 'team', 'Team Training', 'Team Training'],
+        'Camps / Clinics' => ['camps', 'camp', 'Camps & Clinics', 'Camp'],
+        'Clinics & Camps' => ['camps', 'camp', 'Camps & Clinics', 'Camp'],
+    ];
+
+    /**
+     * Training services parents can choose on Book Now, from the coach's specialties plus
+     * any custom services. Private 1-on-1 is the fallback when nothing is set.
+     *
+     * @return list<array{key: string, label: string, kind: string, session_type: string}>
+     */
+    public function bookableServices(): array
+    {
+        $services = [];
+        foreach ($this->specialtiesList() as $specialty) {
+            [$key, $kind, $label, $type] = self::SERVICE_MAP[$specialty]
+                ?? [Str::slug($specialty), 'private', $specialty, $specialty];
+            $services[$key] ??= compact('key', 'label', 'kind') + ['session_type' => $type];
+        }
+
+        foreach ($this->customServicesList() as $custom) {
+            $key = 'custom-'.Str::slug($custom);
+            $services[$key] ??= ['key' => $key, 'label' => $custom, 'kind' => 'private', 'session_type' => $custom];
+        }
+
+        if ($services === []) {
+            $services['private'] = ['key' => 'private', 'label' => 'Private / One-on-One Training', 'kind' => 'private', 'session_type' => 'Private 1-on-1'];
+        }
+
+        // Private first, team last — the order parents usually look for them.
+        $order = ['private' => 0, 'group' => 1, 'camp' => 2, 'team' => 3];
+
+        return collect($services)->sortBy(fn ($s) => $order[$s['kind']] ?? 1)->values()->all();
+    }
+
+    /**
+     * Session types a parent may book with this coach on Book Now (1-on-1-style services).
+     *
+     * @return list<string>
+     */
+    public function bookableSessionTypes(): array
+    {
+        return collect($this->bookableServices())
+            ->where('kind', 'private')
+            ->pluck('session_type')
+            ->push('Private 1-on-1')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The service a parent picked, if this coach offers it; otherwise Private 1-on-1.
+     */
+    public function resolveSessionType(?string $requested): string
+    {
+        $requested = trim((string) $requested);
+
+        return in_array($requested, $this->bookableSessionTypes(), true) ? $requested : 'Private 1-on-1';
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function customServicesList(): array
+    {
+        $list = is_array($this->custom_services) ? $this->custom_services : [];
+
+        return array_values(array_unique(array_filter(array_map(fn ($s) => trim((string) $s), $list))));
     }
 
     /**
@@ -589,15 +678,19 @@ class Coach extends Model
      * @param  list<int>  $coachIds
      * @return array<int, list<array{date:string,time:?string,minutes:int}>>
      */
-    public static function occupancyByCoachIds($coachIds): array
+    /**
+     * Busy windows (bookings, hosted requests, personal blocks) per coach.
+     * Defaults to the next 21 days; Book Now passes the exact range it shows.
+     */
+    public static function occupancyByCoachIds($coachIds, ?Carbon $fromDate = null, ?Carbon $toDate = null): array
     {
         $ids = collect($coachIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
         if ($ids->isEmpty()) {
             return [];
         }
 
-        $from = now()->toDateString();
-        $to = now()->addDays(21)->toDateString();
+        $from = ($fromDate ?? now())->toDateString();
+        $to = ($toDate ?? now()->addDays(21))->toDateString();
         $rows = [];
 
         $bookings = Booking::query()
