@@ -1,0 +1,62 @@
+/* Message Coach block: join page, request page and parent dashboard (all dark). */
+.msg-coach {
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  text-align: left;
+}
+
+.msg-coach__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.msg-coach__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 10px;
+  color: #f4f4f5;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.msg-coach__btn:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.msg-coach__btn--primary {
+  border-color: #da020c;
+  background: #da020c;
+  color: #fff;
+}
+
+.msg-coach__btn--primary:hover {
+  border-color: #bf020a;
+  background: #bf020a;
+}
+
+.msg-coach__line {
+  margin: 2px 0 0;
+  color: #c9ccd1;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.msg-coach__line strong {
+  color: #f4f4f5;
+}
+
+.msg-coach__pay {
+  margin-top: 8px;
+}

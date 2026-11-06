@@ -7,23 +7,11 @@
   <link rel="stylesheet" href="{{ asset('assets/css/find-a-coach.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/inner-pages.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/request-session.css') }}?v={{ @filemtime(public_path('assets/css/request-session.css')) ?: time() }}">
-  <link rel="stylesheet" href="{{ asset('assets/css/payment-methods.css') }}?v={{ @filemtime(public_path('assets/css/payment-methods.css')) ?: time() }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/message-coach.css') }}?v={{ @filemtime(public_path('assets/css/message-coach.css')) ?: time() }}">
 @endpush
 
 @section('content')
-@php
-  // Members pay no convenience fee, so the deposit wording depends on who's looking.
-  $reqFee = \App\Models\User::convenienceFeeFor(auth()->user());
-  $reqDeposit = (float) config('coachnow.payments.deposit_amount', 10);
-  $money = fn ($v) => '$'.rtrim(rtrim(number_format($v, 2), '0'), '.');
-  $depLong = $money($reqDeposit).' deposit'.($reqFee > 0 ? ' + '.$money($reqFee).' CoachNow fee' : '');
-  $depShort = $money($reqDeposit).' deposit'.($reqFee > 0 ? ' + '.$money($reqFee).' fee' : '');
-  $depTotal = $money($reqDeposit + $reqFee);
-  $depTotalNote = $reqFee > 0 ? $depTotal.' ('.$depShort.')' : $depShort;
-@endphp
-<main class="req-page" id="requestSessionApp"
-  data-deposit-total="{{ $depTotal }}"
-  data-deposit-total-note="{{ $depTotalNote }}">
+<main class="req-page" id="requestSessionApp">
   <section id="hero"
     class="relative min-h-[420px] lg:min-h-[440px] pt-[106px] pb-[64px] flex items-center bg-zinc-950 text-white overflow-hidden"
     style="background-image: linear-gradient(90deg, rgba(12,13,14,0.88) 0%, rgba(12,13,14,0.62) 36%, rgba(12,13,14,0.16) 70%, rgba(12,13,14,0.04) 100%), linear-gradient(180deg, rgba(12,13,14,0.10) 0%, rgba(12,13,14,0.10) 45%, rgba(10,11,12,0.62) 100%), url('{{ asset("assets/hero-bg.png") }}'); background-size: cover; background-position: center bottom;">
@@ -41,7 +29,7 @@
         <div class="req-main">
           <div class="req-banner">
             <span class="req-banner__pill">How it works</span>
-            <p>Put a <strong>card on file</strong> to submit — you’re not charged yet. When a coach accepts, a <strong>{{ $depLong }}</strong> is charged automatically so the session is locked in.</p>
+            <p><strong>No payment to submit a request.</strong> When a coach accepts, you’ll contact each other and arrange payment directly, including any deposit.</p>
           </div>
 
           <div class="req-progress" aria-hidden="true">
@@ -375,13 +363,21 @@
                     <textarea id="reqNotes" name="notes" rows="3" placeholder="Any specific goals or requests?"></textarea>
                   </div>
 
+                  @if (blank(auth()->user()?->phone))
+                    <div class="req-field">
+                      <label for="reqPhone">Your phone number</label>
+                      <p class="req-help">Your coach uses this to arrange payment with you.</p>
+                      <input type="tel" id="reqPhone" name="phone" maxlength="40" autocomplete="tel" required placeholder="(555) 123-4567">
+                    </div>
+                  @endif
+
                   <div class="req-summary" id="reqSummary" aria-live="polite"></div>
 
                   <div class="req-actions req-actions--stack">
                     <button type="submit" class="req-btn req-btn--primary">Submit request</button>
                     <p class="req-disclaimer">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                      <span>Next you’ll put a card on file. Nothing is charged until a coach accepts. Then a <strong>{{ $depLong }}</strong> is taken automatically.</span>
+                      <span>No payment through CoachNow. Once a coach accepts, you’ll arrange payment directly with them.</span>
                     </p>
                   </div>
                 </form>
@@ -424,27 +420,15 @@
                   <dl class="req-live-summary" id="reqLiveSummary"></dl>
 
                   <div class="req-deposit req-deposit--waiting" id="reqWaitingCoach">
-                    <div class="req-deposit__badge req-deposit__badge--wait">Card on file</div>
-                    <h3>No charge yet</h3>
-                    <p>Your card is saved. When a coach accepts, a <strong>{{ $depLong }}</strong> is charged automatically — same idea as Uber. Nothing is charged if nobody accepts.</p>
-                    <p class="req-deposit__note" id="reqCardOnFileNote">Keep this tab open, then Accept &amp; host on the coach dashboard to see the {{ $depTotal }} charge.</p>
+                    <div class="req-deposit__badge req-deposit__badge--wait">No payment due</div>
+                    <h3>Waiting for a coach</h3>
+                    <p>When a coach accepts, you’ll see their contact details here and arrange payment directly with them.</p>
                   </div>
 
-                  <div class="req-deposit req-deposit--paid" id="reqDepositPaid" hidden>
-                    <h3>You’re confirmed</h3>
-                    <p>A coach accepted and your <strong>{{ $depLong }}</strong> was charged to the card on file. The session stays open so others can join until 1 hour before start.</p>
-                    <p class="req-deposit__note" id="reqPaidWith"></p>
-                    <button type="button" class="req-btn req-btn--ghost" id="reqJoinAsAnother" style="margin-top:0.75rem;width:100%">Demo: join as another player</button>
-                  </div>
-
-                  <div class="req-deposit" id="reqJoinDepositPanel" hidden>
-                    <div class="req-deposit__badge">Join session</div>
-                    <h3>Join with a {{ $depShort }}</h3>
-                    <p>Players joining this open session confirm with a {{ $depLong }}. The coach can see who’s paid.</p>
-                    @include('partials.payment-methods', ['payPrefix' => 'reqJoinPay'])
-                    <button type="button" class="req-btn req-btn--primary" id="reqJoinPayBtn">Pay {{ $depTotal }} &amp; join</button>
-                    <button type="button" class="req-btn req-btn--ghost" id="reqJoinCancelBtn">Cancel</button>
-                    <p class="req-deposit__note">Sample checkout — {{ $depTotalNote }} is recorded (no live Stripe charge yet).</p>
+                  <div class="req-deposit req-deposit--paid" id="reqCoachAccepted" hidden>
+                    <h3 id="reqAcceptedTitle">Arrange payment</h3>
+                    <p id="reqAcceptedText"></p>
+                    <div id="reqCoachContact"></div>
                   </div>
 
                   <div class="req-live-card__footer">
@@ -469,21 +453,21 @@
                 <span class="req-steps-list__num">1</span>
                 <div>
                   <strong>You post a request</strong>
-                  <p>Choose location, time, and put a card on file. No charge yet.</p>
+                  <p>Choose a location and time. There’s no payment to submit.</p>
                 </div>
               </li>
               <li>
                 <span class="req-steps-list__num">2</span>
                 <div>
                   <strong>A coach accepts</strong>
-                  <p>Your {{ $depLong }} is charged automatically. The coach just hosts.</p>
+                  <p>They set the price. You contact each other and arrange payment directly.</p>
                 </div>
               </li>
               <li>
                 <span class="req-steps-list__num">3</span>
                 <div>
-                  <strong>Others can join</strong>
-                  <p>Each family that joins pays the same {{ $depShort }}. Open until 1 hour before start.</p>
+                  <strong>The coach confirms</strong>
+                  <p>Once your deposit is received, your place is confirmed. Other families can ask to join until 1 hour before start.</p>
                 </div>
               </li>
             </ol>
@@ -502,13 +486,13 @@
               </li>
               <li>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                Card on file at request. {{ $depTotalNote }} charges only after a coach accepts.
+                No payment to submit. You pay the coach directly.
               </li>
             </ul>
           </div>
 
           <div class="req-aside-note">
-            <p>The {{ $depLong }} confirms real players and coaches. Full session balance is settled with your coach after training.</p>
+            <p>Payment is arranged directly with your coach, by Venmo or another method you agree on. CoachNow doesn’t collect it.</p>
           </div>
         </aside>
 
@@ -516,32 +500,11 @@
     </div>
   </section>
 
-  <div class="req-pay-modal" id="reqCardModal" hidden data-lenis-prevent>
-    <div class="req-pay-modal__backdrop" data-close-card-modal></div>
-    <div class="req-pay-modal__panel" role="dialog" aria-modal="true" aria-labelledby="reqCardModalTitle">
-      <div class="req-pay-modal__header">
-        <button type="button" class="req-pay-modal__close" data-close-card-modal aria-label="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-        </button>
-        <h2 id="reqCardModalTitle">Confirm with a card</h2>
-        <p class="req-pay-modal__lead">We’ll save this card to post your request. No charge now — a <strong>{{ $depLong }}</strong> only if a coach accepts.</p>
-      </div>
-      <div class="req-pay-modal__body" id="reqCardOnFileBox" data-lenis-prevent>
-        @include('partials.payment-methods', ['payPrefix' => 'reqFile'])
-      </div>
-      <div class="req-pay-modal__footer">
-        <button type="button" class="req-btn req-btn--primary" id="reqCardConfirmBtn">Post request</button>
-        <button type="button" class="req-btn req-btn--ghost" data-close-card-modal>Cancel</button>
-      </div>
-    </div>
-  </div>
 </main>
 @endsection
 
 @push('scripts')
   <script src="{{ asset('assets/js/search-draft.js') }}?v={{ @filemtime(public_path('assets/js/search-draft.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/coach-profile.js') }}"></script>
-  <script src="{{ asset('assets/js/stripe-checkout.js') }}?v={{ @filemtime(public_path('assets/js/stripe-checkout.js')) ?: time() }}"></script>
-  <script src="{{ asset('assets/js/payment-methods.js') }}?v={{ @filemtime(public_path('assets/js/payment-methods.js')) ?: time() }}"></script>
   <script src="{{ asset('assets/js/request-session.js') }}?v={{ @filemtime(public_path('assets/js/request-session.js')) ?: time() }}"></script>
 @endpush

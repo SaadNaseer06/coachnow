@@ -115,7 +115,12 @@
                   @endif
                   @if ($coach->isCoachNowVerified())
                   <span class="inline-flex items-center gap-2 px-3 py-2 rounded-[8px] border border-white/80 bg-black/10 text-[10px] lg:text-[11px]">
-                    CoachNow Verified
+                    Profile Verified
+                  </span>
+                  @endif
+                  @if ($coach->hasVerifiedBackgroundCheck())
+                  <span class="inline-flex items-center gap-2 px-3 py-2 rounded-[8px] border border-white/80 bg-black/10 text-[10px] lg:text-[11px]">
+                    Background check verified · {{ $coach->backgroundCheckSummary() }}
                   </span>
                   @endif
                   @if ($coach->hasCredentialType('cpr'))

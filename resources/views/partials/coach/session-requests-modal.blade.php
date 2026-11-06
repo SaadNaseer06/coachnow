@@ -6,6 +6,7 @@
 <div
   id="coachSessionRequestsModal"
   class="coach-req-modal"
+  data-payment-note="{{ $coachPaymentNote ?? '' }}"
   aria-hidden="true"
   role="dialog"
   aria-labelledby="coachSessionRequestsTitle"
@@ -20,7 +21,7 @@
           Session requests
           <span class="coach-req-badge" id="coachSessionRequestsModalBadge">{{ $openCount }} need host</span>
         </h2>
-        <p>Accept to host — the parent already has a card on file. The $10 deposit (+ $2 fee for non-member families) charges automatically. You only see who’s paid.</p>
+        <p>Accept to set your price and host. Families pay you directly, and you confirm each player once you’ve received their deposit.</p>
       </div>
       <button type="button" class="coach-req-modal__close" data-close-session-requests aria-label="Close session requests">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -38,9 +39,34 @@
     <footer class="coach-req-modal__footer">
       <p class="coach-req-footnote">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
-        New open requests appear here. Accept to host — sample mode records the deposit without a live Stripe charge for now.
+        Only requests you can still accept appear here. Expired requests drop off automatically.
       </p>
     </footer>
+  </div>
+
+  <div id="coachAcceptOverlay" class="coach-deposit" hidden>
+    <div class="coach-deposit__card coach-adjust-card" role="dialog" aria-labelledby="coachAcceptTitle" aria-modal="true">
+      <p class="coach-deposit__kicker">Accept &amp; host</p>
+      <h3 id="coachAcceptTitle">Set your price</h3>
+      <p class="coach-deposit__copy">Families see this price and pay you directly. CoachNow doesn’t collect it.</p>
+
+      <div class="coach-adjust-grid">
+        <div class="coach-adjust-field coach-adjust-field--full">
+          <label for="coachAcceptPrice">Price per player ($)</label>
+          <input type="number" id="coachAcceptPrice" min="0" max="1000" step="1" inputmode="decimal" placeholder="e.g. 25">
+          <p class="coach-adjust-hint" id="coachAcceptBudget" hidden></p>
+        </div>
+        <div class="coach-adjust-field coach-adjust-field--full">
+          <label for="coachAcceptNote">How should families pay? <span>(optional)</span></label>
+          <textarea id="coachAcceptNote" rows="2" maxlength="500" placeholder="e.g. Venmo @your-name, $10 deposit to hold your place"></textarea>
+          <p class="coach-adjust-hint">We’ll remember this for your next request.</p>
+        </div>
+      </div>
+
+      <p class="pay-methods__error" id="coachAcceptError" hidden></p>
+      <button type="button" class="admin-btn admin-btn-primary" id="coachAcceptSaveBtn">Accept request</button>
+      <button type="button" class="admin-btn admin-btn-ghost" id="coachAcceptCancelBtn">Cancel</button>
+    </div>
   </div>
 
   <div id="coachAdjustOverlay" class="coach-deposit" hidden>
@@ -51,8 +77,8 @@
 
       <div class="coach-adjust-grid">
         <div class="coach-adjust-field">
-          <label for="coachAdjustJoined">Players joined</label>
-          <input type="number" id="coachAdjustJoined" min="1" max="30" inputmode="numeric">
+          <label for="coachAdjustJoined">Places taken</label>
+          <input type="number" id="coachAdjustJoined" min="1" max="30" inputmode="numeric" readonly>
         </div>
         <div class="coach-adjust-field">
           <label for="coachAdjustMax">Max players</label>

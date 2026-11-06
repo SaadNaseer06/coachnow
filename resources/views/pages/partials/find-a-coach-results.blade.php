@@ -103,13 +103,16 @@
       <div class="min-w-0">
         <h2 class="coach-name font-semibold text-white">{{ $coach->display_name }}</h2>
         <p class="coach-role text-zinc-400 mt-1 mb-3">{{ $coach->roleLabel() }}</p>
-        @if ($coach->isCoachNowApproved() || $coach->isCoachNowVerified())
+        @if ($coach->isCoachNowApproved() || $coach->isCoachNowVerified() || $coach->hasVerifiedBackgroundCheck())
           <div class="flex flex-wrap gap-2 mb-3">
             @if ($coach->isCoachNowApproved())
               <span class="inline-flex items-center px-2.5 py-1 rounded-[6px] border border-brand-red/50 bg-brand-red/15 text-[10px] text-white font-medium">CoachNow Approved</span>
             @endif
             @if ($coach->isCoachNowVerified())
-              <span class="inline-flex items-center px-2.5 py-1 rounded-[6px] border border-white/40 bg-white/5 text-[10px] text-zinc-200 font-medium">CoachNow Verified</span>
+              <span class="inline-flex items-center px-2.5 py-1 rounded-[6px] border border-white/40 bg-white/5 text-[10px] text-zinc-200 font-medium">Profile Verified</span>
+            @endif
+            @if ($coach->hasVerifiedBackgroundCheck())
+              <span class="inline-flex items-center px-2.5 py-1 rounded-[6px] border border-white/40 bg-white/5 text-[10px] text-zinc-200 font-medium" title="{{ $coach->backgroundCheckSummary() }}">Background check verified</span>
             @endif
           </div>
         @endif

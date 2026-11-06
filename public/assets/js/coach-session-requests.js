@@ -38,11 +38,19 @@
   const adjustError = document.getElementById('coachAdjustError');
   const adjustSaveBtn = document.getElementById('coachAdjustSaveBtn');
   const adjustCancelBtn = document.getElementById('coachAdjustCancelBtn');
+  const acceptOverlay = document.getElementById('coachAcceptOverlay');
+  const acceptPrice = document.getElementById('coachAcceptPrice');
+  const acceptNote = document.getElementById('coachAcceptNote');
+  const acceptBudget = document.getElementById('coachAcceptBudget');
+  const acceptError = document.getElementById('coachAcceptError');
+  const acceptSaveBtn = document.getElementById('coachAcceptSaveBtn');
+  const acceptCancelBtn = document.getElementById('coachAcceptCancelBtn');
 
   if (!modal || !list) return;
 
   let lastFocus = null;
   let adjustingCard = null;
+  let acceptingId = null;
   let lookingManual = false;
   let cachedRequests = [];
   const currentCoachId = window.CoachNowCoachId != null ? Number(window.CoachNowCoachId) : null;
@@ -168,9 +176,14 @@
     }
   }
 
+  // The requester keeps a place while the coach waits for their deposit.
+  function placesTaken(players) {
+    return players.filter((p) => p.status === 'confirmed' || p.role === 'requester').length;
+  }
+
   function setPlayers(card, players) {
     card.dataset.players = JSON.stringify(players);
-    card.dataset.playersJoined = String(players.length);
+    card.dataset.playersJoined = String(placesTaken(players));
   }
 
   function activeCount() {
@@ -211,15 +224,9 @@
       const left = remainingSeconds(card);
       el.textContent = formatCountdown(left);
       if (left <= 0) {
-        card.classList.remove('is-open');
-        card.classList.add('is-expired');
-        const status = card.querySelector('.coach-req-status');
-        if (status) {
-          status.className = 'coach-req-status';
-          status.textContent = 'Expired';
-        }
-        card.querySelector('.coach-req-card__actions')?.remove();
-        card.querySelector('.coach-req-card__timer')?.remove();
+        const id = card.dataset.requestId;
+        writeStoredRequests(readStoredRequests().filter((item) => item.id !== id));
+        card.remove();
       }
     });
     updateBadges();
@@ -267,6 +274,7 @@
   function closeModal() {
     if (!modal.classList.contains('is-open')) return;
     closeAdjustOverlay();
+    closeAcceptOverlay();
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     bell?.setAttribute('aria-expanded', 'false');
@@ -276,9 +284,32 @@
     }
   }
 
+  function contactHtml(player) {
+    if (!player.email && !player.phone) return '';
+    const phone = String(player.phone || '').replace(/[^0-9+]/g, '');
+    return `<span class="coach-req-contact">
+      ${player.email ? `<a href="mailto:${escapeHtml(player.email)}">${escapeHtml(player.email)}</a>` : ''}
+      ${phone ? `<a href="tel:${escapeHtml(phone)}">${escapeHtml(player.phone)}</a>` : ''}
+    </span>`;
+  }
+
+  function placeHtml(player) {
+    if (player.status === 'confirmed') {
+      return '<span class="coach-req-pay-badge coach-req-pay-badge--paid">Confirmed</span>';
+    }
+    const isRequester = player.role === 'requester';
+    const label = isRequester ? 'Awaiting deposit' : 'Pending approval';
+    const actions = isAdminViewer ? '' : `
+      <span class="coach-req-roster__actions">
+        <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-confirm-player data-player-id="${escapeHtml(player.player_id)}">Confirm place</button>
+        ${isRequester ? '' : `<button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-player data-player-id="${escapeHtml(player.player_id)}">Decline</button>`}
+      </span>`;
+    return `<span class="coach-req-pay-badge coach-req-pay-badge--pending">${label}</span>${actions}`;
+  }
+
   function rosterHtml(players) {
     if (!players.length) {
-      return '<p class="coach-req-roster__empty">No players confirmed yet.</p>';
+      return '<p class="coach-req-roster__empty">No players yet.</p>';
     }
     return players.map((player) => `
       <div class="coach-req-roster__row">
@@ -286,28 +317,36 @@
           <div class="admin-person-fallback">${escapeHtml(player.initials || 'PL')}</div>
           <div>
             <strong>${escapeHtml(player.name || 'Player')}</strong>
-            <span>${player.role === 'requester' ? 'Original requester' : 'Joined'}</span>
+            <span>${player.role === 'requester' ? 'Original requester' : 'Asked to join'}</span>
+            ${contactHtml(player)}
           </div>
         </div>
-        ${player.paid
-          ? `<span class="coach-req-pay-badge coach-req-pay-badge--paid">Paid${player.paid_with ? ` · ${escapeHtml(player.paid_with)}` : ''}</span>`
-          : player.card_on_file
-            ? `<span class="coach-req-pay-badge coach-req-pay-badge--pending">Card on file</span>`
-            : '<span class="coach-req-pay-badge coach-req-pay-badge--pending">Deposit pending</span>'}
+        <div class="coach-req-roster__side">${placeHtml(player)}</div>
       </div>
     `).join('');
   }
 
-  function renderHostedFooter(card, { joined, max, min, lookingFor, coachNote, players }) {
-    const roster = players || parsePlayers(card);
+  function renderHostedFooter(card, req) {
+    const roster = Array.isArray(req.players) ? req.players : parsePlayers(card);
+    const max = req.max_players ?? '';
+    const min = req.min_players ?? '';
+    const lookingFor = req.looking_for ?? '';
+    const coachNote = req.coach_note || '';
     setPlayers(card, roster);
     card.dataset.maxPlayers = max === '' || max == null ? '' : String(max);
     card.dataset.minPlayers = min === '' || min == null ? '' : String(min);
     card.dataset.lookingFor = lookingFor === '' || lookingFor == null ? '' : String(lookingFor);
-    card.dataset.coachNote = coachNote || '';
+    card.dataset.coachNote = coachNote;
 
-    const paidCount = roster.filter((p) => p.paid).length;
-    const pendingCount = Math.max(0, roster.length - paidCount);
+    const confirmedCount = roster.filter((p) => p.status === 'confirmed').length;
+    const pendingCount = roster.filter((p) => p.status === 'pending' && p.role !== 'requester').length;
+
+    const status = card.querySelector('.coach-req-status--hosted');
+    if (status) {
+      const looking = lookingFor === '' ? null : Number(lookingFor);
+      const text = req.status === 'awaiting_deposit' ? 'Awaiting deposit' : (looking === 0 ? 'Full' : 'Open to join');
+      status.innerHTML = `<span class="coach-req-pulse coach-req-pulse--green"></span> ${text}`;
+    }
 
     const playersRow = card.querySelector('[data-players-row]');
     const playersField = card.querySelector('[data-field="players"]');
@@ -324,76 +363,66 @@
 
     hosted.innerHTML = `
       <div class="coach-req-card__hosted-meta">
-        <span data-field="joined">${roster.length || joined} player${(roster.length || joined) === 1 ? '' : 's'} joined</span>
-        <span data-field="paid">${paidCount} paid</span>
-        <span data-field="pending">${pendingCount} pending deposit</span>
-        <span data-field="spots">${escapeHtml(spotsLabel(roster.length || joined, max, lookingFor))}</span>
+        ${req.price_label ? `<span data-field="price">${escapeHtml(req.price_label)}</span>` : ''}
+        <span data-field="confirmed">${confirmedCount} confirmed</span>
+        <span data-field="pending">${pendingCount} pending</span>
+        <span data-field="spots">${escapeHtml(spotsLabel(placesTaken(roster), max, lookingFor))}</span>
       </div>
       <div class="coach-req-roster" data-roster>${rosterHtml(roster)}</div>
+      ${req.payment_note ? `<p class="coach-req-card__coach-note">How to pay: ${escapeHtml(req.payment_note)}</p>` : ''}
       ${coachNote ? `<p class="coach-req-card__coach-note">${escapeHtml(coachNote)}</p>` : ''}
       ${isAdminViewer ? '<p class="coach-req-card__hint">View only — the hosting coach can adjust this session.</p>' : `
       <div class="coach-req-card__actions">
         <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-adjust-details>View &amp; adjust details</button>
       </div>
-      <p class="coach-req-card__hint">Deposits are handled by parents/players. You only see who’s confirmed and paid.</p>
+      <p class="coach-req-card__hint">Families pay you directly. Confirm each player once you’ve received their deposit.</p>
       `}
     `;
 
     hosted.querySelector('[data-adjust-details]')?.addEventListener('click', () => openAdjustOverlay(card));
   }
 
-  function markCardHosted(card) {
-    card.classList.remove('is-open');
-    card.classList.add('is-hosted');
+  // "Up to $30 / player" or "$25 – $50 / player": start from the top of the parent's budget.
+  function budgetAmount(priceRange) {
+    const amounts = String(priceRange || '').match(/\d+/g);
+    return amounts ? amounts[amounts.length - 1] : '';
+  }
 
-    const status = card.querySelector('.coach-req-status');
-    if (status) {
-      status.className = 'coach-req-status coach-req-status--hosted';
-      status.innerHTML = '<span class="coach-req-pulse coach-req-pulse--green"></span> Open to join';
+  function closeAcceptOverlay() {
+    acceptingId = null;
+    if (acceptError) {
+      acceptError.hidden = true;
+      acceptError.textContent = '';
     }
+    if (acceptOverlay) acceptOverlay.hidden = true;
+  }
 
-    card.querySelector('.coach-req-card__timer')?.remove();
-    card.querySelectorAll('.coach-req-card__actions').forEach((el) => {
-      if (!el.closest('.coach-req-card__hosted')) el.remove();
-    });
-    const oldHint = [...card.querySelectorAll('.coach-req-card__hint')].find((el) => !el.closest('.coach-req-card__hosted'));
-    oldHint?.remove();
+  function showAcceptError(message) {
+    if (!acceptError) return;
+    acceptError.hidden = false;
+    acceptError.textContent = message;
+  }
 
-    let players = parsePlayers(card);
-    if (!players.length) {
-      const name = card.querySelector('.coach-req-card__player strong')?.textContent?.trim() || 'Player';
-      const initials = card.querySelector('.coach-req-card__player .admin-person-fallback')?.textContent?.trim() || 'PL';
-      players = [{
-        id: `p-${card.dataset.requestId || Date.now()}`,
-        name,
-        initials,
-        role: 'requester',
-        paid: false,
-        paid_with: '',
-      }];
+  function openAcceptOverlay(card) {
+    acceptingId = card.dataset.requestId;
+    const budget = card.dataset.priceRange || '';
+    if (acceptPrice) acceptPrice.value = budgetAmount(budget);
+    if (acceptNote) acceptNote.value = modal.dataset.paymentNote || '';
+    if (acceptBudget) {
+      acceptBudget.hidden = !budget;
+      acceptBudget.textContent = budget ? `The parent’s budget: ${budget}` : '';
     }
-
-    const max = card.dataset.maxPlayers ?? '';
-    const min = card.dataset.minPlayers ?? '';
-    let looking = card.dataset.lookingFor ?? '';
-    if (looking === '' && max !== '') looking = String(Math.max(0, Number(max) - players.length));
-
-    renderHostedFooter(card, {
-      joined: players.length,
-      max,
-      min,
-      lookingFor: looking,
-      coachNote: card.dataset.coachNote || '',
-      players,
-    });
-    updateCountdowns();
+    if (acceptError) acceptError.hidden = true;
+    if (acceptOverlay) {
+      acceptOverlay.hidden = false;
+      acceptPrice?.focus();
+    }
   }
 
   function openAdjustOverlay(card) {
     adjustingCard = card;
     lookingManual = false;
-    const players = parsePlayers(card);
-    const joined = players.length || Number(card.dataset.playersJoined || 1) || 1;
+    const joined = Number(card.dataset.playersJoined || 1) || 1;
     const max = card.dataset.maxPlayers || '';
     const min = card.dataset.minPlayers || '';
     let looking = card.dataset.lookingFor;
@@ -433,44 +462,7 @@
   }
 
   function bindCardActions(card) {
-    card.querySelector('[data-accept-request]')?.addEventListener('click', async () => {
-      const id = card.dataset.requestId;
-      if (!id) return;
-      const btn = card.querySelector('[data-accept-request]');
-      const declineBtn = card.querySelector('[data-decline-request]');
-      window.CoachNowBusy?.setBusy(btn, { label: 'Accepting…' });
-      if (declineBtn) declineBtn.disabled = true;
-
-      try {
-        const payload = await apiFetch(`/api/session-requests/${encodeURIComponent(id)}/accept`, {
-          method: 'POST',
-          body: JSON.stringify({}),
-        });
-        const req = payload.data;
-        patchStoredRequest(id, req);
-        const existing = list.querySelector(`[data-request-id="${CSS.escape(id)}"]`);
-        if (existing) existing.remove();
-        list.prepend(buildCard(req));
-        updateBadges();
-        updateCountdowns();
-      } catch (error) {
-        window.CoachNowBusy?.clearBusy(btn);
-        if (declineBtn) declineBtn.disabled = false;
-        if (error?.payload?.needs_payout_setup) {
-          const go = window.confirm(`${error.message}\n\nOpen payout setup now?`);
-          if (go) window.location.href = '/coach/stripe/onboard';
-          return;
-        }
-        if (window.CoachNowDialog?.alert) {
-          await window.CoachNowDialog.alert({
-            title: 'Accept failed',
-            message: error.message || 'Could not accept request.',
-          });
-        } else {
-          window.alert(error.message || 'Could not accept request.');
-        }
-      }
-    });
+    card.querySelector('[data-accept-request]')?.addEventListener('click', () => openAcceptOverlay(card));
 
     card.querySelector('[data-decline-request]')?.addEventListener('click', async () => {
       const btn = card.querySelector('[data-decline-request]');
@@ -574,6 +566,7 @@
     card.dataset.lookingFor = req.looking_for ?? '';
     card.dataset.coachNote = req.coach_note || '';
     card.dataset.sessionType = req.session_type || '';
+    card.dataset.priceRange = req.price_range || '';
     card.dataset.requestedCoachId = req.requested_coach_id != null ? String(req.requested_coach_id) : '';
     // Real deadline from the server (parent's cutoff, or 1h before the session for "Anytime").
     card.dataset.acceptSeconds = String(req.accept_seconds || 0);
@@ -608,14 +601,7 @@
         </div>
         ${req.notes ? `<p class="coach-req-card__notes">${escapeHtml(req.notes)}</p>` : ''}
       `;
-      renderHostedFooter(card, {
-        joined: players.length || Number(card.dataset.playersJoined || 1),
-        max: req.max_players ?? '',
-        min: req.min_players ?? '',
-        lookingFor: req.looking_for ?? '',
-        coachNote: req.coach_note || '',
-        players,
-      });
+      renderHostedFooter(card, req);
       return card;
     }
 
@@ -652,7 +638,7 @@
         <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request data-loading-text="Accepting…">Accept &amp; host</button>
         <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request data-loading-text="Declining…">Decline</button>
       </div>
-      <p class="coach-req-card__hint">If you accept, the family’s card is charged the $10 deposit (+ $2 CoachNow fee for non-members) — you receive the $10. You just host — and can see who’s paid.</p>
+      <p class="coach-req-card__hint">Accept to set your price. You and the family arrange payment directly; CoachNow doesn’t collect it.</p>
       ` : `<p class="coach-req-card__hint">View only — this request is waiting for ${escapeHtml(preferredCoachName(req) || 'a coach')} to accept.</p>`}
     `;
 
@@ -679,15 +665,7 @@
     list.querySelectorAll('.coach-req-card.is-hosted').forEach((card) => {
       const match = stored.find((item) => item.id === card.dataset.requestId);
       if (!match) return;
-      const players = Array.isArray(match.players) ? match.players : parsePlayers(card);
-      renderHostedFooter(card, {
-        joined: players.length || Number(match.players_joined || 1),
-        max: match.max_players ?? card.dataset.maxPlayers ?? '',
-        min: match.min_players ?? card.dataset.minPlayers ?? '',
-        lookingFor: match.looking_for ?? card.dataset.lookingFor ?? '',
-        coachNote: match.coach_note || card.dataset.coachNote || '',
-        players,
-      });
+      renderHostedFooter(card, match);
     });
     updateBadges();
   }
@@ -745,7 +723,6 @@
     const min = adjustMin?.value === '' ? '' : Number(adjustMin.value);
     const looking = adjustLooking?.value === '' ? '' : Number(adjustLooking.value);
     const note = adjustNote?.value.trim() || '';
-    const players = parsePlayers(adjustingCard);
 
     if (!joined || joined < 1) {
       if (adjustError) {
@@ -782,19 +759,11 @@
           min_players: min === '' ? null : min,
           looking_for: looking === '' ? null : looking,
           coach_note: note || null,
-          status: 'hosted',
         }),
       });
       const req = payload.data;
       patchStoredRequest(id, req);
-      renderHostedFooter(adjustingCard, {
-        joined: Array.isArray(req.players) ? req.players.length : joined,
-        max: req.max_players ?? '',
-        min: req.min_players ?? '',
-        lookingFor: req.looking_for ?? '',
-        coachNote: req.coach_note || '',
-        players: req.players || players,
-      });
+      renderHostedFooter(adjustingCard, req);
       window.CoachNowBusy?.clearBusy(adjustSaveBtn);
       closeAdjustOverlay();
       updateBadges();
@@ -808,6 +777,89 @@
   });
 
   adjustCancelBtn?.addEventListener('click', closeAdjustOverlay);
+
+  acceptCancelBtn?.addEventListener('click', closeAcceptOverlay);
+  acceptPrice?.addEventListener('input', () => {
+    if (acceptError) acceptError.hidden = true;
+  });
+
+  acceptSaveBtn?.addEventListener('click', async () => {
+    const id = acceptingId;
+    if (!id) return;
+    const price = acceptPrice?.value.trim() ?? '';
+    if (price === '' || Number(price) < 0) {
+      showAcceptError('Enter your price per player.');
+      acceptPrice?.focus();
+      return;
+    }
+
+    const note = acceptNote?.value.trim() || '';
+    window.CoachNowBusy?.setBusy(acceptSaveBtn, { label: 'Accepting…' });
+    try {
+      const payload = await apiFetch(`/api/session-requests/${encodeURIComponent(id)}/accept`, {
+        method: 'POST',
+        body: JSON.stringify({ price_per_player: Number(price), payment_note: note || null }),
+      });
+      const req = payload.data;
+      patchStoredRequest(id, req);
+      if (note) modal.dataset.paymentNote = note;
+      list.querySelector(`[data-request-id="${CSS.escape(id)}"]`)?.remove();
+      list.prepend(buildCard(req));
+      closeAcceptOverlay();
+      updateBadges();
+      updateCountdowns();
+    } catch (error) {
+      showAcceptError(error.message || 'Could not accept this request.');
+      // Another coach got there first, so the card shouldn't stay.
+      loadLiveRequests();
+    } finally {
+      window.CoachNowBusy?.clearBusy(acceptSaveBtn);
+    }
+  });
+
+  // Roster buttons are redrawn on every refresh, so listen on the list.
+  list.addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-confirm-player], [data-decline-player]');
+    const card = btn?.closest('.coach-req-card');
+    if (!btn || !card) return;
+
+    const confirming = btn.hasAttribute('data-confirm-player');
+    if (!confirming) {
+      const ok = window.CoachNowDialog?.confirm
+        ? await window.CoachNowDialog.confirm({
+            title: 'Decline this player?',
+            message: 'They’ll be told you couldn’t confirm their place.',
+            confirmLabel: 'Decline',
+            cancelLabel: 'Keep them',
+          })
+        : window.confirm('Decline this player?');
+      if (!ok) return;
+    }
+
+    const id = card.dataset.requestId;
+    const action = confirming ? 'confirm' : 'decline';
+    window.CoachNowBusy?.setBusy(btn, { label: confirming ? 'Confirming…' : 'Declining…' });
+    try {
+      const payload = await apiFetch(`/api/session-requests/${encodeURIComponent(id)}/players/${encodeURIComponent(btn.dataset.playerId)}/${action}`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      patchStoredRequest(id, payload.data);
+      // Look it up again: a refresh or a second confirm may have redrawn the card by now.
+      list.querySelector(`[data-request-id="${CSS.escape(id)}"]`)?.replaceWith(buildCard(payload.data));
+      updateBadges();
+    } catch (error) {
+      window.CoachNowBusy?.clearBusy(btn);
+      if (window.CoachNowDialog?.alert) {
+        await window.CoachNowDialog.alert({
+          title: confirming ? 'Could not confirm' : 'Could not decline',
+          message: error.message || 'Please try again.',
+        });
+      } else {
+        window.alert(error.message || 'Please try again.');
+      }
+    }
+  });
 
   bell?.addEventListener('click', openModal);
   kpi?.addEventListener('click', openModal);
@@ -831,6 +883,10 @@
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
+    if (acceptOverlay && !acceptOverlay.hidden) {
+      closeAcceptOverlay();
+      return;
+    }
     if (adjustOverlay && !adjustOverlay.hidden) {
       closeAdjustOverlay();
       return;

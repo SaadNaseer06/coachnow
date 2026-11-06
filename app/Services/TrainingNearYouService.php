@@ -77,7 +77,7 @@ class TrainingNearYouService
         // "accept by" deadline passed without a coach.
         $requests = $requests->reject(fn (SessionRequest $r) => $r->isJoinClosed()
             || $r->isUnhostedAndExpired()
-            || ($r->max_players !== null && $r->players->count() >= (int) $r->max_players));
+            || $r->isFull());
 
         return $this->mapAndFilterRequests($requests, $origin, $radiusMiles, $sport, $age, $limit);
     }
@@ -261,8 +261,8 @@ class TrainingNearYouService
             $distance = ($origin && $location)
                 ? $location->distanceMilesFrom($origin['lat'], $origin['lng'])
                 : null;
-            $players = $session->relationLoaded('players') ? $session->players->count() : $session->players()->count();
-            $looking = $session->looking_for ?? max(0, (int) ($session->max_players ?? 0) - $players);
+            $players = $session->placesTaken();
+            $looking = $session->spotsLeft() ?? 0;
 
             return [
                 'id' => $session->id,
@@ -281,11 +281,11 @@ class TrainingNearYouService
                     ? Carbon::parse($session->session_time)->format('g:i A')
                     : 'Time TBD',
                 'price' => null,
-                'price_label' => $session->price_range ?: 'Budget flexible',
+                'price_label' => $session->priceLabel() ?: 'Budget flexible',
                 'booked_count' => $players,
-                'max_players' => $session->max_players,
+                'max_players' => $session->capacity(),
                 'spots_remaining' => $looking,
-                'full' => $session->max_players !== null && $players >= (int) $session->max_players,
+                'full' => $session->isFull(),
                 'joinable' => false,
                 'capacity_label' => $players.' joined'.($looking > 0 ? ' · looking for '.$looking : ''),
                 'distance_miles' => $distance,

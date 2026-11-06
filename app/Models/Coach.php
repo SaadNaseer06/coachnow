@@ -101,6 +101,9 @@ class Coach extends Model
         'credentials',
         'approval_status',
         'background_check_status',
+        'background_check_provider',
+        'background_check_date',
+        'payment_instructions',
         'verified_at',
         'approved_at',
         'last_active_at',
@@ -111,6 +114,7 @@ class Coach extends Model
         return [
             'rate' => 'decimal:2',
             'group_rate' => 'decimal:2',
+            'background_check_date' => 'date',
             'max_group_size' => 'integer',
             'buffer_minutes' => 'integer',
             'rating' => 'decimal:1',
@@ -427,8 +431,27 @@ class Coach extends Model
 
     public function isCoachNowVerified(): bool
     {
-        return $this->verified_at !== null
-            || in_array($this->background_check_status, ['clear'], true);
+        return $this->verified_at !== null;
+    }
+
+    /**
+     * A screening provider confirmed this coach. Needs the provider and date, so the badge
+     * can't appear from a status alone.
+     */
+    public function hasVerifiedBackgroundCheck(): bool
+    {
+        return $this->background_check_status === 'clear'
+            && filled($this->background_check_provider)
+            && $this->background_check_date !== null;
+    }
+
+    public function backgroundCheckSummary(): ?string
+    {
+        if (! $this->hasVerifiedBackgroundCheck()) {
+            return null;
+        }
+
+        return $this->background_check_provider.' · checked '.$this->background_check_date->format('M j, Y');
     }
 
     public function isCoachNowApproved(): bool

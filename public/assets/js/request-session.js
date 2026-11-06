@@ -1,6 +1,4 @@
 (() => {
-  const DEPOSIT_AMOUNT = 10;
-
   const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
 
   async function apiFetch(url, options = {}) {
@@ -53,7 +51,6 @@
     playerLevel: '',
     notes: '',
     requestId: '',
-    cardOnFile: '',
   };
 
   const morningSlots = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM'];
@@ -92,19 +89,15 @@
     startAnother: document.getElementById('reqStartAnother'),
     knowByInput: document.getElementById('reqKnowBy'),
     waitingCoach: document.getElementById('reqWaitingCoach'),
-    depositPaid: document.getElementById('reqDepositPaid'),
-    joinDepositPanel: document.getElementById('reqJoinDepositPanel'),
-    joinAsAnother: document.getElementById('reqJoinAsAnother'),
-    joinPayBtn: document.getElementById('reqJoinPayBtn'),
-    joinCancelBtn: document.getElementById('reqJoinCancelBtn'),
-    cardModal: document.getElementById('reqCardModal'),
-    cardConfirmBtn: document.getElementById('reqCardConfirmBtn'),
+    coachAccepted: document.getElementById('reqCoachAccepted'),
+    acceptedTitle: document.getElementById('reqAcceptedTitle'),
+    acceptedText: document.getElementById('reqAcceptedText'),
+    coachContact: document.getElementById('reqCoachContact'),
+    submitBtn: document.querySelector('#reqFormStep4 button[type="submit"]'),
+    phoneInput: document.getElementById('reqPhone'),
   };
 
   let countdownTimer = null;
-  const appRoot = document.getElementById('requestSessionApp');
-  const depositTotal = appRoot?.dataset.depositTotal || '$12';
-  const depositTotalNote = appRoot?.dataset.depositTotalNote || '$12 ($10 deposit + $2 fee)';
   // Requests stay open to coaches (and joiners) until 1 hour before the session.
   const CUTOFF_MS = 60 * 60 * 1000;
 
@@ -657,7 +650,7 @@
     extra.push(`<div><dt>Budget / player</dt><dd>${escapeHtml(state.priceRange || 'No preference')}</dd></div>`);
     if (playersLabel()) extra.push(`<div><dt>Players</dt><dd>${escapeHtml(playersLabel())}</dd></div>`);
     if (state.playerLevel) extra.push(`<div><dt>Level</dt><dd>${escapeHtml(state.playerLevel)}</dd></div>`);
-    extra.push(`<div><dt>Deposit</dt><dd>Card on file · $${DEPOSIT_AMOUNT} charged when a coach accepts</dd></div>`);
+    extra.push('<div><dt>Payment</dt><dd>Arranged directly with your coach</dd></div>');
     els.liveSummary.innerHTML = extra.join('');
   }
 
@@ -713,35 +706,59 @@
 
   function updateStoredRequest() {}
 
-  function showDepositState(status, match) {
-    const hosted = status === 'hosted' || status === 'accepted' || status === 'awaiting_deposit' || status === 'confirmed';
-    const players = Array.isArray(match?.players) ? match.players : [];
-    const requester = players.find((p) => p.role === 'requester') || players[0];
-    const requesterPaid = !!(requester?.paid || match?.deposit_paid);
-    const joining = els.joinDepositPanel && !els.joinDepositPanel.hidden;
-    const cardLabel = match?.card_on_file || requester?.card_on_file || state.cardOnFile || '';
-
-    if (els.waitingCoach) els.waitingCoach.hidden = hosted || joining;
-    if (els.depositPaid) els.depositPaid.hidden = !(hosted && requesterPaid) || joining;
-
-    const cardNote = document.getElementById('reqCardOnFileNote');
-    if (cardNote && cardLabel && !hosted) {
-      cardNote.textContent = `Saved ${cardLabel}. ${depositTotalNote} charges automatically when a coach accepts. Keep this tab open, then Accept & host on the coach dashboard.`;
+  function contactHtml(contact) {
+    const phone = String(contact.phone || '').replace(/[^0-9+]/g, '');
+    const lines = [];
+    const buttons = [];
+    if (contact.email) {
+      buttons.push(`<a class="msg-coach__btn msg-coach__btn--primary" href="mailto:${escapeHtml(contact.email)}?subject=${encodeURIComponent('CoachNow session')}">Message Coach</a>`);
     }
-
-    if (!hosted) {
-      const liveStatus = document.querySelector('.req-live-card__status');
-      if (liveStatus) liveStatus.innerHTML = '<span class="req-pulse"></span> Open · Card on file';
+    if (phone) {
+      buttons.push(`<a class="msg-coach__btn${contact.email ? '' : ' msg-coach__btn--primary'}" href="sms:${escapeHtml(phone)}">${contact.email ? 'Text' : 'Message Coach'}</a>`);
+      buttons.push(`<a class="msg-coach__btn" href="tel:${escapeHtml(phone)}">Call</a>`);
     }
+    lines.push(`<p class="msg-coach__line"><strong>${escapeHtml(contact.name || 'Your coach')}</strong></p>`);
+    if (contact.email) lines.push(`<p class="msg-coach__line">${escapeHtml(contact.email)}</p>`);
+    if (phone) lines.push(`<p class="msg-coach__line">${escapeHtml(contact.phone)}</p>`);
+    if (contact.payment_note) {
+      lines.push(`<p class="msg-coach__line msg-coach__pay"><strong>How to pay:</strong> ${escapeHtml(contact.payment_note)}</p>`);
+    }
+    return `<div class="msg-coach"><div class="msg-coach__actions">${buttons.join('')}</div>${lines.join('')}</div>`;
+  }
 
-    if (hosted && requesterPaid) {
-      const liveStatus = document.querySelector('.req-live-card__status');
-      if (liveStatus) liveStatus.innerHTML = '<span class="req-pulse"></span> Hosted · Deposit charged';
-      if (els.countdownHint) els.countdownHint.textContent = `Coach accepted — ${depositTotal} charged · session open for others to join`;
-      const paidLabel = document.getElementById('reqPaidWith');
-      if (paidLabel && (requester?.paid_with || cardLabel)) {
-        paidLabel.textContent = `Charged to ${requester?.paid_with || cardLabel}`;
-      }
+  function showRequestState(status, match) {
+    const accepted = ['hosted', 'accepted', 'awaiting_deposit', 'confirmed'].includes(status);
+    const confirmed = match?.my_place === 'confirmed';
+    const liveStatus = document.querySelector('.req-live-card__status');
+
+    if (els.waitingCoach) els.waitingCoach.hidden = accepted;
+    if (els.coachAccepted) els.coachAccepted.hidden = !accepted;
+    if (liveStatus) {
+      const label = confirmed ? 'Confirmed' : (accepted ? 'Accepted · Arrange payment' : 'Open');
+      liveStatus.innerHTML = `<span class="req-pulse"></span> ${label}`;
+    }
+    const pageTitle = document.getElementById('reqSuccessTitle');
+    if (pageTitle) pageTitle.textContent = accepted ? 'A coach accepted your request' : 'Your request is live';
+    if (!accepted) return;
+
+    const lead = document.getElementById('reqSuccessLead');
+    if (lead) lead.textContent = confirmed ? 'You’re all set for this session.' : 'Your next step is below.';
+
+    const countdown = document.getElementById('reqAcceptCountdown');
+    if (countdown) countdown.hidden = true;
+    if (countdownTimer) clearInterval(countdownTimer);
+
+    if (els.acceptedTitle) els.acceptedTitle.textContent = confirmed ? 'You’re confirmed' : 'Arrange payment';
+    if (els.acceptedText) {
+      const price = match?.price_label ? `Session price: ${match.price_label}. ` : '';
+      els.acceptedText.textContent = confirmed
+        ? `${price}Your place is confirmed.`
+        : `${price}Contact your coach to arrange payment. They’ll confirm your place once your deposit is received.`;
+    }
+    if (els.coachContact && match?.coach_contact) {
+      const html = contactHtml(match.coach_contact);
+      // This runs on a timer, so only redraw when something changed.
+      if (els.coachContact.innerHTML !== html) els.coachContact.innerHTML = html;
     }
   }
 
@@ -761,7 +778,7 @@
       .then((payload) => {
         const match = payload.data;
         if (!match) return;
-        showDepositState(match.status, match);
+        showRequestState(match.status, match);
       })
       .catch(() => {});
   }
@@ -775,14 +792,12 @@
     state.minPlayers = '';
     state.maxPlayers = '';
     state.playerLevel = '';
-    state.cardOnFile = '';
-    closeCardModal();
     if (els.form1) els.form1.reset();
     if (els.form4) els.form4.reset();
     if (els.toDetailsBtn) els.toDetailsBtn.disabled = true;
-    showDepositState('', null);
-    if (els.waitingCoach) els.waitingCoach.hidden = false;
-    if (els.joinDepositPanel) els.joinDepositPanel.hidden = true;
+    showRequestState('', null);
+    const countdown = document.getElementById('reqAcceptCountdown');
+    if (countdown) countdown.hidden = false;
     document.querySelectorAll('#reqKnowByPresets .req-chip').forEach((chip) => chip.classList.remove('is-active'));
     setMinDate();
     goToStep(1);
@@ -1041,39 +1056,15 @@
       state.playerLevel = document.getElementById('reqPlayerLevel')?.value || '';
       state.notes = document.getElementById('reqNotes')?.value.trim() || '';
 
-      openCardModal();
+      publishRequest();
     });
   }
 
-  function openCardModal() {
-    if (!els.cardModal) return;
-    if (els.cardModal.parentElement !== document.body) {
-      document.body.appendChild(els.cardModal);
-    }
-    els.cardModal.hidden = false;
-    document.body.classList.add('req-pay-modal-open');
-    window.coachNowLenis?.stop();
-
-    const root = document.querySelector('#reqCardOnFileBox [data-payment-root]');
-    const wallet = window.CoachNowPayment?.api(root);
-    wallet?.collapseForm?.();
-    const body = document.getElementById('reqCardOnFileBox');
-    if (body) body.scrollTop = 0;
-  }
-
-  function closeCardModal() {
-    if (!els.cardModal) return;
-    els.cardModal.hidden = true;
-    document.body.classList.remove('req-pay-modal-open');
-    window.coachNowLenis?.start();
-  }
-
-  async function publishRequest(cardLabel, stripePaymentMethodId = null) {
-    state.cardOnFile = cardLabel;
+  async function publishRequest() {
     // Re-read in case the hidden field was rendered after init.
     syncCoachSelectionFromUi();
 
-    window.CoachNowBusy?.setBusy(els.cardConfirmBtn, { label: 'Publishing…' });
+    window.CoachNowBusy?.setBusy(els.submitBtn, { label: 'Publishing…' });
     try {
       const payload = await apiFetch('/api/session-requests', {
         method: 'POST',
@@ -1092,9 +1083,7 @@
           min_players: state.minPlayers ? Number(state.minPlayers) : null,
           max_players: state.maxPlayers ? Number(state.maxPlayers) : null,
           know_by_at: state.knowByAt ? state.knowByAt.toISOString() : null,
-          card_on_file: cardLabel,
-          stripe_payment_method_id: stripePaymentMethodId,
-          deposit: DEPOSIT_AMOUNT,
+          phone: els.phoneInput?.value.trim() || null,
           requested_coach_id: state.requestedCoachIds[0] || null,
           requested_coach_ids: state.requestedCoachIds.length ? state.requestedCoachIds : [],
         }),
@@ -1134,91 +1123,16 @@
           }
         }
       }
-      showDepositState('open', request);
-      if (els.waitingCoach) els.waitingCoach.hidden = false;
-      closeCardModal();
+      showRequestState('open', request);
       goToStep(5);
     } catch (error) {
-      window.CoachNowBusy?.clearBusy(els.cardConfirmBtn);
+      window.CoachNowBusy?.clearBusy(els.submitBtn);
       const overlap = /overlap|already have|not free|only available coach/i.test(error.message || '');
       await notify(error.message || 'Could not publish session request.', overlap ? 'That time is taken' : 'Request failed');
     } finally {
-      window.CoachNowBusy?.clearBusy(els.cardConfirmBtn);
+      window.CoachNowBusy?.clearBusy(els.submitBtn);
     }
   }
-
-  function saveSessionRequest() {}
-
-  els.cardConfirmBtn?.addEventListener('click', async () => {
-    const wallet = window.CoachNowPayment?.api(document.querySelector('#reqCardOnFileBox [data-payment-root]'));
-    window.CoachNowBusy?.setBusy(els.cardConfirmBtn, { label: 'Saving card…' });
-    try {
-      const authorized = await wallet?.authorize?.();
-      if (!authorized?.ok) return;
-      const label = authorized.method?.label
-        || `${authorized.method?.brand || 'Card'} ···· ${authorized.method?.last4 || '••••'}`;
-      await publishRequest(label, authorized.stripe_payment_method_id || null);
-    } finally {
-      window.CoachNowBusy?.clearBusy(els.cardConfirmBtn);
-    }
-  });
-
-  document.querySelectorAll('[data-close-card-modal]').forEach((btn) => {
-    btn.addEventListener('click', closeCardModal);
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && els.cardModal && !els.cardModal.hidden) closeCardModal();
-  });
-
-  els.joinAsAnother?.addEventListener('click', () => {
-    if (els.depositPaid) els.depositPaid.hidden = true;
-    if (els.waitingCoach) els.waitingCoach.hidden = true;
-    if (els.joinDepositPanel) {
-      els.joinDepositPanel.hidden = false;
-      window.CoachNowPayment?.mount(document.querySelector('#reqJoinDepositPanel [data-payment-root]'));
-    }
-  });
-
-  els.joinCancelBtn?.addEventListener('click', () => {
-    if (els.joinDepositPanel) els.joinDepositPanel.hidden = true;
-    syncLiveRequestStatus();
-  });
-
-  els.joinPayBtn?.addEventListener('click', async () => {
-    if (!state.requestId) return;
-    const wallet = window.CoachNowPayment?.api(document.querySelector('#reqJoinDepositPanel [data-payment-root]'));
-    window.CoachNowBusy?.setBusy(els.joinPayBtn, { label: 'Processing…' });
-    try {
-      const result = await wallet?.authorize?.();
-      if (!result?.ok) return;
-
-      const paidWith = result.method?.label
-        || `${result.method?.brand || 'Card'} ···· ${result.method?.last4 || '••••'}`;
-      window.CoachNowBusy?.setBusy(els.joinPayBtn, { label: 'Joining…' });
-      const payload = await apiFetch(`/api/session-requests/${encodeURIComponent(state.requestId)}/join`, {
-        method: 'POST',
-        body: JSON.stringify({
-          paid: true,
-          paid_with: paidWith,
-          card_on_file: paidWith,
-          stripe_payment_method_id: result.stripe_payment_method_id || null,
-        }),
-      });
-      const match = payload.data || {};
-      const players = Array.isArray(match.players) ? match.players : [];
-      if (els.joinDepositPanel) els.joinDepositPanel.hidden = true;
-      showDepositState(match.status || 'hosted', { ...match, deposit_paid: true });
-      const paidLabel = document.getElementById('reqPaidWith');
-      if (paidLabel) {
-        paidLabel.textContent = `${players.length || 1} players on roster · latest join paid with ${paidWith}`;
-      }
-    } catch (error) {
-      await notify(error.message || 'Could not join this session.', 'Join failed');
-    } finally {
-      window.CoachNowBusy?.clearBusy(els.joinPayBtn);
-    }
-  });
 
   document.querySelectorAll('[data-go-step]').forEach((btn) => {
     btn.addEventListener('click', () => {

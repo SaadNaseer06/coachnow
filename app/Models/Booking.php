@@ -11,6 +11,9 @@ use Illuminate\Support\Str;
 
 class Booking extends Model
 {
+    /** Arranged between the family and the coach; CoachNow took no money. */
+    public const PAID_DIRECTLY = 'direct';
+
     /** @use HasFactory<\Database\Factories\BookingFactory> */
     use HasFactory;
 

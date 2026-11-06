@@ -276,12 +276,21 @@
             <select class="admin-select" name="background_check_status" required>
               <option value="none" @selected(old('background_check_status', $coach->background_check_status ?? 'none') === 'none')>None</option>
               <option value="pending" @selected(old('background_check_status', $coach->background_check_status ?? 'none') === 'pending')>Pending</option>
-              <option value="clear" @selected(old('background_check_status', $coach->background_check_status ?? 'none') === 'clear')>Clear</option>
+              <option value="clear" @selected(old('background_check_status', $coach->background_check_status ?? 'none') === 'clear')>Clear (provider confirmed)</option>
             </select>
           </label>
+          <label class="admin-field">
+            <span>Check provider</span>
+            <input class="admin-input" type="text" name="background_check_provider" maxlength="120" value="{{ old('background_check_provider', $coach->background_check_provider) }}" placeholder="e.g. NCSI">
+          </label>
+          <label class="admin-field">
+            <span>Date checked</span>
+            <input class="admin-input" type="date" name="background_check_date" max="{{ now()->toDateString() }}" value="{{ old('background_check_date', $coach->background_check_date?->toDateString()) }}">
+          </label>
+          <p class="admin-field--full text-[12px] text-zinc-500">Parents see “Background check verified” only when this is Clear, with the provider and date. Set it only after the provider confirms the coach met the screening criteria.</p>
           <label class="admin-field admin-field--full" style="display:flex;align-items:center;gap:8px">
             <input type="checkbox" name="verified" value="1" @checked(old('verified', (bool) $coach->verified_at))>
-            <span>CoachNow Verified badge</span>
+            <span>Profile Verified badge (not a background check)</span>
           </label>
           <label class="admin-field admin-field--full">
             <span>Experience</span>

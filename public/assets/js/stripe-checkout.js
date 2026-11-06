@@ -96,7 +96,6 @@
         return {
           payment_method_id: id,
           label: 'Card on file',
-          deposit_amount: config.deposit_amount,
         };
       },
     };

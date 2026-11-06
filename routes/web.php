@@ -41,7 +41,6 @@ Route::post('/api/stripe/webhook', StripeWebhookController::class)->name('stripe
 
 Route::middleware('auth')->group(function () {
     Route::get('/api/stripe/setup-intent', [StripePaymentController::class, 'setupIntent'])->name('stripe.setup-intent');
-    Route::post('/api/stripe/deposit-intent', [StripePaymentController::class, 'createDepositIntent'])->name('stripe.deposit-intent');
     Route::post('/api/stripe/booking-intent', [StripePaymentController::class, 'createBookingIntent'])->name('stripe.booking-intent');
     Route::post('/api/stripe/confirm-booking', [StripePaymentController::class, 'confirmBooking'])->name('stripe.confirm-booking');
 
@@ -68,6 +67,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/api/session-requests/{reference}/accept', [SessionRequestController::class, 'accept'])->name('session-requests.accept');
         Route::post('/api/session-requests/{reference}/decline', [SessionRequestController::class, 'decline'])->name('session-requests.decline');
         Route::patch('/api/session-requests/{reference}', [SessionRequestController::class, 'update'])->name('session-requests.update');
+        Route::post('/api/session-requests/{reference}/players/{player}/confirm', [SessionRequestController::class, 'confirmPlayer'])->whereNumber('player')->name('session-requests.players.confirm');
+        Route::post('/api/session-requests/{reference}/players/{player}/decline', [SessionRequestController::class, 'declinePlayer'])->whereNumber('player')->name('session-requests.players.decline');
     });
 });
 

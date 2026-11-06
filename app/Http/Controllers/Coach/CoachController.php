@@ -548,6 +548,7 @@ class CoachController extends Controller
             ->get()
             ->each(fn ($group) => $group->is_public && $group->ensureShareToken());
 
+        SessionRequest::expireStale();
         $pendingRequestCount = SessionRequest::query()
             ->where('status', 'open')
             ->visibleToCoach($coach)

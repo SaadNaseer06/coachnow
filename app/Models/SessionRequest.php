@@ -30,6 +30,8 @@ class SessionRequest extends Model
         'looking_for',
         'know_by_at',
         'deposit_amount',
+        'price_per_player',
+        'payment_note',
         'card_on_file',
         'status',
         'host_coach_id',
@@ -45,6 +47,7 @@ class SessionRequest extends Model
             'know_by_at' => 'datetime',
             'accepted_at' => 'datetime',
             'deposit_amount' => 'decimal:2',
+            'price_per_player' => 'decimal:2',
             'min_players' => 'integer',
             'max_players' => 'integer',
             'looking_for' => 'integer',
@@ -494,7 +497,8 @@ class SessionRequest extends Model
     {
         return match ($this->status) {
             'open' => 'Awaiting coach',
-            'hosted', 'awaiting_deposit', 'confirmed' => 'Accepted',
+            'awaiting_deposit' => 'Accepted · Arrange payment',
+            'hosted', 'confirmed' => 'Accepted',
             'cancelled' => 'Cancelled',
             'expired' => 'Expired',
             default => ucfirst((string) $this->status),
@@ -536,9 +540,132 @@ class SessionRequest extends Model
 
     public function isAcceptCutoffPassed(): bool
     {
+        if ($this->session_date && $this->session_date->lt(now()->startOfDay())) {
+            return true;
+        }
+
         $deadline = $this->acceptDeadline();
 
         return $deadline !== null && $deadline->lte(now());
+    }
+
+    /**
+     * Close open requests nobody accepted in time. Runs when the lists load, so it
+     * doesn't depend on a server cron job.
+     */
+    public static function expireStale(): void
+    {
+        static::query()
+            ->where('status', 'open')
+            ->where(function ($q) {
+                $q->whereDate('session_date', '<=', now()->toDateString())
+                    ->orWhere('know_by_at', '<=', now());
+            })
+            ->get()
+            ->filter(fn (self $session) => $session->isAcceptCutoffPassed())
+            ->each(fn (self $session) => $session->update(['status' => 'expired']));
+    }
+
+    /** Requests worth showing a coach: today or later. */
+    public function scopeCurrent($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('session_date')
+                ->orWhereDate('session_date', '>=', now()->toDateString());
+        });
+    }
+
+    /** Most players this session can take, or null when the coach decides case by case. */
+    public function capacity(): ?int
+    {
+        if ($this->max_players !== null) {
+            return (int) $this->max_players;
+        }
+
+        return CoachGroupSession::isGroupType($this->session_type) ? null : 1;
+    }
+
+    public function placesTaken(): int
+    {
+        $this->loadMissing('players');
+
+        return $this->players->filter(fn (SessionRequestPlayer $p) => $p->holdsPlace())->count();
+    }
+
+    public function confirmedCount(): int
+    {
+        $this->loadMissing('players');
+
+        return $this->players->filter(fn (SessionRequestPlayer $p) => $p->isConfirmed())->count();
+    }
+
+    /** Families waiting for the coach to confirm them, not counting the requester. */
+    public function pendingJoinCount(): int
+    {
+        $this->loadMissing('players');
+
+        return $this->players->filter(fn (SessionRequestPlayer $p) => $p->isPending() && ! $p->isRequester())->count();
+    }
+
+    public function spotsLeft(): ?int
+    {
+        $capacity = $this->capacity();
+
+        return $capacity === null ? null : max(0, $capacity - $this->placesTaken());
+    }
+
+    public function isFull(): bool
+    {
+        return $this->spotsLeft() === 0;
+    }
+
+    /** What a parent will owe the coach: the set price, or their budget until a coach sets one. */
+    public function priceLabel(): string
+    {
+        if ($this->price_per_player !== null) {
+            return '$'.rtrim(rtrim(number_format((float) $this->price_per_player, 2), '0'), '.').' per player';
+        }
+
+        return (string) ($this->price_range ?: '');
+    }
+
+    public function isAccepted(): bool
+    {
+        return in_array($this->status, ['hosted', 'awaiting_deposit', 'confirmed'], true) && $this->host_coach_id !== null;
+    }
+
+    public function playerFor(?User $user): ?SessionRequestPlayer
+    {
+        if (! $user) {
+            return null;
+        }
+
+        $this->loadMissing('players');
+
+        return $this->players->first(fn (SessionRequestPlayer $p) => (int) $p->user_id === (int) $user->id);
+    }
+
+    /**
+     * The accepting coach's details, only for a family still on this session.
+     *
+     * @return array{name: string, email: ?string, phone: ?string, payment_note: ?string}|null
+     */
+    public function coachContactFor(?User $user): ?array
+    {
+        $player = $this->playerFor($user);
+        if (! $player || ! $player->isActive() || ! $this->isAccepted()) {
+            return null;
+        }
+
+        $this->loadMissing('hostCoach.user');
+        $coach = $this->hostCoach;
+
+        return [
+            'name' => $coach?->display_name ?? 'Your coach',
+            'email' => $coach?->user?->email,
+            'phone' => $coach?->user?->phone,
+            'payment_note' => $this->payment_note,
+        ];
     }
 
     /**
@@ -624,6 +751,9 @@ class SessionRequest extends Model
             $waiting = 'Waiting for '.$this->requestedCoach->display_name;
         }
 
+        $place = $this->playerFor($viewer);
+        [$statusLabel, $statusTone] = $this->placeLabelFor($place);
+
         return [
             'reference' => $this->reference,
             'when' => $this->whenLabel(),
@@ -631,18 +761,46 @@ class SessionRequest extends Model
             'session_type' => $this->session_type ?? 'Session',
             'location' => $this->location_name ?? $this->location?->name ?? 'Location TBD',
             'status' => $this->status,
-            'status_label' => $this->statusLabel(),
-            'status_tone' => $this->statusTone(),
+            'status_label' => $statusLabel,
+            'status_tone' => $statusTone,
+            'place_status' => $place?->status,
+            'price_label' => $this->priceLabel(),
+            'coach_contact' => $this->coachContactFor($viewer),
             'coach' => $coachName,
             'requested_coach' => $coachName,
             'invited_coach_ids' => $this->invitedCoachIds(),
             'role' => $role,
-            'role_label' => $role === 'requester' ? 'You requested' : 'You joined',
+            'role_label' => match (true) {
+                $role === 'requester' => 'You requested',
+                (bool) $place?->isConfirmed() => 'You joined',
+                default => 'You asked to join',
+            },
             'waiting_label' => $waiting,
             'can_cancel' => $this->canBeCancelledBy($viewer),
-            'players_count' => $this->players->count(),
+            'players_count' => $this->placesTaken(),
             'posted' => $this->postedLabel(),
         ];
+    }
+
+    /**
+     * Label for a family's own place, which can differ from the session's status.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function placeLabelFor(?SessionRequestPlayer $place): array
+    {
+        if (! $place || ! in_array($this->status, ['open', 'hosted', 'awaiting_deposit', 'confirmed'], true)) {
+            return [$this->statusLabel(), $this->statusTone()];
+        }
+
+        return match (true) {
+            $place->status === SessionRequestPlayer::DECLINED => ['Not confirmed', 'red'],
+            $place->status === SessionRequestPlayer::CANCELLED => ['Cancelled', 'zinc'],
+            $place->isConfirmed() => ['Confirmed', 'green'],
+            ! $place->isRequester() => ['Pending coach approval', 'amber'],
+            $this->isAccepted() => ['Accepted · Arrange payment', 'amber'],
+            default => [$this->statusLabel(), $this->statusTone()],
+        };
     }
 
     /**
@@ -661,20 +819,18 @@ class SessionRequest extends Model
         $initials = $requesterPlayer?->initials
             ?? Str::of($name)->explode(' ')->map(fn ($p) => strtoupper(substr($p, 0, 1)))->take(2)->implode('');
 
-        $players = $this->players->map(fn (SessionRequestPlayer $player) => [
-            'id' => 'p-'.$player->id,
-            'name' => $player->name,
-            'initials' => $player->initials,
-            'role' => $player->role,
-            'paid' => (bool) $player->paid,
-            'paid_with' => $player->paid_with ?? '',
-            'card_on_file' => $player->card_on_file ?? '',
-        ])->values()->all();
+        $players = $this->players
+            ->filter(fn (SessionRequestPlayer $player) => $player->isActive())
+            ->map(fn (SessionRequestPlayer $player) => [
+                'id' => 'p-'.$player->id,
+                'player_id' => $player->id,
+                'name' => $player->name,
+                'initials' => $player->initials,
+                'role' => $player->role,
+                'status' => $player->status,
+            ])->values()->all();
 
-        $looking = $this->looking_for;
-        if ($looking === null && $this->max_players !== null) {
-            $looking = max(0, $this->max_players - count($players));
-        }
+        $looking = $this->spotsLeft();
 
         return [
             'id' => $this->reference,
@@ -692,8 +848,8 @@ class SessionRequest extends Model
             'max_players' => $this->max_players ?? '',
             'player_level' => $this->player_level,
             'know_by' => $this->knowByLabel(),
-            'deposit' => (float) $this->deposit_amount,
-            'card_on_file' => $this->card_on_file,
+            'price_per_player' => $this->price_per_player !== null ? (float) $this->price_per_player : null,
+            'price_label' => $this->priceLabel(),
             'status' => $this->status,
             'accept_seconds' => $this->acceptSeconds(),
             'acceptExpiresAt' => ($deadline = $this->acceptDeadline()) ? ((int) $deadline->getTimestamp() * 1000) : null,
@@ -702,12 +858,51 @@ class SessionRequest extends Model
             'host_coach_id' => $this->host_coach_id,
             'requested_coach_id' => $this->requested_coach_id,
             'requested_coach' => $this->requestedCoach?->display_name,
-            'players_joined' => count($players),
+            'players_joined' => $this->placesTaken(),
+            'confirmed_count' => $this->confirmedCount(),
+            'pending_count' => $this->pendingJoinCount(),
             'looking_for' => $looking ?? '',
             'coach_note' => $this->coach_note,
             'players' => $players,
-            'deposit_paid' => collect($players)->contains(fn ($p) => ($p['role'] ?? '') === 'requester' && ! empty($p['paid'])),
             'createdAt' => $this->created_at ? ((int) $this->created_at->getTimestamp() * 1000) : null,
+        ];
+    }
+
+    /**
+     * Portal data for a coach. Only the accepting coach gets the families' contact details,
+     * which is why they aren't in toPortalArray(): that goes out on a public channel.
+     *
+     * @return array<string, mixed>
+     */
+    public function toCoachPortalArray(?Coach $coach): array
+    {
+        $data = $this->toPortalArray();
+        if (! $coach || (int) $this->host_coach_id !== (int) $coach->id) {
+            return $data;
+        }
+
+        $this->loadMissing('players.user');
+        $people = $this->players->keyBy('id');
+        $data['payment_note'] = $this->payment_note;
+        $data['players'] = array_map(function (array $player) use ($people) {
+            $user = $people->get($player['player_id'])?->user;
+
+            return $player + ['email' => $user?->email, 'phone' => $user?->phone];
+        }, $data['players']);
+
+        return $data;
+    }
+
+    /**
+     * Portal data for a family on this session.
+     *
+     * @return array<string, mixed>
+     */
+    public function toFamilyPortalArray(?User $user): array
+    {
+        return $this->toPortalArray() + [
+            'coach_contact' => $this->coachContactFor($user),
+            'my_place' => $this->playerFor($user)?->status,
         ];
     }
 }

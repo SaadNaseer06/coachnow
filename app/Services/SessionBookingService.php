@@ -8,6 +8,7 @@ use App\Models\CoachGroupSession;
 use App\Models\CoachTimeBlock;
 use App\Models\GroupJoinRequest;
 use App\Models\SessionRequest;
+use App\Models\SessionRequestPlayer;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -16,24 +17,23 @@ use Illuminate\Validation\ValidationException;
 
 class SessionBookingService
 {
+    /**
+     * Put a request's places on the coach's calendar. Families pay the coach directly, so
+     * CoachNow takes nothing here. The requester's booking holds the slot as pending while
+     * the coach waits for the deposit; other families get one once they're confirmed.
+     */
     public function createFromAcceptedSession(SessionRequest $session, Coach $coach): void
     {
         $session->loadMissing(['players', 'requester']);
 
-        // Each family pays deposit + one convenience fee (its own transaction).
-        $deposit = $session->deposit_amount !== null
-            ? (float) $session->deposit_amount
-            : (float) ($coach->rate ?? 0);
-        $members = User::query()
-            ->whereIn('id', $session->players->pluck('user_id')->filter()->all() ?: [0])
-            ->get()
-            ->keyBy('id');
+        $price = (float) ($session->price_per_player ?? 0);
 
-        $players = $session->players;
+        $players = $session->players->filter(fn (SessionRequestPlayer $player) => $player->holdsPlace());
         if ($players->isEmpty() && $session->requester_id) {
             $players = collect([(object) [
                 'user_id' => $session->requester_id,
                 'name' => $session->requester?->name ?? 'Player',
+                'status' => SessionRequestPlayer::PENDING,
             ]]);
         }
 
@@ -42,8 +42,6 @@ class SessionBookingService
         foreach ($players as $player) {
             $athleteId = $player->user_id ?? null;
             $athleteName = $player->name ?? 'Player';
-            // Each family's own checkout: $2 fee unless they're a member.
-            $fee = $deposit > 0 ? User::convenienceFeeFor($athleteId ? $members->get($athleteId) : null) : 0.0;
 
             $existing = Booking::query()
                 ->where('session_request_id', $session->id)
@@ -63,16 +61,20 @@ class SessionBookingService
                 'session_date' => $session->session_date?->toDateString(),
                 'session_time' => $session->session_time,
                 'duration_minutes' => 60,
-                'amount' => $deposit + $fee,
-                'platform_fee_amount' => $fee,
-                'coach_payout_amount' => $deposit,
-                'payment_status' => ($player->paid ?? false) ? 'paid' : 'unpaid',
-                'stripe_payment_intent_id' => $player->stripe_payment_intent_id ?? null,
-                'status' => 'confirmed',
+                'amount' => $price,
+                'platform_fee_amount' => 0,
+                'coach_payout_amount' => $price,
+                'payment_status' => Booking::PAID_DIRECTLY,
+                'status' => $player->status === SessionRequestPlayer::CONFIRMED ? 'confirmed' : 'pending',
                 'session_request_id' => $session->id,
                 'group_session_id' => $group?->id,
                 'max_players' => $group?->max_players,
             ];
+
+            // Sessions paid through CoachNow before this flow keep their payment record.
+            if ($existing?->payment_status === 'paid') {
+                continue;
+            }
 
             if ($existing) {
                 $existing->update($payload);
@@ -84,6 +86,105 @@ class SessionBookingService
         }
 
         $group?->syncStatusFromRoster();
+    }
+
+    /**
+     * The coach received this family's deposit, so their place is confirmed. The row lock
+     * stops two confirmations taking the last place at the same moment.
+     */
+    public function confirmRequestPlayer(SessionRequest $session, int $playerId, Coach $coach): SessionRequestPlayer
+    {
+        return DB::transaction(function () use ($session, $playerId, $coach) {
+            $locked = SessionRequest::query()->with('players')->lockForUpdate()->findOrFail($session->id);
+            $player = $locked->players->firstWhere('id', $playerId);
+
+            if (! $player || ! $player->isPending()) {
+                throw ValidationException::withMessages(['player' => 'That player is no longer waiting for confirmation.']);
+            }
+
+            if (! $player->holdsPlace()) {
+                $group = $this->groupForRequest($locked);
+                $groupFull = $group && $group->spotsRemaining() === 0;
+
+                if ($locked->isFull() || ($groupFull && $locked->max_players !== null)) {
+                    throw ValidationException::withMessages([
+                        'player' => 'This session is full. Raise the max players or decline this request.',
+                    ]);
+                }
+
+                // No max was set, so the coach decides: make room on the calendar group.
+                if ($groupFull) {
+                    $group->increment('max_players');
+                }
+            }
+
+            $player->update([
+                'status' => SessionRequestPlayer::CONFIRMED,
+                'confirmed_at' => now(),
+            ]);
+
+            $updated = $locked->fresh(['players', 'requester']);
+            $updated->update([
+                'status' => $player->isRequester() ? 'confirmed' : $updated->status,
+                'looking_for' => $updated->spotsLeft(),
+            ]);
+            $this->createFromAcceptedSession($updated, $coach);
+
+            return $player;
+        });
+    }
+
+    public function declineRequestPlayer(SessionRequest $session, int $playerId): SessionRequestPlayer
+    {
+        return DB::transaction(function () use ($session, $playerId) {
+            $locked = SessionRequest::query()->with('players')->lockForUpdate()->findOrFail($session->id);
+            $player = $locked->players->firstWhere('id', $playerId);
+
+            if (! $player || ! $player->isPending() || $player->isRequester()) {
+                throw ValidationException::withMessages(['player' => 'That player is no longer waiting for confirmation.']);
+            }
+
+            $player->update(['status' => SessionRequestPlayer::DECLINED]);
+
+            return $player;
+        });
+    }
+
+    private function groupForRequest(SessionRequest $session): ?CoachGroupSession
+    {
+        $id = Booking::query()
+            ->where('session_request_id', $session->id)
+            ->whereNotNull('group_session_id')
+            ->value('group_session_id');
+
+        return $id ? CoachGroupSession::query()->find($id) : null;
+    }
+
+    /**
+     * A cancelled booking frees its request place, so the session's spots stay right.
+     * The session itself ends with the whole group, or with a 1-on-1's only booking.
+     */
+    private function releaseRequestPlace(Booking $booking, bool $wholeSession): void
+    {
+        $session = $booking->sessionRequest;
+        if (! $session) {
+            return;
+        }
+
+        $places = $session->players()->whereIn('status', [SessionRequestPlayer::PENDING, SessionRequestPlayer::CONFIRMED]);
+        if (! $wholeSession) {
+            $places->where('user_id', $booking->athlete_id);
+        }
+        $places->update(['status' => SessionRequestPlayer::CANCELLED]);
+
+        if ($wholeSession) {
+            $session->update(['status' => 'cancelled']);
+
+            return;
+        }
+
+        $session->unsetRelation('players');
+        $session->update(['looking_for' => $session->spotsLeft()]);
     }
 
     /**
@@ -119,7 +220,7 @@ class SessionBookingService
             'is_public' => false,
             'age_range' => $session->age_range,
             'sport' => $session->sport,
-            'price_per_player' => (float) ($coach->rate ?? 0),
+            'price_per_player' => (float) ($session->price_per_player ?? $coach->rate ?? 0),
         ]);
     }
 
@@ -941,6 +1042,7 @@ class SessionBookingService
 
         $group = $booking->groupSession;
         $booking->update(['status' => 'cancelled']);
+        $this->releaseRequestPlace($booking, false);
         $group?->syncStatusFromRoster();
     }
 
@@ -1041,8 +1143,10 @@ class SessionBookingService
                     $group->update(['status' => 'cancelled']);
                     $group->joinRequests()->where('status', 'pending')->update(['status' => 'declined']);
                 }
+                $this->releaseRequestPlace($booking, true);
             } else {
                 $booking->update(['status' => 'cancelled']);
+                $this->releaseRequestPlace($booking, true);
             }
         });
     }

@@ -21,8 +21,13 @@ class SubscriptionController extends Controller
             return redirect()->route('player-dashboard')->with('success', 'Your Family membership is already active.');
         }
 
-        // Sample mode: no live billing — activate a one-month membership so flows can be tested.
-        if (! $stripe->enabled()) {
+        // Sample mode only: activate a one-month membership so flows can be tested. Anything
+        // else without Stripe is a setup problem and must never give a membership away.
+        if (! $stripe->enabled() && ! $stripe->sampleMode()) {
+            return redirect()->route('player-dashboard')->with('error', 'Membership checkout isn’t available right now. Please try again shortly.');
+        }
+
+        if ($stripe->sampleMode()) {
             $user->forceFill([
                 'subscription_status' => 'active',
                 'subscription_ends_at' => now()->addMonth(),

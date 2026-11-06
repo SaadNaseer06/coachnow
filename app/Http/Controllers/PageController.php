@@ -675,19 +675,14 @@ class PageController extends Controller
         abort_unless(in_array($session->status, ['open', 'hosted', 'awaiting_deposit', 'confirmed'], true), 404);
 
         $user = $request->user();
-        $joinedCount = $session->players->count();
-        $isFull = $session->max_players !== null && $joinedCount >= (int) $session->max_players;
-        $alreadyIn = $user && $session->players->contains(fn ($p) => (int) $p->user_id === (int) $user->id);
 
         return view('pages.open-session-request', [
             'session' => $session,
-            'joinedCount' => $joinedCount,
-            'isFull' => $isFull,
-            'alreadyIn' => $alreadyIn,
+            'myPlace' => $session->playerFor($user),
+            'coachContact' => $session->coachContactFor($user),
+            'isFull' => $session->isFull(),
             'joinClosed' => $session->isJoinClosed() || $session->isUnhostedAndExpired(),
             'requestExpired' => $session->isUnhostedAndExpired(),
-            'depositAmount' => (float) config('coachnow.payments.deposit_amount', 10),
-            'convenienceFee' => User::convenienceFeeFor(request()->user()),
         ]);
     }
 
@@ -780,6 +775,7 @@ class PageController extends Controller
             ->orderByDesc('created_at')
             ->first();
 
+        SessionRequest::expireStale();
         $sessionRequests = SessionRequest::query()
             ->with(['hostCoach.user', 'requestedCoach.user', 'location', 'players'])
             ->where(function ($q) use ($user) {

@@ -63,19 +63,6 @@ class StripeService
         return config('services.stripe.key');
     }
 
-    public function depositAmountCents(): int
-    {
-        return max(50, (int) round(((float) config('coachnow.payments.deposit_amount', 10)) * 100));
-    }
-
-    /**
-     * What a family pays for a Request a Session deposit: deposit + one convenience fee.
-     */
-    public function depositChargeCents(?User $payer = null): int
-    {
-        return $this->depositAmountCents() + $this->convenienceFeeCents($payer);
-    }
-
     /** One fee per checkout; $0 for parents with a Family membership. */
     public function convenienceFeeCents(?User $payer = null): int
     {
@@ -178,7 +165,7 @@ class StripeService
         }
 
         $customerId = $this->ensureCustomer($payer);
-        // Every checkout (booking, group join, request deposit) carries one convenience fee.
+        // Every checkout (booking, group join) carries one convenience fee.
         $fee = $this->platformFeeCents($amountCents, true, $payer);
         $destination = $coach->canReceivePayouts();
 
@@ -356,9 +343,19 @@ class StripeService
             ]],
             'subscription_data' => ['metadata' => ['user_id' => (string) $user->id, 'purpose' => 'parent_membership']],
             'metadata' => ['user_id' => (string) $user->id, 'purpose' => 'parent_membership'],
+            'custom_text' => ['submit' => ['message' => self::membershipCheckoutTerms()]],
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
         ]);
+    }
+
+    public static function membershipCheckoutTerms(): string
+    {
+        $price = number_format((float) config('coachnow.subscription.price', 10), 0);
+
+        return "You'll be charged \${$price} today, then \${$price} every month on your billing date. "
+            .'Your membership renews automatically until you cancel. Cancel anytime from your dashboard: '
+            .'future charges stop and your access continues until the end of the period you paid for.';
     }
 
     public function syncSubscriptionFromCheckout(User $user, string $checkoutSessionId): void
@@ -406,7 +403,29 @@ class StripeService
             'subscription_cancel_at_period_end' => (bool) ($subscription->cancel_at_period_end ?? false),
         ])->save();
 
+        $this->confirmMembershipOnce($user, (string) $subscription->id);
+
         return $user;
+    }
+
+    /**
+     * Checkout's return page and Stripe's webhook both land here, so only whichever
+     * claims the subscription first sends the email.
+     */
+    private function confirmMembershipOnce(User $user, string $subscriptionId): void
+    {
+        if (! $user->hasActiveSubscription()) {
+            return;
+        }
+
+        $claimed = User::query()
+            ->whereKey($user->id)
+            ->where(fn ($q) => $q->whereNull('membership_email_sent_for')->orWhere('membership_email_sent_for', '!=', $subscriptionId))
+            ->update(['membership_email_sent_for' => $subscriptionId]);
+
+        if ($claimed) {
+            app(AppMailer::class)->sendMembershipConfirmed($user);
+        }
     }
 
     public function retrievePaymentIntent(string $id): \Stripe\PaymentIntent

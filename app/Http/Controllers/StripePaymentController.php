@@ -23,7 +23,6 @@ class StripePaymentController extends Controller
             'enabled' => $stripe->enabled(),
             'sample_mode' => $stripe->sampleMode(),
             'publishable_key' => $stripe->enabled() ? $stripe->publishableKey() : null,
-            'deposit_amount' => (float) config('coachnow.payments.deposit_amount', 10),
             'convenience_fee' => $stripe->convenienceFeeAmount(request()->user()),
             'currency' => config('services.stripe.currency', 'usd'),
         ]);
@@ -406,51 +405,5 @@ class StripePaymentController extends Controller
         ))));
 
         return $names !== [] ? $names : [$user->name];
-    }
-
-    /**
-     * Create a deposit PaymentIntent for a session-request join (client confirms).
-     */
-    public function createDepositIntent(Request $request, StripeService $stripe): JsonResponse
-    {
-        $user = $request->user();
-        abort_unless($user instanceof User, 403);
-
-        if (! $stripe->enabled()) {
-            return response()->json(['message' => 'Stripe is not configured.'], 503);
-        }
-
-        $data = $request->validate([
-            'coach_id' => ['required', 'integer', 'exists:coaches,id'],
-            'purpose' => ['nullable', 'string', 'max:40'],
-            'session_request_reference' => ['nullable', 'string', 'max:40'],
-        ]);
-
-        $coach = Coach::query()->whereKey($data['coach_id'])->firstOrFail();
-        if (! $stripe->canChargeFor($coach)) {
-            return response()->json(['message' => 'This coach cannot receive payouts yet.'], 422);
-        }
-
-        try {
-            $intent = $stripe->createDestinationPaymentIntent(
-                $user,
-                $coach,
-                $stripe->depositChargeCents($user),
-                [
-                    'purpose' => $data['purpose'] ?? 'deposit',
-                    'session_request_reference' => (string) ($data['session_request_reference'] ?? ''),
-                ]
-            );
-        } catch (\Throwable $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-
-        return response()->json([
-            'data' => [
-                'client_secret' => $intent->client_secret,
-                'payment_intent_id' => $intent->id,
-                'amount' => ((int) $intent->amount) / 100,
-            ],
-        ]);
     }
 }

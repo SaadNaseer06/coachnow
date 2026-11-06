@@ -274,6 +274,31 @@ body.book-flow #coachnowPreloader {
   font-size: 0.8125rem;
 }
 
+.book-field-label {
+  display: block;
+  margin: 0.65rem 0 0.35rem;
+  color: #f4f4f5;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.book-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #2a2d32;
+  border-radius: 10px;
+  background: #0c0d0e;
+  color: #f4f4f5;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.book-input:focus {
+  border-color: #da020c;
+  outline: none;
+}
+
 .book-hint,
 .book-empty {
   margin: 0.65rem 0 0;

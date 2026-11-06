@@ -1266,6 +1266,44 @@ body.coach-req-modal-open {
   color: #71717a;
 }
 
+.coach-req-roster__who .coach-req-contact {
+  margin-top: 3px;
+}
+
+.coach-req-contact a {
+  display: block;
+  color: #da020c;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.coach-req-contact a:hover {
+  text-decoration: underline;
+}
+
+.coach-deposit__card .pay-methods__error {
+  margin: 0 0 10px;
+  color: #da020c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.coach-req-roster__side {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.coach-req-roster__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .coach-req-pay-badge {
   flex-shrink: 0;
   padding: 4px 8px;

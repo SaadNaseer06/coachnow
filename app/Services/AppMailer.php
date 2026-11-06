@@ -8,14 +8,18 @@ use App\Mail\CoachNewBookingMail;
 use App\Mail\CoachPendingReviewMail;
 use App\Mail\CoachStatusChangedMail;
 use App\Mail\ContactMessageMail;
+use App\Mail\MembershipConfirmedMail;
 use App\Mail\SessionRequestAcceptedMail;
 use App\Mail\SessionRequestConfirmationMail;
+use App\Mail\SessionRequestJoinMail;
+use App\Mail\SessionRequestPlaceMail;
 use App\Mail\SeriesCancelledMail;
 use App\Mail\SessionRescheduledMail;
 use App\Mail\WelcomeUserMail;
 use App\Models\Booking;
 use App\Models\Coach;
 use App\Models\SessionRequest;
+use App\Models\SessionRequestPlayer;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -64,16 +68,49 @@ class AppMailer
         $this->deliver($email, new SessionRequestConfirmationMail($session));
     }
 
+    /** Every family on the session, so anyone who asked to join early can arrange payment too. */
     public function sendSessionRequestAccepted(SessionRequest $session): void
     {
-        $session->loadMissing(['requester', 'hostCoach']);
-        $email = $session->requester?->email;
+        $session->loadMissing(['requester', 'hostCoach.user', 'players.user']);
+
+        $session->players
+            ->filter(fn (SessionRequestPlayer $player) => $player->isActive())
+            ->map(fn (SessionRequestPlayer $player) => $player->user?->email)
+            ->push($session->requester?->email)
+            ->filter()
+            ->unique()
+            ->each(fn (string $email) => $this->deliver($email, new SessionRequestAcceptedMail($session)));
+    }
+
+    public function sendJoinRequestToCoach(SessionRequest $session, ?SessionRequestPlayer $player): void
+    {
+        $session->loadMissing('hostCoach.user');
+        $email = $session->hostCoach?->user?->email;
+
+        if (! $email || ! $player) {
+            return;
+        }
+
+        $player->loadMissing('user');
+        $this->deliver($email, new SessionRequestJoinMail($session, $player));
+    }
+
+    public function sendPlaceUpdate(SessionRequest $session, SessionRequestPlayer $player, bool $confirmed): void
+    {
+        $player->loadMissing('user');
+        $email = $player->user?->email;
 
         if (! $email) {
             return;
         }
 
-        $this->deliver($email, new SessionRequestAcceptedMail($session));
+        $session->loadMissing('hostCoach.user');
+        $this->deliver($email, new SessionRequestPlaceMail($session, $confirmed));
+    }
+
+    public function sendMembershipConfirmed(User $user): void
+    {
+        $this->deliver($user->email, new MembershipConfirmedMail($user));
     }
 
     /**

@@ -24,16 +24,19 @@ class StripeWebhookController extends Controller
         $secret = (string) config('services.stripe.webhook_secret');
         $event = null;
 
+        // Without the secret anyone could post a fake "paid" event.
+        if ($secret === '') {
+            Log::error('Stripe webhook rejected: STRIPE_WEBHOOK_SECRET is not set.');
+
+            return response('Webhook secret not configured', 503);
+        }
+
         try {
-            if ($secret !== '') {
-                $event = Webhook::constructEvent(
-                    $payload,
-                    (string) $request->header('Stripe-Signature'),
-                    $secret
-                );
-            } else {
-                $event = json_decode($payload);
-            }
+            $event = Webhook::constructEvent(
+                $payload,
+                (string) $request->header('Stripe-Signature'),
+                $secret
+            );
         } catch (SignatureVerificationException $e) {
             Log::warning('Stripe webhook signature failed', ['error' => $e->getMessage()]);
 

@@ -47,7 +47,6 @@ return [
     'payments' => [
         // When true: skip live Stripe Connect/checkout and use sample bookings + card-on-file.
         'sample_mode' => filter_var(env('COACHNOW_SAMPLE_PAYMENTS', false), FILTER_VALIDATE_BOOL),
-        'deposit_amount' => (float) env('COACHNOW_DEPOSIT_AMOUNT', 10),
         // Launch: $2 convenience fee per booking transaction (one fee per checkout, not per player).
         'convenience_fee' => (float) env('COACHNOW_CONVENIENCE_FEE', 2),
         // Parents may cancel direct/group bookings up to this many hours before start.

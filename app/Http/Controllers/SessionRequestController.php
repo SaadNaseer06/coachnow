@@ -4,29 +4,31 @@ namespace App\Http\Controllers;
 
 use App\Events\SessionRequestChanged;
 use App\Models\Coach;
+use App\Models\CoachGroupSession;
 use App\Models\Location;
 use App\Models\SessionRequest;
 use App\Models\SessionRequestPlayer;
 use App\Models\User;
 use App\Services\AppMailer;
 use App\Services\SessionBookingService;
-use App\Services\StripeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Stripe\Exception\ApiErrorException;
+use Illuminate\Validation\ValidationException;
 
 class SessionRequestController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
+        $coach = null;
+        SessionRequest::expireStale();
 
         $query = SessionRequest::query()
-            ->with(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location'])
+            ->with(['players.user', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location'])
             ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
             ->orderByDesc('created_at');
 
@@ -43,12 +45,14 @@ class SessionRequestController extends Controller
                 return response()->json(['data' => []]);
             }
 
-            $query->visibleToCoach($coach);
+            $query->visibleToCoach($coach)->current();
         } else {
             $query->whereRaw('1 = 0');
         }
 
-        $items = $query->limit(40)->get()->map->toPortalArray()->values();
+        $items = $query->limit(40)->get()
+            ->map(fn (SessionRequest $session) => $this->dataFor($session, $user, $coach))
+            ->values();
 
         return response()->json(['data' => $items]);
     }
@@ -64,7 +68,7 @@ class SessionRequestController extends Controller
             return response()->json(['message' => 'You cannot view this session request.'], 403);
         }
 
-        return response()->json(['data' => $session->toPortalArray()]);
+        return response()->json(['data' => $this->dataFor($session, $request->user(), $this->resolveCoachProfile($request))]);
     }
 
     public function store(Request $request): JsonResponse
@@ -88,15 +92,16 @@ class SessionRequestController extends Controller
             'min_players' => ['nullable', 'integer', 'min:1', 'max:30'],
             'max_players' => ['nullable', 'integer', 'min:1', 'max:30'],
             'know_by_at' => ['nullable', 'date'],
-            'card_on_file' => ['nullable', 'string', 'max:120'],
-            'deposit' => ['nullable', 'numeric', 'min:0'],
+            'phone' => [Rule::requiredIf(blank($request->user()->phone)), 'nullable', 'string', 'max:40'],
             'requested_coach_id' => ['nullable', 'integer', 'exists:coaches,id'],
             'requested_coach_ids' => ['nullable', 'array', 'max:8'],
             'requested_coach_ids.*' => ['integer', 'exists:coaches,id'],
-            'stripe_payment_method_id' => ['nullable', 'string', 'max:120'],
+        ], [
+            'phone.required' => 'Add a phone number so your coach can reach you.',
         ]);
 
         $user = $request->user();
+        $this->savePhone($user, $data['phone'] ?? null);
         $location = null;
         if (! empty($data['location_id'])) {
             $location = Location::query()
@@ -170,9 +175,11 @@ class SessionRequestController extends Controller
                 'min_players' => $data['min_players'] ?? null,
                 'max_players' => $data['max_players'] ?? null,
                 'looking_for' => isset($data['max_players']) ? max(0, ((int) $data['max_players']) - 1) : null,
-                'know_by_at' => $data['know_by_at'] ?? null,
-                'deposit_amount' => $data['deposit'] ?? 10,
-                'card_on_file' => $data['card_on_file'] ?? null,
+                // Browsers send this in UTC; saved as-is it would read as Pacific, hours late.
+                'know_by_at' => ! empty($data['know_by_at'])
+                    ? Carbon::parse($data['know_by_at'])->setTimezone(config('app.timezone'))
+                    : null,
+                'deposit_amount' => 0,
                 'requested_coach_id' => $requestedCoach?->id,
                 'status' => 'open',
             ]);
@@ -189,9 +196,7 @@ class SessionRequestController extends Controller
                 'name' => $user->name,
                 'initials' => $initials ?: 'PL',
                 'role' => 'requester',
-                'paid' => false,
-                'card_on_file' => $data['card_on_file'] ?? null,
-                'stripe_payment_method_id' => $data['stripe_payment_method_id'] ?? null,
+                'status' => SessionRequestPlayer::PENDING,
             ]);
 
             return $session->load(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'invitedCoaches', 'location']);
@@ -213,7 +218,7 @@ class SessionRequestController extends Controller
             ->firstOrFail();
 
         if ($session->status !== 'open') {
-            return response()->json(['message' => 'This request is no longer open.'], 422);
+            return response()->json(['message' => 'This request is no longer available. Another coach may have accepted it.'], 422);
         }
 
         if ($session->isAcceptCutoffPassed()) {
@@ -249,17 +254,12 @@ class SessionRequestController extends Controller
             return response()->json(['message' => 'This request was sent to a different coach.'], 403);
         }
 
-        $stripe = app(StripeService::class);
-        if (
-            $stripe->enabled()
-            && config('coachnow.payments.require_payouts_for_paid')
-            && ! $stripe->canChargeFor($coach)
-        ) {
-            return response()->json([
-                'message' => 'Finish payout setup on My Profile before accepting paid session requests.',
-                'needs_payout_setup' => true,
-            ], 403);
-        }
+        $data = $request->validate([
+            'price_per_player' => ['required', 'numeric', 'min:0', 'max:1000'],
+            'payment_note' => ['nullable', 'string', 'max:500'],
+        ], [
+            'price_per_player.required' => 'Enter your price per player.',
+        ]);
 
         $time = $session->session_time
             ? Carbon::parse($session->session_time)->format('H:i:s')
@@ -280,53 +280,75 @@ class SessionRequestController extends Controller
             }
         }
 
-        try {
-            DB::transaction(function () use ($session, $coach, $stripe) {
-                $session->update([
-                    'status' => 'hosted',
-                    'host_coach_id' => $coach->id,
-                    'accepted_at' => now(),
-                ]);
+        // Locked so that when two coaches accept together, only the first gets it.
+        $won = DB::transaction(function () use ($session, $coach, $data) {
+            $locked = SessionRequest::query()->lockForUpdate()->find($session->id);
+            if (! $locked || $locked->status !== 'open') {
+                return false;
+            }
 
-                $coach->forceFill(['last_active_at' => now()])->save();
-                if ($coach->shouldFlagForApprovalReview()) {
-                    $coach->forceFill(['approval_status' => 'flagged'])->save();
-                }
+            $note = trim((string) ($data['payment_note'] ?? '')) ?: null;
+            $locked->update([
+                'status' => 'awaiting_deposit',
+                'host_coach_id' => $coach->id,
+                'accepted_at' => now(),
+                'price_per_player' => $data['price_per_player'],
+                'payment_note' => $note,
+            ]);
 
-                // Charge the requester and any families who joined while it was waiting.
-                foreach ($session->players()->where('paid', false)->get() as $player) {
-                    $this->chargeRequesterDeposit($stripe, $session, $coach, $player);
-                }
+            $coach->forceFill([
+                'last_active_at' => now(),
+                'payment_instructions' => $note ?? $coach->payment_instructions,
+            ])->save();
+            if ($coach->shouldFlagForApprovalReview()) {
+                $coach->forceFill(['approval_status' => 'flagged'])->save();
+            }
 
-                if ($session->looking_for === null && $session->max_players !== null) {
-                    $joined = $session->players()->count();
-                    $session->update([
-                        'looking_for' => max(0, $session->max_players - $joined),
-                    ]);
-                }
+            $accepted = $locked->fresh(['players', 'requester']);
+            $accepted->update(['looking_for' => $accepted->spotsLeft()]);
+            app(SessionBookingService::class)->createFromAcceptedSession($accepted, $coach);
 
-                app(SessionBookingService::class)->createFromAcceptedSession(
-                    $session->fresh(['players', 'requester']),
-                    $coach
-                );
+            return true;
+        });
 
-                // Each booking already carries its own family's payment intent + fee
-                // (createFromAcceptedSession); the webhook reconciles any late status.
-            });
-        } catch (ApiErrorException $e) {
-            return response()->json([
-                'message' => 'Could not charge the player deposit: '.$e->getMessage(),
-            ], 422);
-        } catch (\RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+        if (! $won) {
+            return response()->json(['message' => 'Another coach just accepted this request.'], 422);
         }
 
-        $session->refresh()->load(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location']);
-        $payload = $session->toPortalArray();
-        $this->broadcastSessionRequest($payload, 'accepted');
+        $session->refresh()->load(['players.user', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location']);
+        $this->broadcastSessionRequest($session->toPortalArray(), 'accepted');
         app(AppMailer::class)->sendSessionRequestAccepted($session);
 
-        return response()->json(['data' => $payload]);
+        return response()->json(['data' => $session->toCoachPortalArray($coach)]);
+    }
+
+    /**
+     * The coach received this family's deposit, so they confirm the place.
+     */
+    public function confirmPlayer(Request $request, string $reference, int $player, SessionBookingService $bookings): JsonResponse
+    {
+        [$session, $coach] = $this->hostedSession($request, $reference);
+
+        try {
+            $confirmed = $bookings->confirmRequestPlayer($session, $player, $coach);
+        } catch (ValidationException $e) {
+            return response()->json(['message' => collect($e->errors())->flatten()->first()], 422);
+        }
+
+        return $this->afterPlaceChange($session, $coach, $confirmed, true, 'confirmed');
+    }
+
+    public function declinePlayer(Request $request, string $reference, int $player, SessionBookingService $bookings): JsonResponse
+    {
+        [$session, $coach] = $this->hostedSession($request, $reference);
+
+        try {
+            $declined = $bookings->declineRequestPlayer($session, $player);
+        } catch (ValidationException $e) {
+            return response()->json(['message' => collect($e->errors())->flatten()->first()], 422);
+        }
+
+        return $this->afterPlaceChange($session, $coach, $declined, false, 'declined');
     }
 
     public function decline(Request $request, string $reference): JsonResponse
@@ -342,7 +364,7 @@ class SessionRequestController extends Controller
         }
 
         if ($session->status !== 'open') {
-            return response()->json(['message' => 'This request is no longer open.'], 422);
+            return response()->json(['message' => 'This request is no longer available.'], 422);
         }
 
         $coach = $this->resolveCoachProfile($request);
@@ -375,18 +397,20 @@ class SessionRequestController extends Controller
         ]);
     }
 
-    public function join(Request $request, string $reference, StripeService $stripe): JsonResponse
+    /**
+     * Ask to join. The coach arranges payment with the family, then confirms their place.
+     */
+    public function join(Request $request, string $reference): JsonResponse
     {
         if (! $request->user()?->hasMemberAccess()) {
             return response()->json(['message' => 'Joining session requests is part of the Family Membership.', 'membership_required' => true], 403);
         }
 
         $data = $request->validate([
-            'paid' => ['sometimes', 'boolean'],
-            'paid_with' => ['nullable', 'string', 'max:120'],
-            'card_on_file' => ['nullable', 'string', 'max:120'],
-            'stripe_payment_method_id' => ['nullable', 'string', 'max:120'],
             'name' => ['nullable', 'string', 'max:120'],
+            'phone' => [Rule::requiredIf(blank($request->user()->phone)), 'nullable', 'string', 'max:40'],
+        ], [
+            'phone.required' => 'Add a phone number so the coach can reach you.',
         ]);
 
         $session = SessionRequest::query()
@@ -394,8 +418,8 @@ class SessionRequestController extends Controller
             ->where('reference', $reference)
             ->firstOrFail();
 
-        // Families can join a public request before a coach accepts (card saved, charged on
-        // accept) or after (charged now). Requests sent to specific coaches stay private.
+        // Families can ask to join before or after a coach accepts. Requests sent to specific
+        // coaches stay private.
         $waitingForCoach = $session->status === 'open';
         if ($session->isUnhostedAndExpired()) {
             return response()->json(['message' => 'No coach accepted this request before its deadline, so it is closed.'], 422);
@@ -412,78 +436,50 @@ class SessionRequestController extends Controller
             return response()->json(['message' => 'Joining closed 1 hour before the session starts.'], 422);
         }
 
-        if ($session->max_players !== null && $session->players->count() >= $session->max_players) {
-            return response()->json(['message' => 'This session is full.'], 422);
-        }
-
         $user = $request->user();
-        if ($session->players->contains(fn ($p) => $p->user_id === $user->id)) {
-            return response()->json(['message' => 'You already joined this request.'], 422);
-        }
-
-        $coach = $session->hostCoach;
-        if ($stripe->enabled() && $coach && ! $stripe->canChargeFor($coach)) {
-            return response()->json([
-                'message' => 'This coach is still finishing payout setup. Try again shortly.',
-            ], 422);
-        }
-
-        if ($stripe->enabled() && blank($data['stripe_payment_method_id'] ?? null)) {
-            return response()->json([
-                'message' => 'Add a card to pay the join deposit ($'.number_format($stripe->depositChargeCents($user) / 100, 2).' incl. CoachNow fee).',
-            ], 422);
-        }
-
+        $this->savePhone($user, $data['phone'] ?? null);
         $name = $data['name'] ?? $user->name;
         $initials = Str::of($name)->explode(' ')->map(fn ($p) => strtoupper(substr($p, 0, 1)))->take(2)->implode('');
 
-        try {
-            DB::transaction(function () use ($session, $user, $name, $initials, $data, $stripe, $coach) {
-                $player = SessionRequestPlayer::query()->create([
-                    'session_request_id' => $session->id,
-                    'user_id' => $user->id,
-                    'name' => $name,
-                    'initials' => $initials ?: 'PL',
-                    'role' => 'joiner',
-                    'paid' => false,
-                    'paid_with' => $data['paid_with'] ?? null,
-                    'card_on_file' => $data['card_on_file'] ?? null,
-                    'stripe_payment_method_id' => $data['stripe_payment_method_id'] ?? null,
-                ]);
+        // Locked so the last place can't be asked for twice at once.
+        $problem = DB::transaction(function () use ($session, $user, $name, $initials) {
+            $locked = SessionRequest::query()->with('players')->lockForUpdate()->find($session->id);
 
-                if ($coach) {
-                    $this->chargeRequesterDeposit($stripe, $session, $coach, $player);
-                }
+            if ($locked->playerFor($user)) {
+                return 'You already asked to join this session.';
+            }
 
-                $joined = $session->players()->count();
-                if ($session->max_players !== null) {
-                    $session->update(['looking_for' => max(0, $session->max_players - $joined)]);
-                }
-            });
-        } catch (ApiErrorException $e) {
-            return response()->json([
-                'message' => 'Could not charge the join deposit: '.$e->getMessage(),
-            ], 422);
-        } catch (\RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            if ($locked->isFull()) {
+                return 'This session is full.';
+            }
+
+            SessionRequestPlayer::query()->create([
+                'session_request_id' => $locked->id,
+                'user_id' => $user->id,
+                'name' => $name,
+                'initials' => $initials ?: 'PL',
+                'role' => 'joiner',
+                'status' => SessionRequestPlayer::PENDING,
+            ]);
+
+            return null;
+        });
+
+        if ($problem) {
+            return response()->json(['message' => $problem], 422);
         }
 
-        $session->refresh()->load(['players', 'requester', 'hostCoach.user', 'location']);
-
-        // Already hosted: put the new player on the coach's calendar now.
-        // (Waiting requests get bookings for every player when a coach accepts.)
-        if ($coach && ! $waitingForCoach) {
-            app(SessionBookingService::class)->createFromAcceptedSession($session, $coach);
+        $session->refresh()->load(['players.user', 'requester', 'hostCoach.user', 'location']);
+        $this->broadcastSessionRequest($session->toPortalArray(), 'joined');
+        if (! $waitingForCoach) {
+            app(AppMailer::class)->sendJoinRequestToCoach($session, $session->playerFor($user));
         }
-
-        $payload = $session->toPortalArray();
-        $this->broadcastSessionRequest($payload, 'joined');
 
         return response()->json([
-            'data' => $payload,
+            'data' => $session->toFamilyPortalArray($user),
             'message' => $waitingForCoach
-                ? 'You’re on this request. Your card is saved and the deposit is charged only if a coach accepts.'
-                : 'You joined this session.',
+                ? 'Your request to join is in. Once a coach accepts, they’ll confirm your place.'
+                : 'Your request to join is in. Message the coach to arrange payment.',
         ]);
     }
 
@@ -543,6 +539,12 @@ class SessionRequestController extends Controller
             'status' => ['nullable', Rule::in(['hosted', 'awaiting_deposit', 'confirmed', 'expired', 'cancelled'])],
         ]);
 
+        if (($data['max_players'] ?? null) !== null && $data['max_players'] < $session->placesTaken()) {
+            return response()->json([
+                'message' => 'Max players can’t be lower than the '.$session->placesTaken().' already on this session.',
+            ], 422);
+        }
+
         if (array_key_exists('status', $data) && $data['status'] !== null) {
             $hostedStatuses = ['hosted', 'awaiting_deposit', 'confirmed'];
             if ($session->status === 'open' && in_array($data['status'], $hostedStatuses, true)) {
@@ -559,11 +561,57 @@ class SessionRequestController extends Controller
         ])->all());
         $session->save();
 
-        $session->load(['players', 'requester', 'hostCoach.user', 'location']);
-        $payload = $session->toPortalArray();
-        $this->broadcastSessionRequest($payload, 'updated');
+        // The calendar group has to match, or confirming would disagree with what's shown here.
+        if (($data['max_players'] ?? null) !== null) {
+            $groupId = $session->bookings()->whereNotNull('group_session_id')->value('group_session_id');
+            CoachGroupSession::query()->whereKey($groupId)->first()?->update(['max_players' => max(2, $data['max_players'])]);
+        }
 
-        return response()->json(['data' => $payload]);
+        $session->load(['players.user', 'requester', 'hostCoach.user', 'location']);
+        $this->broadcastSessionRequest($session->toPortalArray(), 'updated');
+
+        return response()->json(['data' => $session->toCoachPortalArray($coach)]);
+    }
+
+    /**
+     * @return array{0: SessionRequest, 1: Coach}
+     */
+    private function hostedSession(Request $request, string $reference): array
+    {
+        $session = SessionRequest::query()->where('reference', $reference)->firstOrFail();
+        $coach = $this->resolveCoachProfile($request);
+
+        abort_unless($coach && (int) $session->host_coach_id === (int) $coach->id, 403, 'Only the hosting coach can do this.');
+
+        return [$session, $coach];
+    }
+
+    private function afterPlaceChange(SessionRequest $session, Coach $coach, SessionRequestPlayer $player, bool $confirmed, string $action): JsonResponse
+    {
+        $session->refresh()->load(['players.user', 'requester', 'hostCoach.user', 'location']);
+        $this->broadcastSessionRequest($session->toPortalArray(), $action);
+        app(AppMailer::class)->sendPlaceUpdate($session, $player->fresh(), $confirmed);
+
+        return response()->json(['data' => $session->toCoachPortalArray($coach)]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dataFor(SessionRequest $session, User $user, ?Coach $coach): array
+    {
+        if ($user->isAdmin()) {
+            return $session->toPortalArray();
+        }
+
+        return $user->isCoach() ? $session->toCoachPortalArray($coach) : $session->toFamilyPortalArray($user);
+    }
+
+    private function savePhone(User $user, ?string $phone): void
+    {
+        if (filled($phone) && blank($user->phone)) {
+            $user->forceFill(['phone' => trim($phone)])->save();
+        }
     }
 
     /**
@@ -594,56 +642,5 @@ class SessionRequestController extends Controller
         }
 
         return Coach::query()->where('user_id', $user->id)->first();
-    }
-
-    private function chargeRequesterDeposit(
-        StripeService $stripe,
-        SessionRequest $session,
-        Coach $coach,
-        SessionRequestPlayer $requester,
-    ): void {
-        if ($requester->paid) {
-            return;
-        }
-
-        if ($stripe->enabled() && filled($requester->stripe_payment_method_id)) {
-            $payer = User::query()->whereKey($requester->user_id)->first();
-            if (! $payer) {
-                throw new \RuntimeException('Player account missing for deposit charge.');
-            }
-
-            $intent = $stripe->createDestinationPaymentIntent(
-                $payer,
-                $coach,
-                $stripe->depositChargeCents($payer),
-                [
-                    'purpose' => 'session_request_deposit',
-                    'session_request_reference' => (string) $session->reference,
-                ],
-                $requester->stripe_payment_method_id,
-                true,
-                true
-            );
-
-            if ($intent->status !== 'succeeded') {
-                throw new \RuntimeException('Deposit payment was not completed.');
-            }
-
-            $requester->update([
-                'paid' => true,
-                'paid_with' => $stripe->paymentMethodLabel($requester->stripe_payment_method_id) ?: $requester->card_on_file,
-                'stripe_payment_intent_id' => $intent->id,
-            ]);
-
-            return;
-        }
-
-        // Demo / offline path when Stripe is not configured
-        if ($requester->card_on_file) {
-            $requester->update([
-                'paid' => true,
-                'paid_with' => $requester->card_on_file,
-            ]);
-        }
     }
 }

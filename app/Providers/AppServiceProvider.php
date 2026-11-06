@@ -35,16 +35,17 @@ class AppServiceProvider extends ServiceProvider
             $user = auth()->user();
             $coach = $user?->coach;
             $isAdmin = (bool) $user?->isAdmin();
+            SessionRequest::expireStale();
 
             $query = SessionRequest::query()
-                ->with(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location'])
+                ->with(['players.user', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location'])
                 ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
                 ->orderByDesc('created_at');
 
             if ($isAdmin) {
                 // Admins can view every request, including private/targeted ones.
             } elseif ($coach) {
-                $query->visibleToCoach($coach);
+                $query->visibleToCoach($coach)->current();
             } else {
                 $query->whereRaw('1 = 0');
             }
@@ -52,12 +53,13 @@ class AppServiceProvider extends ServiceProvider
             $sessionRequests = $query
                 ->limit(40)
                 ->get()
-                ->map->toPortalArray()
+                ->map(fn (SessionRequest $session) => $session->toCoachPortalArray($isAdmin ? null : $coach))
                 ->values()
                 ->all();
 
             $view->with([
                 'sessionRequests' => $sessionRequests,
+                'coachPaymentNote' => $coach?->payment_instructions,
                 'currentCoachId' => $coach?->id,
                 'currentCoachStatus' => $coach?->status,
                 'sessionRequestsIsAdmin' => $isAdmin,

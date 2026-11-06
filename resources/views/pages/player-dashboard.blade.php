@@ -224,7 +224,7 @@
                   </div>
                   <p class="player-req-card__title">{{ $booking->session_type ?? 'Session' }}@if($booking->athlete_name && $booking->athlete_name !== auth()->user()->name) · {{ $booking->athlete_name }}@endif</p>
                   <p class="player-req-card__meta">{{ $booking->whenLabel() }} · {{ $booking->location?->name ?? 'Field TBD' }}</p>
-                  <p class="player-req-card__sub">{{ $booking->coach?->display_name ?? 'Coach' }}</p>
+                  <p class="player-req-card__sub">{{ $booking->coach?->display_name ?? 'Coach' }}@if ($booking->status === 'pending') · Waiting for the coach to confirm @endif</p>
                 </div>
                 @if (! $booking->athleteCancelBlockReason(auth()->user()))
                   <button
@@ -285,6 +285,15 @@
                     @endif
                     · {{ $req['players_count'] }} {{ $req['players_count'] === 1 ? 'player' : 'players' }}
                   </p>
+                  @if (! empty($req['price_label']))
+                    <p class="player-req-card__sub">{{ $req['price_label'] }}</p>
+                  @endif
+                  @if (! empty($req['coach_contact']))
+                    @if (($req['place_status'] ?? '') !== 'confirmed')
+                      <p class="player-req-card__sub">Contact your coach to arrange payment. They’ll confirm your place once your deposit is received.</p>
+                    @endif
+                    @include('partials.message-coach', ['contact' => $req['coach_contact']])
+                  @endif
                 </div>
                 <div class="player-req-card__actions">
                   @if ($req['can_cancel'])
@@ -496,10 +505,15 @@
             <h2 class="player-panel-title mb-2">Family Member</h2>
             <p class="text-[13px] text-zinc-400 leading-[1.65] font-light mb-3">
               No booking fees, session requests and coach reports are on.
-              @if ($ms['ends_at'])
-                {{ $ms['cancelling'] ? 'Ends' : 'Renews' }} {{ $ms['ends_at'] }}.
+              @if ($ms['cancelling'])
+                Canceled: no more charges, and your access ends {{ $ms['ends_at'] ?? 'at the end of this period' }}.
+              @elseif ($ms['ends_at'])
+                ${{ number_format($ms['price'], 0) }} per month, renewing automatically until you cancel. Next billing date: {{ $ms['ends_at'] }}.
               @endif
             </p>
+            @unless ($ms['cancelling'])
+              <p class="text-[12px] text-zinc-500 mb-3">If you cancel, future charges stop and you keep access until {{ $ms['ends_at'] ?? 'the end of this period' }}.</p>
+            @endunless
             <form method="POST" action="{{ route('subscription.update') }}">
               @csrf
               <input type="hidden" name="cancel" value="{{ $ms['cancelling'] ? 0 : 1 }}">
@@ -514,6 +528,7 @@
               <li>Request a Session &amp; join open requests</li>
               <li>Coach development reports &amp; skill progress</li>
             </ul>
+            @include('partials.membership-terms')
             <form method="POST" action="{{ route('subscription.checkout') }}">
               @csrf
               <button type="submit" class="player-req-cta player-req-cta--block">Become a member</button>

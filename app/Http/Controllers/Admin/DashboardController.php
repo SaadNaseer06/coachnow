@@ -32,6 +32,7 @@ class DashboardController extends Controller
             ->where('status', '!=', 'cancelled')
             ->whereMonth('session_date', Carbon::now()->month)
             ->whereYear('session_date', Carbon::now()->year)
+            ->where('payment_status', '!=', Booking::PAID_DIRECTLY)
             ->sum('amount');
 
         $recentBookings = Booking::query()
@@ -197,7 +198,12 @@ class DashboardController extends Controller
             'plan' => ['required', Rule::in(array_keys(Coach::PLANS))],
             'approval_status' => ['required', Rule::in(['none', 'flagged', 'approved', 'rejected'])],
             'background_check_status' => ['required', Rule::in(['none', 'pending', 'clear'])],
+            'background_check_provider' => ['nullable', 'string', 'max:120', 'required_if:background_check_status,clear'],
+            'background_check_date' => ['nullable', 'date', 'before_or_equal:today', 'required_if:background_check_status,clear'],
             'verified' => ['sometimes', 'boolean'],
+        ], [
+            'background_check_provider.required_if' => 'Add the provider that confirmed this check.',
+            'background_check_date.required_if' => 'Add the date the provider checked this coach.',
         ]);
 
         $payload = collect($data)->except(['status', 'verified'])->all();
@@ -208,10 +214,11 @@ class DashboardController extends Controller
             $payload['approved_at'] = null;
         }
 
-        if ($request->boolean('verified') || $data['background_check_status'] === 'clear') {
-            $payload['verified_at'] = $coach->verified_at ?? now();
-        } elseif (! $request->boolean('verified') && $data['background_check_status'] !== 'clear') {
-            $payload['verified_at'] = null;
+        $payload['verified_at'] = $request->boolean('verified') ? ($coach->verified_at ?? now()) : null;
+
+        if ($data['background_check_status'] !== 'clear') {
+            $payload['background_check_provider'] = null;
+            $payload['background_check_date'] = null;
         }
 
         $coach->update($payload);
@@ -265,18 +272,12 @@ class DashboardController extends Controller
                 return $coach->display_name.' was flagged for review.';
             })(),
             'verify' => (function () use ($coach) {
-                $coach->forceFill([
-                    'verified_at' => now(),
-                    'background_check_status' => 'clear',
-                ])->save();
+                $coach->forceFill(['verified_at' => now()])->save();
 
-                return $coach->display_name.' is CoachNow Verified.';
+                return $coach->display_name.'’s profile is verified.';
             })(),
             'unverify' => (function () use ($coach) {
-                $coach->forceFill([
-                    'verified_at' => null,
-                    'background_check_status' => 'none',
-                ])->save();
+                $coach->forceFill(['verified_at' => null])->save();
 
                 return $coach->display_name.' verification was cleared.';
             })(),

@@ -27,7 +27,6 @@
             <span>✓ No ${{ number_format((float) config('coachnow.payments.convenience_fee', 2), 0) }} booking fee on any checkout</span>
             <span>✓ Request a Session — post requests and join other families’ sessions</span>
             <span>✓ Coach development reports and skill progress</span>
-            <span>✓ Cancel anytime — benefits last until the end of the month you paid for</span>
           </div>
         </div>
       </div>
@@ -35,6 +34,7 @@
       <aside class="book-aside">
         <div class="book-summary">
           <h2>Join now</h2>
+          @include('partials.membership-terms')
           <form method="POST" action="{{ route('subscription.checkout') }}">
             @csrf
             <button type="submit" class="book-btn">Become a member</button>

@@ -3,24 +3,12 @@
   $isOpen = $status === 'open';
   $isHosted = in_array($status, ['accepted', 'confirmed', 'awaiting_deposit', 'hosted'], true);
   $players = $request['players'] ?? [];
-  if ($players === [] && $isHosted) {
-      $players = [[
-          'name' => $request['name'] ?? 'Player',
-          'initials' => $request['initials'] ?? '??',
-          'role' => 'requester',
-          'paid' => ! empty($request['deposit_paid']),
-          'paid_with' => $request['paid_with'] ?? '',
-      ]];
-  }
-  $joined = count($players) ?: (int) ($request['players_joined'] ?? ($isHosted ? 1 : 0));
-  $paidCount = collect($players)->where('paid', true)->count();
-  $pendingCount = max(0, $joined - $paidCount);
+  $joined = (int) ($request['players_joined'] ?? count($players));
+  $confirmedCount = (int) ($request['confirmed_count'] ?? 0);
+  $pendingCount = (int) ($request['pending_count'] ?? 0);
   $minPlayers = $request['min_players'] ?? '';
   $maxPlayers = $request['max_players'] ?? '';
   $lookingFor = $request['looking_for'] ?? '';
-  if ($lookingFor === '' && $maxPlayers !== '' && $maxPlayers !== null) {
-      $lookingFor = max(0, (int) $maxPlayers - $joined);
-  }
   $playersLabel = match (true) {
       $minPlayers !== '' && $maxPlayers !== '' => $minPlayers.'–'.$maxPlayers,
       $minPlayers !== '' => $minPlayers.'+',
@@ -72,6 +60,7 @@
   data-looking-for="{{ $lookingFor }}"
   data-coach-note="{{ $request['coach_note'] ?? '' }}"
   data-session-type="{{ $request['session_type'] ?? '' }}"
+  data-price-range="{{ $request['price_range'] ?? '' }}"
   data-requested-coach-id="{{ $request['requested_coach_id'] ?? '' }}"
   data-players='@json($players)'
   @if (! empty($request['accept_seconds']) && $isOpen)
@@ -92,7 +81,7 @@
     @if ($isOpen)
       <span class="coach-req-status coach-req-status--open"><span class="coach-req-pulse"></span> Needs host</span>
     @elseif ($isHosted)
-      <span class="coach-req-status coach-req-status--hosted"><span class="coach-req-pulse coach-req-pulse--green"></span> Open to join</span>
+      <span class="coach-req-status coach-req-status--hosted"><span class="coach-req-pulse coach-req-pulse--green"></span> {{ $status === 'awaiting_deposit' ? 'Awaiting deposit' : ($lookingFor === 0 ? 'Full' : 'Open to join') }}</span>
     @else
       <span class="coach-req-status">Closed</span>
     @endif
@@ -180,23 +169,25 @@
         <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-accept-request>Accept &amp; host</button>
         <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-request>Decline</button>
       </div>
-      <p class="coach-req-card__hint">If you accept, the family’s card is charged the $10 deposit (+ $2 CoachNow fee for non-members) — you receive the $10. You don’t handle payment — you just see who’s confirmed and paid.</p>
+      <p class="coach-req-card__hint">Accept to set your price. You and the family arrange payment directly; CoachNow doesn’t collect it.</p>
     @else
       <p class="coach-req-card__hint">View only — this request is waiting for {{ $isTargeted && $preferredCoach !== '' ? $preferredCoach : 'a coach' }} to accept.</p>
     @endif
   @elseif ($isHosted)
     <div class="coach-req-card__hosted">
       <div class="coach-req-card__hosted-meta">
-        <span data-field="joined">{{ $joined }} player{{ $joined === 1 ? '' : 's' }} joined</span>
-        <span data-field="paid">{{ $paidCount }} paid</span>
-        <span data-field="pending">{{ $pendingCount }} pending deposit</span>
+        @if (! empty($request['price_label']))
+          <span data-field="price">{{ $request['price_label'] }}</span>
+        @endif
+        <span data-field="confirmed">{{ $confirmedCount }} confirmed</span>
+        <span data-field="pending">{{ $pendingCount }} pending</span>
         <span data-field="spots">
-          @if ((int) $lookingFor > 0)
-            Looking for {{ $lookingFor }} more
-          @elseif ($maxPlayers !== '' && $joined >= (int) $maxPlayers)
-            Full
-          @else
+          @if ($lookingFor === '')
             Open for more players
+          @elseif ((int) $lookingFor > 0)
+            Looking for {{ $lookingFor }} more
+          @else
+            Full
           @endif
         </span>
       </div>
@@ -208,19 +199,41 @@
               <div class="admin-person-fallback">{{ $player['initials'] ?? 'PL' }}</div>
               <div>
                 <strong>{{ $player['name'] ?? 'Player' }}</strong>
-                <span>{{ ($player['role'] ?? '') === 'requester' ? 'Original requester' : 'Joined' }}</span>
+                <span>{{ ($player['role'] ?? '') === 'requester' ? 'Original requester' : 'Asked to join' }}</span>
+                @if (! empty($player['email']) || ! empty($player['phone']))
+                  <span class="coach-req-contact">
+                    @if (! empty($player['email']))
+                      <a href="mailto:{{ $player['email'] }}">{{ $player['email'] }}</a>
+                    @endif
+                    @if (! empty($player['phone']))
+                      <a href="tel:{{ preg_replace('/[^0-9+]/', '', $player['phone']) }}">{{ $player['phone'] }}</a>
+                    @endif
+                  </span>
+                @endif
               </div>
             </div>
-            @if (! empty($player['paid']))
-              <span class="coach-req-pay-badge coach-req-pay-badge--paid">Paid{{ ! empty($player['paid_with']) ? ' · '.$player['paid_with'] : '' }}</span>
-            @elseif (! empty($player['card_on_file']))
-              <span class="coach-req-pay-badge coach-req-pay-badge--pending">Card on file</span>
-            @else
-              <span class="coach-req-pay-badge coach-req-pay-badge--pending">Deposit pending</span>
-            @endif
+            <div class="coach-req-roster__side">
+              @if (($player['status'] ?? '') === 'confirmed')
+                <span class="coach-req-pay-badge coach-req-pay-badge--paid">Confirmed</span>
+              @else
+                <span class="coach-req-pay-badge coach-req-pay-badge--pending">{{ ($player['role'] ?? '') === 'requester' ? 'Awaiting deposit' : 'Pending approval' }}</span>
+                @if (empty($sessionRequestsIsAdmin ?? false))
+                  <span class="coach-req-roster__actions">
+                    <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-confirm-player data-player-id="{{ $player['player_id'] ?? '' }}">Confirm place</button>
+                    @if (($player['role'] ?? '') !== 'requester')
+                      <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-decline-player data-player-id="{{ $player['player_id'] ?? '' }}">Decline</button>
+                    @endif
+                  </span>
+                @endif
+              @endif
+            </div>
           </div>
         @endforeach
       </div>
+
+      @if (! empty($request['payment_note']))
+        <p class="coach-req-card__coach-note">How to pay: {{ $request['payment_note'] }}</p>
+      @endif
 
       @if (! empty($request['coach_note']))
         <p class="coach-req-card__coach-note">{{ $request['coach_note'] }}</p>
@@ -229,7 +242,7 @@
         <div class="coach-req-card__actions">
           <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-adjust-details>View &amp; adjust details</button>
         </div>
-        <p class="coach-req-card__hint">Deposits are handled by parents/players. You only see who’s confirmed and paid.</p>
+        <p class="coach-req-card__hint">Families pay you directly. Confirm each player once you’ve received their deposit.</p>
       @else
         <p class="coach-req-card__hint">View only — the hosting coach can adjust this session.</p>
       @endif
