@@ -283,6 +283,17 @@ class DirectPaymentRequestTest extends TestCase
             ->assertDontSee('data-payment-root', false);
     }
 
+    public function test_training_near_you_calls_the_coachs_price_a_price_not_a_budget(): void
+    {
+        $waiting = $this->postRequest($parent = $this->member(), ['session_date' => '2026-11-14']);
+
+        $this->get('/training-near-you')->assertOk()->assertSee('Budget:')->assertDontSee('Price:');
+
+        $this->accept($waiting, $this->coach());
+
+        $this->get('/training-near-you')->assertOk()->assertSee('Price:')->assertSee('$25 per player')->assertDontSee('Budget:');
+    }
+
     public function test_confirming_a_place_creates_the_booking_and_updates_the_spots(): void
     {
         $session = $this->postRequest($parent = $this->member());

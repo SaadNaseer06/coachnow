@@ -244,7 +244,7 @@
                   @if (!empty($item['age_range']))
                     <span><strong>Ages:</strong> {{ $item['age_range'] }}</span>
                   @endif
-                  <span><strong>Budget:</strong> {{ $item['price_label'] }}</span>
+                  <span><strong>{{ ! empty($item['price_is_set']) ? 'Price' : 'Budget' }}:</strong> {{ $item['price_label'] }}</span>
                   <span><strong>Players:</strong> {{ $item['capacity_label'] }}</span>
                 </div>
                 <div class="tny-card__actions">

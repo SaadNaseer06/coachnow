@@ -282,6 +282,7 @@ class TrainingNearYouService
                     : 'Time TBD',
                 'price' => null,
                 'price_label' => $session->priceLabel() ?: 'Budget flexible',
+                'price_is_set' => $session->price_per_player !== null,
                 'booked_count' => $players,
                 'max_players' => $session->capacity(),
                 'spots_remaining' => $looking,
