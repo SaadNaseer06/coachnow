@@ -39,16 +39,17 @@ class SessionRequestChanged implements ShouldBroadcastNow
 
         $ids = array_values(array_unique(array_filter(array_merge($requested, $invited, [$host]))));
 
-        if ($ids !== []) {
-            return array_map(
-                fn (int $id) => new PrivateChannel('coach.session-requests.'.$id),
-                $ids
-            );
+        $channels = array_map(
+            fn (int $id) => new PrivateChannel('coach.session-requests.'.$id),
+            $ids
+        );
+
+        // An open request is in every coach's list, so they all need to hear when one is taken.
+        if ($requested === [] && $invited === []) {
+            $channels[] = new Channel('coaches.session-requests');
         }
 
-        return [
-            new Channel('coaches.session-requests'),
-        ];
+        return $channels;
     }
 
     public function broadcastAs(): string

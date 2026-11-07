@@ -28,7 +28,7 @@ class SessionRequestController extends Controller
         SessionRequest::expireStale();
 
         $query = SessionRequest::query()
-            ->with(['players.user', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location'])
+            ->with(['players.user', 'requester', 'hostCoach.user', 'requestedCoach.user', 'invitedCoaches', 'location'])
             ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
             ->orderByDesc('created_at');
 
@@ -203,7 +203,6 @@ class SessionRequestController extends Controller
         });
 
         $payload = $session->toPortalArray();
-        $payload['invited_coach_ids'] = $session->invitedCoachIds();
         $this->broadcastSessionRequest($payload, 'created');
         app(AppMailer::class)->sendSessionRequestConfirmation($session);
 
@@ -370,6 +369,26 @@ class SessionRequestController extends Controller
         $coach = $this->resolveCoachProfile($request);
         if (! $coach || ! $session->isVisibleToCoach($coach)) {
             return response()->json(['message' => 'This request was sent to a different coach.'], 403);
+        }
+
+        // Other selected coaches can still take it, so only this coach steps out.
+        $invited = $session->invitedCoachIds();
+        if (count($invited) > 1 && in_array((int) $coach->id, $invited, true)) {
+            $remaining = array_values(array_diff($invited, [(int) $coach->id]));
+            $session->invitedCoaches()->detach($coach->id);
+            if ((int) $session->requested_coach_id === (int) $coach->id) {
+                $session->update(['requested_coach_id' => $remaining[0]]);
+            }
+
+            $session->refresh()->load(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'invitedCoaches', 'location']);
+            $payload = $session->toPortalArray();
+            $this->broadcastSessionRequest($payload, 'updated');
+
+            return response()->json([
+                'data' => $payload,
+                'hidden' => true,
+                'message' => 'Removed from your inbox. The other selected coaches can still accept it.',
+            ]);
         }
 
         $targeted = $session->requested_coach_id !== null

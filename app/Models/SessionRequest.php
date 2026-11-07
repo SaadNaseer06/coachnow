@@ -810,7 +810,7 @@ class SessionRequest extends Model
      */
     public function toPortalArray(): array
     {
-        $this->loadMissing(['players', 'requester', 'hostCoach.user', 'requestedCoach.user']);
+        $this->loadMissing(['players', 'requester', 'hostCoach.user', 'requestedCoach.user', 'invitedCoaches']);
 
         $requesterPlayer = $this->players->firstWhere('role', 'requester');
         $name = $requesterPlayer?->name
@@ -857,7 +857,9 @@ class SessionRequest extends Model
             'accepted_by' => $this->hostCoach?->display_name,
             'host_coach_id' => $this->host_coach_id,
             'requested_coach_id' => $this->requested_coach_id,
-            'requested_coach' => $this->requestedCoach?->display_name,
+            'requested_coach' => $this->invitedCoaches->pluck('display_name')->filter()->implode(', ')
+                ?: $this->requestedCoach?->display_name,
+            'invited_coach_ids' => $this->invitedCoachIds(),
             'players_joined' => $this->placesTaken(),
             'confirmed_count' => $this->confirmedCount(),
             'pending_count' => $this->pendingJoinCount(),

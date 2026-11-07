@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Events\SessionRequestChanged;
 use App\Mail\MembershipConfirmedMail;
 use App\Mail\SessionRequestAcceptedMail;
 use App\Mail\SessionRequestJoinMail;
@@ -214,6 +215,61 @@ class DirectPaymentRequestTest extends TestCase
         $this->actingAs($second->user)->getJson('/api/session-requests')->assertJsonCount(0, 'data');
         $this->actingAs($first->user)->getJson('/api/session-requests')
             ->assertJsonPath('data.0.id', $session->reference);
+    }
+
+    public function test_every_selected_coach_gets_the_request_and_any_one_can_accept(): void
+    {
+        [$first, $second, $other] = [$this->coach('First Coach'), $this->coach('Second Coach'), $this->coach('Other Coach')];
+        $session = $this->postRequest($this->member(), ['requested_coach_ids' => [$first->id, $second->id]]);
+
+        $this->actingAs($second->user)->getJson('/api/session-requests')
+            ->assertJsonPath('data.0.id', $session->reference)
+            ->assertJsonPath('data.0.invited_coach_ids', [$first->id, $second->id])
+            ->assertJsonPath('data.0.requested_coach', 'First Coach, Second Coach');
+        $this->actingAs($other->user)->getJson('/api/session-requests')->assertJsonCount(0, 'data');
+
+        $this->accept($session, $other)->assertForbidden();
+        $this->accept($session, $second)->assertOk();
+
+        $this->actingAs($first->user)->getJson('/api/session-requests')->assertJsonCount(0, 'data');
+    }
+
+    public function test_one_selected_coach_declining_leaves_the_request_for_the_others(): void
+    {
+        [$first, $second] = [$this->coach('First Coach'), $this->coach('Second Coach')];
+        $session = $this->postRequest($this->member(), ['requested_coach_ids' => [$first->id, $second->id]]);
+        $decline = fn (Coach $coach) => $this->actingAs($coach->user)->postJson("/api/session-requests/{$session->reference}/decline");
+
+        $decline($first)->assertOk()->assertJsonPath('hidden', true);
+
+        $session = $session->fresh();
+        $this->assertSame('open', $session->status);
+        $this->assertSame($second->id, $session->requested_coach_id);
+        $this->assertSame([$second->id], $session->invitedCoachIds());
+        $this->actingAs($first->user)->getJson('/api/session-requests')->assertJsonCount(0, 'data');
+        $this->actingAs($second->user)->getJson('/api/session-requests')->assertJsonCount(1, 'data');
+
+        $decline($second)->assertOk();
+        $this->assertSame('cancelled', $session->fresh()->status);
+    }
+
+    public function test_every_coach_hears_when_an_open_request_is_taken(): void
+    {
+        $channels = fn (array $request) => array_map(
+            fn ($channel) => $channel->name,
+            (new SessionRequestChanged($request, 'accepted'))->broadcastOn()
+        );
+
+        $this->assertEqualsCanonicalizing(
+            ['private-coach.session-requests.7', 'coaches.session-requests'],
+            $channels(['host_coach_id' => 7])
+        );
+
+        // Requests sent to chosen coaches stay private to them.
+        $this->assertEqualsCanonicalizing(
+            ['private-coach.session-requests.7', 'private-coach.session-requests.8'],
+            $channels(['host_coach_id' => 7, 'requested_coach_id' => 7, 'invited_coach_ids' => [7, 8]])
+        );
     }
 
     public function test_expired_and_past_requests_leave_the_available_list(): void

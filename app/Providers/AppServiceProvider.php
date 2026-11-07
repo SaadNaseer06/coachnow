@@ -38,7 +38,7 @@ class AppServiceProvider extends ServiceProvider
             SessionRequest::expireStale();
 
             $query = SessionRequest::query()
-                ->with(['players.user', 'requester', 'hostCoach.user', 'requestedCoach.user', 'location'])
+                ->with(['players.user', 'requester', 'hostCoach.user', 'requestedCoach.user', 'invitedCoaches', 'location'])
                 ->whereIn('status', ['open', 'hosted', 'awaiting_deposit', 'confirmed'])
                 ->orderByDesc('created_at');
 

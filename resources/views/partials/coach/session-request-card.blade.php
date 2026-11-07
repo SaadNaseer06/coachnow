@@ -20,18 +20,16 @@
   $estCount = $joined > 0 ? $joined : (int) ($maxPlayers !== '' ? $maxPlayers : ($minPlayers !== '' ? $minPlayers : 0));
   $preferredCoach = trim((string) ($request['requested_coach'] ?? ''));
   $isTargeted = $preferredCoach !== '' || ($request['requested_coach_id'] ?? null) !== null;
+  $invitedIds = array_map('intval', $request['invited_coach_ids'] ?? []);
   $requestedForYou = $isTargeted
       && isset($currentCoachId)
       && $currentCoachId !== null
-      && (int) ($request['requested_coach_id'] ?? 0) === (int) $currentCoachId;
+      && (in_array((int) $currentCoachId, $invitedIds, true) || (int) ($request['requested_coach_id'] ?? 0) === (int) $currentCoachId);
   $viewerCanAccept = $isOpen
       && empty($sessionRequestsIsAdmin ?? false)
       && isset($currentCoachId)
       && $currentCoachId !== null
-      && (
-          empty($request['requested_coach_id'])
-          || (int) $request['requested_coach_id'] === (int) $currentCoachId
-      )
+      && (! $isTargeted || $requestedForYou)
       && (
           empty($request['acceptExpiresAt'])
           || (int) $request['acceptExpiresAt'] > (int) (microtime(true) * 1000)
@@ -91,9 +89,6 @@
     @if ($isTargeted)
       @if ($requestedForYou)
         Requested for you
-        @if ($preferredCoach !== '')
-          · {{ $preferredCoach }}
-        @endif
       @else
         Preferred coach · {{ $preferredCoach !== '' ? $preferredCoach : 'Selected coach' }}
       @endif

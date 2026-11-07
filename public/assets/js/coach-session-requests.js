@@ -74,6 +74,14 @@
     localStorage.setItem(declinedKey, JSON.stringify([...ids]));
   }
 
+  // A request can go to several chosen coaches; requested_coach_id only holds the first.
+  function sentToCurrentCoach(req) {
+    const invited = (Array.isArray(req.invited_coach_ids) ? req.invited_coach_ids : []).map(Number);
+    if (invited.length) return invited.includes(currentCoachId);
+    const requestedId = req.requested_coach_id != null ? Number(req.requested_coach_id) : null;
+    return requestedId == null || requestedId === currentCoachId;
+  }
+
   function requestVisibleToCurrentCoach(req) {
     if (!req) return false;
     if (isAdminViewer) return true;
@@ -81,13 +89,11 @@
     if (readDeclinedIds().has(String(req.id))) return false;
 
     const hostId = req.host_coach_id != null ? Number(req.host_coach_id) : null;
-    const requestedId = req.requested_coach_id != null ? Number(req.requested_coach_id) : null;
     const status = req.status || 'open';
 
     if (hostId === currentCoachId) return true;
     if (status !== 'open') return false;
-    if (requestedId == null) return true;
-    return requestedId === currentCoachId;
+    return sentToCurrentCoach(req);
   }
 
   function escapeHtml(str) {
@@ -507,12 +513,10 @@
   function canAcceptRequest(req) {
     if (isAdminViewer) return false;
     if (currentCoachId == null) return false;
-    const requestedId = req.requested_coach_id != null ? Number(req.requested_coach_id) : null;
     const status = req.status || 'open';
     if (status !== 'open') return false;
     if (req.acceptExpiresAt && Number(req.acceptExpiresAt) <= Date.now()) return false;
-    if (requestedId == null) return true;
-    return requestedId === currentCoachId;
+    return sentToCurrentCoach(req);
   }
   function extraFieldsHtml(req) {
     const parts = [];
@@ -540,11 +544,11 @@
     if (!isTargetedRequest(req)) {
       return '<p class="coach-req-card__target coach-req-card__target--open">Open to any coach</p>';
     }
+    if (currentCoachId != null && sentToCurrentCoach(req)) {
+      return '<p class="coach-req-card__target">Requested for you</p>';
+    }
     const name = preferredCoachName(req) || 'Selected coach';
-    const requestedId = req.requested_coach_id != null ? Number(req.requested_coach_id) : null;
-    const forYou = requestedId != null && currentCoachId != null && requestedId === currentCoachId;
-    const label = forYou ? 'Requested for you' : 'Preferred coach';
-    return `<p class="coach-req-card__target">${escapeHtml(label)} · ${escapeHtml(name)}</p>`;
+    return `<p class="coach-req-card__target">Preferred coach · ${escapeHtml(name)}</p>`;
   }
 
   function preferredCoachFieldHtml(req) {
