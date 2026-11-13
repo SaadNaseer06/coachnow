@@ -143,6 +143,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/locations', [DashboardController::class, 'storeLocation'])->name('locations.store');
     Route::delete('/locations/{location}', [DashboardController::class, 'destroyLocation'])->name('locations.destroy');
     Route::get('/athletes', [DashboardController::class, 'athletes'])->name('athletes');
+    Route::delete('/athletes/{athlete}', [DashboardController::class, 'destroyAthlete'])->name('athletes.destroy');
     Route::get('/messages', [DashboardController::class, 'messages'])->name('messages');
     Route::patch('/messages/{message}/read', [DashboardController::class, 'markMessageRead'])->name('messages.read');
 });

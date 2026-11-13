@@ -248,4 +248,46 @@ class GroupSessionAndContactTest extends TestCase
         $this->actingAs($coach->user)->put('/coach/profile', $profile + ['phone' => '(951) 555-0188'])->assertSessionHasNoErrors();
         $this->assertSame('(951) 555-0188', $coach->user->fresh()->phone);
     }
+
+    public function test_an_admin_can_remove_a_test_account_and_everything_it_made(): void
+    {
+        $admin = $this->user('admin', 'Ada Admin');
+        $qa = $this->user('athlete', 'QA Family', '(951) 555-0100', true);
+        $other = $this->user('athlete', 'Real Family', '(951) 555-0101', true);
+        $coach = $this->coach();
+        $booking = $this->confirmedRequestSession($qa, $coach);
+        $session = $booking->sessionRequest;
+
+        // A real family also joined, and must keep their place.
+        $this->actingAs($other)->postJson("/api/session-requests/{$session->reference}/join")->assertOk();
+        $joiner = $session->players()->where('user_id', $other->id)->sole();
+        $this->actingAs($coach->user)->postJson("/api/session-requests/{$session->reference}/players/{$joiner->id}/confirm")->assertOk();
+
+        $this->actingAs($admin)->get('/admin/athletes')->assertOk()->assertSee('Remove');
+        $this->actingAs($admin)->delete("/admin/athletes/{$qa->id}")
+            ->assertRedirect('/admin/athletes')
+            ->assertSessionHas('success');
+
+        $this->assertNull(User::query()->find($qa->id));
+        $this->assertNull(SessionRequest::query()->find($session->id));
+        $this->assertSame(0, Booking::query()->where('athlete_id', $qa->id)->count());
+        $this->assertNotNull(User::query()->find($other->id));
+    }
+
+    public function test_remove_refuses_coaches_renewing_memberships_and_non_admins(): void
+    {
+        $admin = $this->user('admin', 'Ada Admin');
+        $coach = $this->coach();
+        $this->actingAs($admin)->delete("/admin/athletes/{$coach->user->id}")->assertNotFound();
+
+        $paying = $this->user('athlete', 'Paying Family', '(951) 555-0100', true);
+        $paying->forceFill(['stripe_subscription_id' => 'sub_live', 'subscription_cancel_at_period_end' => false])->save();
+        $this->actingAs($admin)->from('/admin/athletes')->delete("/admin/athletes/{$paying->id}")->assertSessionHas('error');
+        $this->assertNotNull(User::query()->find($paying->id));
+
+        $parent = $this->user('athlete', 'Pat Parent');
+        // The admin area turns non-admins away; the account must survive either way.
+        $this->actingAs($parent)->delete("/admin/athletes/{$paying->id}")->assertRedirect();
+        $this->assertNotNull(User::query()->find($paying->id));
+    }
 }

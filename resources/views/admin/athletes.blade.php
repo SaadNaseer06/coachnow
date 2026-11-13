@@ -29,6 +29,7 @@
           <th>Last Booking</th>
           <th>Preferred Park</th>
           <th>Status</th>
+          <th><span class="sr-only">Actions</span></th>
         </tr>
       </thead>
       <tbody>
@@ -63,10 +64,17 @@
                 <span class="admin-badge admin-badge-green">Active</span>
               @endif
             </td>
+            <td class="text-right">
+              <form method="POST" action="{{ route('admin.athletes.destroy', $athlete) }}" data-remove-athlete data-name="{{ $athlete->name }}" data-email="{{ $athlete->email }}" data-sessions="{{ $athlete->sessions_count ?? 0 }}">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm admin-btn-danger" data-loading-text="Removing…">Remove</button>
+              </form>
+            </td>
           </tr>
         @empty
           <tr>
-            <td colspan="7" class="text-center text-zinc-500 py-8">No athletes match these filters.</td>
+            <td colspan="8" class="text-center text-zinc-500 py-8">No athletes match these filters.</td>
           </tr>
         @endforelse
       </tbody>
@@ -75,3 +83,29 @@
   @include('partials.admin.pagination', ['paginator' => $athletes])
 </div>
 @endsection
+
+@push('scripts')
+<script>
+  document.querySelectorAll('[data-remove-athlete]').forEach((form) => {
+    form.addEventListener('submit', async (event) => {
+      if (form.dataset.confirmed === '1') return;
+      event.preventDefault();
+      window.CoachNowBusy?.clearFormBusy(form);
+
+      const sessions = Number(form.dataset.sessions || 0);
+      const message = `This permanently deletes ${form.dataset.name} (${form.dataset.email})`
+        + (sessions ? `, with their ${sessions} booking${sessions === 1 ? '' : 's'} and any session requests.` : ' and any session requests.')
+        + ' This can’t be undone.';
+      const ok = window.CoachNowDialog?.confirm
+        ? await window.CoachNowDialog.confirm({ title: 'Remove this account?', message, confirmLabel: 'Remove account', cancelLabel: 'Keep it' })
+        : window.confirm(message);
+      if (!ok) return;
+
+      form.dataset.confirmed = '1';
+      const btn = form.querySelector('button[type="submit"]');
+      window.CoachNowBusy?.setBusy(btn, { label: 'Removing…' });
+      form.submit();
+    });
+  });
+</script>
+@endpush

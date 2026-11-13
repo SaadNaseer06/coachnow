@@ -6,9 +6,11 @@ use App\Events\CoachStatusChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Coach;
+use App\Models\CoachGroupSession;
 use App\Models\ContactMessage;
 use App\Models\Location;
 use App\Models\SessionRequest;
+use App\Models\SessionRequestPlayer;
 use App\Models\User;
 use App\Services\AppMailer;
 use App\Services\NominatimGeocoder;
@@ -477,6 +479,51 @@ class DashboardController extends Controller
         return redirect()
             ->route('admin.locations')
             ->with('success', "“{$name}” was deleted. Assigned coaches were unlinked from this park.");
+    }
+
+    /**
+     * Remove a parent/player account with its bookings and requests, so nothing is left without
+     * an owner. A running paid membership must be cancelled first, or Stripe would keep billing.
+     */
+    public function destroyAthlete(User $athlete): RedirectResponse
+    {
+        abort_unless($athlete->role === User::ROLE_ATHLETE, 404);
+
+        if ($athlete->hasActiveSubscription() && filled($athlete->stripe_subscription_id) && ! $athlete->subscription_cancel_at_period_end) {
+            return back()->with('error', $athlete->name.' has a paid membership that is still renewing. Cancel it first, then remove the account.');
+        }
+
+        [$bookingCount, $requestCount] = DB::transaction(function () use ($athlete) {
+            $requestIds = SessionRequest::query()->where('requester_id', $athlete->id)->pluck('id');
+            $bookings = Booking::query()
+                ->where('athlete_id', $athlete->id)
+                ->orWhereIn('session_request_id', $requestIds);
+            $groupIds = (clone $bookings)->whereNotNull('group_session_id')->pluck('group_session_id')->unique();
+            $bookingCount = (clone $bookings)->count();
+
+            SessionRequestPlayer::query()
+                ->whereIn('session_request_id', $requestIds)
+                ->orWhere('user_id', $athlete->id)
+                ->delete();
+            DB::table('session_request_coaches')->whereIn('session_request_id', $requestIds)->delete();
+            $bookings->delete();
+            SessionRequest::query()->whereIn('id', $requestIds)->delete();
+
+            // Their places are free again; a group nobody is left in is closed.
+            CoachGroupSession::query()->whereIn('id', $groupIds)->get()->each(function (CoachGroupSession $group) {
+                $group->activeBookings()->exists()
+                    ? $group->syncStatusFromRoster()
+                    : $group->update(['status' => 'cancelled']);
+            });
+
+            $athlete->delete();
+
+            return [$bookingCount, $requestIds->count()];
+        });
+
+        return redirect()
+            ->route('admin.athletes')
+            ->with('success', $athlete->name.'’s account was removed, with '.$bookingCount.' booking'.($bookingCount === 1 ? '' : 's').' and '.$requestCount.' request'.($requestCount === 1 ? '' : 's').'.');
     }
 
     public function athletes(Request $request): View
