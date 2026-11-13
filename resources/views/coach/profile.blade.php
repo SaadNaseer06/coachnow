@@ -129,6 +129,21 @@
       >
     </label>
 
+    <label class="admin-field">
+      <span>Mobile phone</span>
+      <input
+        class="admin-input"
+        type="tel"
+        name="phone"
+        value="{{ old('phone', $coach->user?->phone) }}"
+        required
+        maxlength="40"
+        autocomplete="tel"
+        placeholder="(951) 555-0100"
+      >
+      <span class="text-[12px] text-zinc-500">Families who book you get this number to call or text you.</span>
+    </label>
+
     @php
       $selectedSports = collect(old('sports', $coach->sportsList()));
       $selectedSpecialties = collect(old('specialties', $coach->specialtiesList()));

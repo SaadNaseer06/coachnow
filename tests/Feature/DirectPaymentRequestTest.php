@@ -170,8 +170,16 @@ class DirectPaymentRequestTest extends TestCase
             'sport' => User::SPORTS[0],
         ])->assertUnprocessable()->assertJsonValidationErrors('phone');
 
-        $this->postRequest($parent, ['phone' => '555-0142']);
-        $this->assertSame('555-0142', $parent->fresh()->phone);
+        $this->actingAs($parent)->postJson('/api/session-requests', [
+            'location_name' => 'Test Park',
+            'session_date' => '2026-11-20',
+            'session_type' => 'Skills Training — Group Session',
+            'sport' => User::SPORTS[0],
+            'phone' => '555-0142',
+        ])->assertUnprocessable()->assertJsonValidationErrors('phone');
+
+        $this->postRequest($parent, ['phone' => '(951) 555-0142']);
+        $this->assertSame('(951) 555-0142', $parent->fresh()->phone);
     }
 
     public function test_accepting_needs_a_price_and_charges_nothing(): void

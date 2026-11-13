@@ -211,6 +211,10 @@
             <input class="admin-input" type="text" name="display_name" value="{{ old('display_name', $coach->display_name) }}" required maxlength="120">
           </label>
           <label class="admin-field">
+            <span>Mobile phone</span>
+            <input class="admin-input" type="tel" name="phone" value="{{ old('phone', $coach->user?->phone) }}" maxlength="40" placeholder="(951) 555-0100">
+          </label>
+          <label class="admin-field">
             <span>Location</span>
             <select class="admin-select" name="location_id" required>
               <option value="">Select park…</option>
@@ -376,6 +380,10 @@
         <label class="admin-field">
           <span>Email</span>
           <input class="admin-input" type="email" name="email" value="{{ old('email') }}" required maxlength="255" placeholder="coach@email.com">
+        </label>
+        <label class="admin-field">
+          <span>Mobile phone</span>
+          <input class="admin-input" type="tel" name="phone" value="{{ old('phone') }}" required maxlength="40" placeholder="(951) 555-0100">
         </label>
         <label class="admin-field">
           <span>Password</span>

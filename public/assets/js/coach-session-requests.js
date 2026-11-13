@@ -798,12 +798,20 @@
     }
 
     const note = acceptNote?.value.trim() || '';
+    const phoneInput = document.getElementById('coachAcceptPhone');
+    if (phoneInput && !phoneInput.value.trim()) {
+      showAcceptError('Add your mobile number so families can call or text you.');
+      phoneInput.focus();
+      return;
+    }
     window.CoachNowBusy?.setBusy(acceptSaveBtn, { label: 'Accepting…' });
     try {
       const payload = await apiFetch(`/api/session-requests/${encodeURIComponent(id)}/accept`, {
         method: 'POST',
-        body: JSON.stringify({ price_per_player: Number(price), payment_note: note || null }),
+        body: JSON.stringify({ price_per_player: Number(price), payment_note: note || null, phone: phoneInput?.value.trim() || null }),
       });
+      // Saved now, so later accepts don't ask again.
+      document.getElementById('coachAcceptPhoneField')?.remove();
       const req = payload.data;
       patchStoredRequest(id, req);
       if (note) modal.dataset.paymentNote = note;

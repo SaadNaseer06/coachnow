@@ -60,6 +60,13 @@
           </div>
 
           <label class="block">
+            <span class="block text-[12px] font-medium text-[#191615] mb-2">Mobile phone</span>
+            <input type="tel" name="phone" value="{{ old('phone') }}" required autocomplete="tel" placeholder="(951) 555-0100" class="auth-input">
+            <span class="block text-[11px] text-zinc-500 mt-1.5" data-player-fields>Coaches use this to call or text you about sessions. Booking for a child? Use the parent or guardian's email and phone.</span>
+            <span class="block text-[11px] text-zinc-500 mt-1.5 hidden" data-coach-phone-hint>Families use this to call or text you about sessions.</span>
+          </label>
+
+          <label class="block">
             <span class="block text-[12px] font-medium text-[#191615] mb-2">Sport</span>
             <select name="sport" required class="auth-input appearance-none bg-white">
               <option value="" disabled {{ old('sport') ? '' : 'selected' }}>Select sport</option>
@@ -99,10 +106,6 @@
             </label>
           </div>
 
-          <label class="block" data-player-fields>
-            <span class="block text-[12px] font-medium text-[#191615] mb-2">Phone <span class="text-zinc-400 font-normal">(optional)</span></span>
-            <input type="tel" name="phone" value="{{ old('phone') }}" placeholder="555-0100" class="auth-input">
-          </label>
 
           <div class="auth-grid-2">
             <label class="block">
@@ -137,6 +140,7 @@
       const roles = form.querySelectorAll('[data-register-role]');
       const coachFields = form.querySelector('[data-coach-fields]');
       const playerPhone = form.querySelector('[data-player-fields]');
+      const coachPhone = form.querySelector('[data-coach-phone-hint]');
       const coachInputs = coachFields?.querySelectorAll('select, textarea') || [];
 
       const sync = () => {
@@ -145,6 +149,7 @@
 
         coachFields?.classList.toggle('hidden', !isCoach);
         playerPhone?.classList.toggle('hidden', isCoach);
+        coachPhone?.classList.toggle('hidden', !isCoach);
 
         coachInputs.forEach((el) => {
           if (isCoach) el.setAttribute('required', 'required');

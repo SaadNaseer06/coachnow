@@ -60,6 +60,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with([
                 'sessionRequests' => $sessionRequests,
                 'coachPaymentNote' => $coach?->payment_instructions,
+                'coachNeedsPhone' => $coach !== null && ! $isAdmin && blank($user?->phone),
                 'currentCoachId' => $coach?->id,
                 'currentCoachStatus' => $coach?->status,
                 'sessionRequestsIsAdmin' => $isAdmin,

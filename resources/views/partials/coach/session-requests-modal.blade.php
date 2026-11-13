@@ -7,6 +7,7 @@
   id="coachSessionRequestsModal"
   class="coach-req-modal"
   data-payment-note="{{ $coachPaymentNote ?? '' }}"
+  data-needs-phone="{{ ! empty($coachNeedsPhone) ? '1' : '' }}"
   aria-hidden="true"
   role="dialog"
   aria-labelledby="coachSessionRequestsTitle"
@@ -56,6 +57,13 @@
           <input type="number" id="coachAcceptPrice" min="0" max="1000" step="1" inputmode="decimal" placeholder="e.g. 25">
           <p class="coach-adjust-hint" id="coachAcceptBudget" hidden></p>
         </div>
+        @if (! empty($coachNeedsPhone))
+          <div class="coach-adjust-field coach-adjust-field--full" id="coachAcceptPhoneField">
+            <label for="coachAcceptPhone">Your mobile phone</label>
+            <input type="tel" id="coachAcceptPhone" maxlength="40" autocomplete="tel" placeholder="(951) 555-0100">
+            <p class="coach-adjust-hint">Families use this to call or text you. It’s saved to your profile.</p>
+          </div>
+        @endif
         <div class="coach-adjust-field coach-adjust-field--full">
           <label for="coachAcceptNote">How should families pay? <span>(optional)</span></label>
           <textarea id="coachAcceptNote" rows="2" maxlength="500" placeholder="e.g. Venmo @your-name, $10 deposit to hold your place"></textarea>

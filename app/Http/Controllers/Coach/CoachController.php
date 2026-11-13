@@ -18,6 +18,7 @@ use App\Services\TrainingNearYouService;
 use App\Services\VideoCompressionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use App\Rules\PhoneNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -1042,6 +1043,7 @@ class CoachController extends Controller
 
         $data = $request->validate([
             'display_name' => ['required', 'string', 'max:120'],
+            'phone' => ['required', 'string', 'max:40', new PhoneNumber],
             'sports' => ['required', 'array', 'min:1'],
             'sports.*' => ['string', Rule::in(User::SPORTS)],
             'specialties' => ['required', 'array', 'min:1'],
@@ -1118,7 +1120,7 @@ class CoachController extends Controller
 
         $coach->update($data);
         $coach->syncSportsAndSpecialties($sports, $specialties);
-        $coach->user?->update(['sport' => $sports[0] ?? $coach->sport]);
+        $coach->user?->update(['sport' => $sports[0] ?? $coach->sport, 'phone' => trim($data['phone'])]);
         $coach->refresh();
 
         if ($coach->shouldFlagForApprovalReview()) {

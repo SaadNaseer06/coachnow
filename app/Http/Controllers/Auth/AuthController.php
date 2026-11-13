@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Coach;
 use App\Models\User;
 use App\Services\AppMailer;
+use App\Rules\PhoneNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -67,7 +68,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'phone' => ['nullable', 'string', 'max:40'],
+            'phone' => ['required', 'string', 'max:40', new PhoneNumber],
             'password' => ['required', 'confirmed', Password::min(8)],
             'role' => ['required', 'in:athlete,coach'],
             'sport' => ['required', 'string', Rule::in(User::SPORTS)],

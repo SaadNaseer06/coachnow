@@ -10,6 +10,7 @@ use App\Models\SessionRequest;
 use App\Models\SessionRequestPlayer;
 use App\Models\User;
 use App\Services\AppMailer;
+use App\Rules\PhoneNumber;
 use App\Services\SessionBookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -92,7 +93,7 @@ class SessionRequestController extends Controller
             'min_players' => ['nullable', 'integer', 'min:1', 'max:30'],
             'max_players' => ['nullable', 'integer', 'min:1', 'max:30'],
             'know_by_at' => ['nullable', 'date'],
-            'phone' => [Rule::requiredIf(blank($request->user()->phone)), 'nullable', 'string', 'max:40'],
+            'phone' => [Rule::requiredIf(blank($request->user()->phone)), 'nullable', 'string', 'max:40', new PhoneNumber],
             'requested_coach_id' => ['nullable', 'integer', 'exists:coaches,id'],
             'requested_coach_ids' => ['nullable', 'array', 'max:8'],
             'requested_coach_ids.*' => ['integer', 'exists:coaches,id'],
@@ -256,9 +257,12 @@ class SessionRequestController extends Controller
         $data = $request->validate([
             'price_per_player' => ['required', 'numeric', 'min:0', 'max:1000'],
             'payment_note' => ['nullable', 'string', 'max:500'],
+            'phone' => [Rule::requiredIf(blank($user->phone)), 'nullable', 'string', 'max:40', new PhoneNumber],
         ], [
             'price_per_player.required' => 'Enter your price per player.',
+            'phone.required' => 'Add your mobile number so families can call or text you.',
         ]);
+        $this->savePhone($user, $data['phone'] ?? null);
 
         $time = $session->session_time
             ? Carbon::parse($session->session_time)->format('H:i:s')
@@ -427,7 +431,7 @@ class SessionRequestController extends Controller
 
         $data = $request->validate([
             'name' => ['nullable', 'string', 'max:120'],
-            'phone' => [Rule::requiredIf(blank($request->user()->phone)), 'nullable', 'string', 'max:40'],
+            'phone' => [Rule::requiredIf(blank($request->user()->phone)), 'nullable', 'string', 'max:40', new PhoneNumber],
         ], [
             'phone.required' => 'Add a phone number so the coach can reach you.',
         ]);

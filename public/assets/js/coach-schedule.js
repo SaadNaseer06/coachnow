@@ -265,7 +265,16 @@
     document.getElementById('manageDate').value = d.session_date || '';
     document.getElementById('manageTime').value = d.session_time || '';
     document.getElementById('manageDuration').value = d.duration_minutes || 60;
-    document.getElementById('manageType').value = d.session_type || 'Private 1-on-1';
+    // Sessions from a parent's request keep the type the parent chose (e.g. "Skills Training — Group
+    // Session"), which isn't in the coach's list. Without it the required box is empty and Save does nothing.
+    const typeSelect = document.getElementById('manageType');
+    typeSelect.querySelectorAll('option[data-session-type]').forEach((o) => o.remove());
+    if (d.session_type && ![...typeSelect.options].some((o) => o.value === d.session_type)) {
+      const own = new Option(d.session_type, d.session_type);
+      own.dataset.sessionType = '1';
+      typeSelect.add(own);
+    }
+    typeSelect.value = d.session_type || 'Private 1-on-1';
     document.getElementById('manageMax').value = d.max_players || 4;
     const ageMinEl = document.getElementById('manageAgeMin');
     const ageMaxEl = document.getElementById('manageAgeMax');

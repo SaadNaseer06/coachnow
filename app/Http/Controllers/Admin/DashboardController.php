@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\AppMailer;
 use App\Services\NominatimGeocoder;
 use Illuminate\Http\RedirectResponse;
+use App\Rules\PhoneNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -137,6 +138,7 @@ class DashboardController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['required', 'string', 'max:40', new PhoneNumber],
             'password' => ['required', Password::min(8)],
             'location_id' => ['required', 'integer', 'exists:locations,id'],
             'sport' => ['required', 'string', Rule::in(User::SPORTS)],
@@ -152,6 +154,7 @@ class DashboardController extends Controller
             $user = User::query()->create([
                 'name' => $data['name'],
                 'email' => $data['email'],
+                'phone' => $data['phone'],
                 'sport' => $data['sport'],
                 'password' => $data['password'],
                 'role' => User::ROLE_COACH,
@@ -187,6 +190,7 @@ class DashboardController extends Controller
     {
         $data = $request->validate([
             'display_name' => ['required', 'string', 'max:120'],
+            'phone' => ['nullable', 'string', 'max:40', new PhoneNumber],
             'location_id' => ['required', 'integer', 'exists:locations,id'],
             'sport' => ['required', 'string', Rule::in(User::SPORTS)],
             'specialty' => ['required', 'string', Rule::in(Coach::SPECIALTIES)],
@@ -206,7 +210,7 @@ class DashboardController extends Controller
             'background_check_date.required_if' => 'Add the date the provider checked this coach.',
         ]);
 
-        $payload = collect($data)->except(['status', 'verified'])->all();
+        $payload = collect($data)->except(['status', 'verified', 'phone'])->all();
 
         if ($data['approval_status'] === 'approved') {
             $payload['approved_at'] = $coach->approved_at ?? now();
@@ -222,7 +226,10 @@ class DashboardController extends Controller
         }
 
         $coach->update($payload);
-        $coach->user?->update(['sport' => $data['sport']]);
+        $coach->user?->update(array_filter([
+            'sport' => $data['sport'],
+            'phone' => $data['phone'] ?? null,
+        ]));
 
         if ($data['status'] !== $coach->status && $data['status'] === 'paused') {
             return redirect()

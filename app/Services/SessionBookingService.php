@@ -876,13 +876,19 @@ class SessionBookingService
             }
         }
 
+        // A session that came from a request would otherwise clash with that same request.
+        $ignoreRequestId = Booking::query()
+            ->whereIn('id', $ignoreBookingIds)
+            ->whereNotNull('session_request_id')
+            ->value('session_request_id');
+
         $this->assertAthleteAndPersonalClear(
             $athleteId ? (int) $athleteId : 0,
             $date,
             $time,
             $duration,
             $coach->id,
-            null,
+            $ignoreRequestId ? (int) $ignoreRequestId : null,
             $ignoreBookingIds
         );
 
