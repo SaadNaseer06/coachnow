@@ -19,6 +19,7 @@ use App\Services\VideoCompressionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use App\Rules\PhoneNumber;
+use App\Support\CoachLocation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -186,10 +187,12 @@ class CoachController extends Controller
             ->upcoming()
             ->count();
 
-        $locations = Cache::remember('locations.live.list', 600, fn () => Location::query()
-            ->where('status', 'live')
+        // Admin parks first, then the venues this coach entered.
+        $locations = Location::query()
+            ->usableBy($coach)
+            ->orderByRaw('coach_id is not null')
             ->orderBy('name')
-            ->get(['id', 'name', 'area']));
+            ->get(['id', 'name', 'area', 'coach_id']);
 
         $availability = $coach->availabilitySlots()
             ->with('location')
@@ -397,9 +400,10 @@ class CoachController extends Controller
     public function storeAvailability(Request $request): RedirectResponse
     {
         $coach = $this->currentCoach();
+        CoachLocation::resolve($request, $coach);
 
         $data = $request->validate([
-            'location_id' => ['required', 'integer', 'exists:locations,id'],
+            'location_id' => ['required', 'integer', CoachLocation::rule($coach)],
             'days' => ['required', 'array', 'min:1'],
             'days.*' => ['integer', 'min:0', 'max:6', 'distinct'],
             'start_time' => ['required', 'date_format:H:i'],
@@ -456,9 +460,10 @@ class CoachController extends Controller
     {
         $coach = $this->currentCoach();
         $block = $coach->availabilitySlots()->whereKey($slot)->firstOrFail();
+        CoachLocation::resolve($request, $coach);
 
         $data = $request->validate([
-            'location_id' => ['required', 'integer', 'exists:locations,id'],
+            'location_id' => ['required', 'integer', CoachLocation::rule($coach)],
             'day_of_week' => ['required', 'integer', 'min:0', 'max:6'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],

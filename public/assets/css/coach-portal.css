@@ -1289,6 +1289,46 @@ body.coach-req-modal-open {
   font-weight: 600;
 }
 
+.coach-req-joined {
+  grid-column: 1 / -1;
+}
+
+.coach-req-joined__toggle {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #da020c;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.coach-req-joined__list {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  background: #fff;
+  list-style: none;
+}
+
+.coach-req-joined__list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.coach-req-joined__list li span {
+  color: #71717a;
+  font-size: 12px;
+}
+
 .coach-req-roster__side {
   display: flex;
   flex-direction: column;

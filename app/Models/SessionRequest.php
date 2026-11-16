@@ -777,6 +777,8 @@ class SessionRequest extends Model
             },
             'waiting_label' => $waiting,
             'can_cancel' => $this->canBeCancelledBy($viewer),
+            'can_leave' => (bool) ($place?->isPending() && ! $place->isRequester()
+                && in_array($this->status, ['open', 'hosted', 'awaiting_deposit', 'confirmed'], true)),
             'players_count' => $this->placesTaken(),
             'posted' => $this->postedLabel(),
         ];
@@ -861,6 +863,8 @@ class SessionRequest extends Model
                 ?: $this->requestedCoach?->display_name,
             'invited_coach_ids' => $this->invitedCoachIds(),
             'players_joined' => $this->placesTaken(),
+            // Everyone on the request, including families still waiting for a coach.
+            'joined_count' => count($players),
             'confirmed_count' => $this->confirmedCount(),
             'pending_count' => $this->pendingJoinCount(),
             'looking_for' => $looking ?? '',

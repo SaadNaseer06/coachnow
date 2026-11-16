@@ -10,7 +10,7 @@
 @endif
 
 - When: {{ $booking->session_date?->format('l, M j, Y') }} · {{ \Illuminate\Support\Carbon::parse($booking->session_time)->format('g:i A') }}
-- Where: {{ $booking->location?->name ?? 'Field TBD' }}
+- Where: {{ $booking->location?->label() ?? 'Field TBD' }}
 - Reference: {{ $booking->reference }}
 @if (! $forCoach)
 @if ($refund > 0)

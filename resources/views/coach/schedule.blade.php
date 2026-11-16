@@ -633,17 +633,10 @@
           <input class="admin-input" type="number" name="price_per_player" id="bookPricePerPlayer" value="{{ old('price_per_player', (int) ($coach->rate ?? 25)) }}" min="0" max="9999" step="1">
         </label>
         <p class="admin-field admin-field--full" id="bookGroupHint" hidden style="margin:0;font-size:12px;color:#71717a">Group sessions start <strong>private</strong>. Open them to the public later from Manage session.</p>
-        <label class="admin-field admin-field--full">
+        <div class="admin-field admin-field--full">
           <span>Field / park</span>
-          <select class="admin-select" name="location_id" required>
-            <option value="">Select park…</option>
-            @foreach ($locations ?? [] as $location)
-              <option value="{{ $location->id }}" @selected((string) old('location_id') === (string) $location->id)>
-                {{ $location->name }}{{ $location->area ? ' · '.$location->area : '' }}
-              </option>
-            @endforeach
-          </select>
-        </label>
+          @include('partials.coach.location-picker', ['locations' => $locations ?? [], 'placeholder' => 'Select park…', 'selected' => old('location_id')])
+        </div>
         <label class="admin-field admin-field--full">
           <span>Notes (optional)</span>
           <textarea class="admin-textarea" name="notes" rows="2" maxlength="5000" placeholder="Private notes for this session">{{ old('notes') }}</textarea>
@@ -747,14 +740,10 @@
             </div>
           </div>
         </div>
-        <label class="admin-field admin-field--full">
+        <div class="admin-field admin-field--full">
           <span>Field / park</span>
-          <select class="admin-select" name="location_id" id="manageLocation" required>
-            @foreach ($locations ?? [] as $location)
-              <option value="{{ $location->id }}">{{ $location->name }}{{ $location->area ? ' · '.$location->area : '' }}</option>
-            @endforeach
-          </select>
-        </label>
+          @include('partials.coach.location-picker', ['locations' => $locations ?? [], 'id' => 'manageLocation'])
+        </div>
       </div>
       <div id="managePlayersWrap" class="sched-manage-players" hidden>
         <strong>Players on this session</strong>
@@ -958,15 +947,10 @@
             <span>Slot (min)</span>
             <input class="admin-input" type="number" name="duration_minutes" id="availDuration" value="60" min="30" max="180" step="15">
           </label>
-          <label class="admin-field avail-form__park">
+          <div class="admin-field avail-form__park">
             <span>Field / park</span>
-            <select class="admin-select" name="location_id" id="availLocation" required>
-              <option value="">Select park…</option>
-              @foreach ($locations ?? [] as $location)
-                <option value="{{ $location->id }}">{{ $location->name }}{{ $location->area ? ' · '.$location->area : '' }}</option>
-              @endforeach
-            </select>
-          </label>
+            @include('partials.coach.location-picker', ['locations' => $locations ?? [], 'id' => 'availLocation', 'placeholder' => 'Select park…'])
+          </div>
           <div class="avail-form__submit">
             <button type="submit" class="admin-btn admin-btn-primary" id="availSubmitBtn">Add hours</button>
           </div>
@@ -1458,6 +1442,7 @@
         endEl.value = '19:00';
         durationEl.value = '60';
         locationEl.value = '';
+        window.CoachNowLocationPicker?.sync(locationEl);
         document.querySelectorAll('.avail-row.is-editing').forEach((el) => el.classList.remove('is-editing'));
       };
 
@@ -1478,6 +1463,7 @@
           endEl.value = row.dataset.end;
           durationEl.value = row.dataset.duration;
           locationEl.value = row.dataset.location;
+          window.CoachNowLocationPicker?.sync(locationEl);
           methodInput.disabled = false;
           methodInput.value = 'PATCH';
           form.action = `${updateBase}/${row.dataset.id}${week ? '?week=' + encodeURIComponent(week) : ''}`;
