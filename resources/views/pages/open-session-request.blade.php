@@ -72,10 +72,13 @@
 
       <aside class="book-aside">
         <div class="book-summary" id="openRequestSummary">
-          @if ($myPlace && $myPlace->status !== \App\Models\SessionRequestPlayer::CANCELLED)
+          @if ($myPlace)
             @if ($myPlace->status === \App\Models\SessionRequestPlayer::DECLINED)
               <h2>Not confirmed</h2>
               <p class="book-hint">The coach couldn’t confirm your place on this session.</p>
+            @elseif ($myPlace->status === \App\Models\SessionRequestPlayer::CANCELLED)
+              <h2>Place cancelled</h2>
+              <p class="book-hint">You’re no longer on this session.</p>
             @elseif ($myPlace->isConfirmed())
               <h2>You’re confirmed</h2>
               <p class="book-hint">Your place on this session is confirmed.</p>
@@ -90,10 +93,6 @@
               @include('partials.message-coach', ['contact' => $coachContact])
             @endif
             <a href="{{ route('player-dashboard') }}#my-requests" class="book-btn">Go to my dashboard</a>
-            @if ($myPlace->isPending() && ! $myPlace->isRequester())
-              <p class="book-error" id="openRequestLeaveError" hidden></p>
-              <button type="button" class="book-link" id="openRequestLeaveBtn" data-leave-url="{{ route('session-requests.leave', $session->reference) }}" style="background:none;border:0;cursor:pointer">Leave this session</button>
-            @endif
           @else
             <h2>Join this session</h2>
             @if ($isFull)
@@ -143,33 +142,6 @@
 
 @push('scripts')
   <script>
-  // A family still waiting for the coach can step back out.
-  (() => {
-    const btn = document.getElementById('openRequestLeaveBtn');
-    if (!btn) return;
-    btn.addEventListener('click', async () => {
-      const ok = window.CoachNowDialog?.confirm
-        ? await window.CoachNowDialog.confirm({ title: 'Leave this session?', message: 'The coach will no longer see you on this session. You can ask to join again while there’s space.', confirmLabel: 'Leave session', cancelLabel: 'Stay' })
-        : window.confirm('Leave this session?');
-      if (!ok) return;
-      const errorEl = document.getElementById('openRequestLeaveError');
-      window.CoachNowBusy?.setBusy(btn, { label: 'Leaving…' });
-      const res = await fetch(btn.dataset.leaveUrl, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '', 'X-Requested-With': 'XMLHttpRequest' },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        window.location.reload();
-        return;
-      }
-      window.CoachNowBusy?.clearBusy(btn);
-      errorEl.hidden = false;
-      errorEl.textContent = data.message || 'Could not leave this session.';
-    });
-  })();
-
   (() => {
     const root = document.getElementById('openRequestApp');
     const btn = document.getElementById('openRequestJoinBtn');

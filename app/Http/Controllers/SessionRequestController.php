@@ -468,20 +468,12 @@ class SessionRequestController extends Controller
         $problem = DB::transaction(function () use ($session, $user, $name, $initials) {
             $locked = SessionRequest::query()->with('players')->lockForUpdate()->find($session->id);
 
-            // Someone who left can ask again; anyone else is already on it.
-            $existing = $locked->playerFor($user);
-            if ($existing && $existing->status !== SessionRequestPlayer::CANCELLED) {
+            if ($locked->playerFor($user)) {
                 return 'You already asked to join this session.';
             }
 
             if ($locked->isFull()) {
                 return 'This session is full.';
-            }
-
-            if ($existing) {
-                $existing->update(['status' => SessionRequestPlayer::PENDING, 'name' => $name, 'initials' => $initials ?: 'PL']);
-
-                return null;
             }
 
             SessionRequestPlayer::query()->create([
@@ -511,37 +503,6 @@ class SessionRequestController extends Controller
             'message' => $waitingForCoach
                 ? 'Your request to join is in. Once a coach accepts, they’ll confirm your place.'
                 : 'Your request to join is in. Message the coach to arrange payment.',
-        ]);
-    }
-
-    /**
-     * A family that asked to join changes their mind. Only while they're still waiting:
-     * once the coach confirms them, the coach handles any change.
-     */
-    public function leave(Request $request, string $reference): JsonResponse
-    {
-        $session = SessionRequest::query()->with('players')->where('reference', $reference)->firstOrFail();
-        $user = $request->user();
-        $player = $session->playerFor($user);
-
-        $problem = match (true) {
-            ! $player || ! $player->isActive() => 'You’re not on this session.',
-            $player->isRequester() => 'This is your own request. Cancel it instead.',
-            $player->isConfirmed() => 'Your place is confirmed. Contact your coach to cancel it.',
-            default => null,
-        };
-        if ($problem) {
-            return response()->json(['message' => $problem], 422);
-        }
-
-        $player->update(['status' => SessionRequestPlayer::CANCELLED]);
-        $session->refresh()->load(['players.user', 'requester', 'hostCoach.user', 'invitedCoaches', 'location']);
-        $this->broadcastSessionRequest($session->toPortalArray(), 'left');
-
-        return response()->json([
-            'data' => $session->toFamilyPortalArray($user),
-            'player' => $session->toPlayerDashboardArray($user),
-            'message' => 'You’ve left this session.',
         ]);
     }
 

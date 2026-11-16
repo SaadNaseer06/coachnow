@@ -54,7 +54,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/api/session-requests', [SessionRequestController::class, 'store'])->name('session-requests.store');
         Route::post('/api/session-requests/{reference}/join', [SessionRequestController::class, 'join'])->name('session-requests.join');
         Route::post('/api/session-requests/{reference}/cancel', [SessionRequestController::class, 'cancel'])->name('session-requests.cancel');
-        Route::post('/api/session-requests/{reference}/leave', [SessionRequestController::class, 'leave'])->name('session-requests.leave');
         Route::post('/api/bookings', [\App\Http\Controllers\BookingController::class, 'store'])->name('bookings.store');
         Route::post('/api/bookings/multi', [\App\Http\Controllers\BookingController::class, 'storeMultiple'])->name('bookings.store-multiple');
         Route::post('/api/bookings/{reference}/cancel', [\App\Http\Controllers\BookingController::class, 'cancel'])->name('bookings.cancel');

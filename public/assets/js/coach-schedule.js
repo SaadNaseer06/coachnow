@@ -289,9 +289,7 @@
     if (publicEl) publicEl.checked = Boolean(d.is_public);
     setShareUrl(d.share_url || '');
     syncPublicStatus();
-    const manageLoc = document.getElementById('manageLocation');
-    manageLoc.value = d.location_id || '';
-    window.CoachNowLocationPicker?.sync(manageLoc);
+    document.getElementById('manageLocation').value = d.location_id || '';
     document.getElementById('sessionManageSub').textContent = d.capacity_label
       ? `${d.session_type} · ${d.capacity_label}${d.is_public ? ' · Public' : ' · Private'}`
       : (d.player_name || 'Session');
@@ -345,11 +343,7 @@
       sport: document.getElementById('manageSport')?.value || null,
       price_per_player: document.getElementById('managePricePerPlayer')?.value || null,
       is_public: Boolean(document.getElementById('manageIsPublic')?.checked),
-      location_id: document.getElementById('manageLocation').value === 'other'
-        ? 'other'
-        : Number(document.getElementById('manageLocation').value),
-      new_location_name: document.getElementById('manageLocationName')?.value.trim() || null,
-      new_location_address: document.getElementById('manageLocationAddress')?.value.trim() || null,
+      location_id: Number(document.getElementById('manageLocation').value),
       force_double_book: document.getElementById('manageForceDouble').value === '1',
       remove_booking_ids: removeIds,
       add_players: addPlayers,
@@ -390,11 +384,6 @@
         } else {
           manageError.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
-        return;
-      }
-      // A new venue has to show up in every park list, so load the page fresh.
-      if (body.location_id === 'other') {
-        window.location.reload();
         return;
       }
       applyManageSaveToUi(currentBookingId, json.data || body);

@@ -98,47 +98,6 @@
 
   const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-  // Leave a session you asked to join (only while the coach hasn't confirmed you).
-  requestsRoot.addEventListener('click', async (event) => {
-    const btn = event.target.closest('[data-leave-request]');
-    if (!btn) return;
-    const ok = window.CoachNowDialog?.confirm
-      ? await window.CoachNowDialog.confirm({
-          title: 'Leave this session?',
-          message: 'The coach will no longer see you on this session. You can ask to join again while there’s space.',
-          confirmLabel: 'Leave session',
-          cancelLabel: 'Stay',
-        })
-      : window.confirm('Leave this session?');
-    if (!ok) return;
-
-    window.CoachNowBusy?.setBusy(btn, { label: 'Leaving…' });
-    try {
-      const res = await fetch(`/api/session-requests/${encodeURIComponent(btn.dataset.reference)}/leave`, {
-        method: 'POST',
-        headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload.message || 'Could not leave this session.');
-
-      const card = btn.closest('[data-request-card]');
-      const badgeEl = card?.querySelector('[data-request-status]');
-      if (badgeEl) {
-        badgeEl.textContent = 'Left';
-        badgeEl.className = 'player-req-badge player-req-badge--zinc';
-      }
-      card?.querySelector('.msg-coach')?.remove();
-      btn.remove();
-    } catch (error) {
-      window.CoachNowBusy?.clearBusy(btn);
-      if (window.CoachNowDialog?.alert) {
-        await window.CoachNowDialog.alert({ title: 'Could not leave', message: error.message });
-      } else {
-        window.alert(error.message);
-      }
-    }
-  });
-
   requestsRoot.addEventListener('click', async (event) => {
     const btn = event.target.closest('[data-cancel-request]');
     if (!btn) return;

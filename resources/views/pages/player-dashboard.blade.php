@@ -223,7 +223,7 @@
                     </span>
                   </div>
                   <p class="player-req-card__title">{{ $booking->session_type ?? 'Session' }}@if($booking->athlete_name && $booking->athlete_name !== auth()->user()->name) · {{ $booking->athlete_name }}@endif</p>
-                  <p class="player-req-card__meta">{{ $booking->whenLabel() }} · {{ $booking->location?->label() ?? 'Field TBD' }}@if ($booking->location) · <a href="{{ $booking->location->directionsUrl() }}" target="_blank" rel="noopener" class="player-directions">Directions</a>@endif</p>
+                  <p class="player-req-card__meta">{{ $booking->whenLabel() }} · {{ $booking->location?->name ?? 'Field TBD' }}</p>
                   <p class="player-req-card__sub">{{ $booking->coach?->display_name ?? 'Coach' }}@if ($booking->status === 'pending') · Waiting for the coach to confirm @endif</p>
                 </div>
                 @if (! $booking->athleteCancelBlockReason(auth()->user()))
@@ -296,16 +296,6 @@
                   @endif
                 </div>
                 <div class="player-req-card__actions">
-                  @if (! empty($req['can_leave']))
-                    <button
-                      type="button"
-                      class="player-req-cancel"
-                      data-leave-request
-                      data-reference="{{ $req['reference'] }}"
-                    >
-                      Leave
-                    </button>
-                  @endif
                   @if ($req['can_cancel'])
                     <button
                       type="button"
@@ -369,7 +359,7 @@
                     @endif
                   </div>
                   <p class="player-req-card__title">{{ $booking->session_type ?? 'Group session' }}</p>
-                  <p class="player-req-card__meta">{{ $booking->whenLabel() }} · {{ $booking->location?->label() ?? 'Field TBD' }}@if ($booking->location) · <a href="{{ $booking->location->directionsUrl() }}" target="_blank" rel="noopener" class="player-directions">Directions</a>@endif</p>
+                  <p class="player-req-card__meta">{{ $booking->whenLabel() }} · {{ $booking->location?->name ?? 'Field TBD' }}</p>
                   <p class="player-req-card__sub">
                     {{ $booking->coach?->display_name ?? 'Coach' }}
                     @if($booking->groupSession?->age_range) · {{ $booking->groupSession->age_range }}@endif

@@ -7,12 +7,9 @@ use App\Models\Booking;
 use App\Models\Coach;
 use App\Models\CoachGroupSession;
 use App\Models\GroupJoinRequest;
-use App\Models\Location;
-use App\Models\SessionRequest;
 use App\Models\User;
 use App\Services\AppMailer;
 use App\Services\SessionBookingService;
-use App\Support\CoachLocation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +23,6 @@ class CoachScheduleSessionController extends Controller
     public function store(Request $request, SessionBookingService $bookings): RedirectResponse|JsonResponse
     {
         $coach = $this->currentCoach();
-        CoachLocation::resolve($request, $coach);
 
         $data = $request->validate([
             'athlete_id' => ['nullable', 'integer', 'exists:users,id'],
@@ -34,7 +30,7 @@ class CoachScheduleSessionController extends Controller
             'session_date' => ['required', 'date', 'after_or_equal:today'],
             'session_time' => ['required', 'date_format:H:i'],
             'duration_minutes' => ['nullable', 'integer', 'min:30', 'max:180'],
-            'location_id' => ['required', 'integer', CoachLocation::rule($coach)],
+            'location_id' => ['required', 'integer', 'exists:locations,id'],
             'session_type' => ['required', 'string', 'max:160'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'max_players' => ['nullable', 'integer', 'min:2', 'max:30'],
@@ -100,7 +96,6 @@ class CoachScheduleSessionController extends Controller
     {
         $coach = $this->currentCoach();
         $this->assertOwnsBooking($coach, $booking);
-        CoachLocation::resolve($request, $coach);
 
         $data = $request->validate([
             'athlete_id' => ['nullable', 'integer', 'exists:users,id'],
@@ -108,7 +103,7 @@ class CoachScheduleSessionController extends Controller
             'session_date' => ['nullable', 'date'],
             'session_time' => ['nullable', 'date_format:H:i'],
             'duration_minutes' => ['nullable', 'integer', 'min:30', 'max:180'],
-            'location_id' => ['nullable', 'integer', CoachLocation::rule($coach)],
+            'location_id' => ['nullable', 'integer', 'exists:locations,id'],
             'session_type' => ['nullable', 'string', 'max:160'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'max_players' => ['nullable', 'integer', 'min:2', 'max:30'],
@@ -137,11 +132,6 @@ class CoachScheduleSessionController extends Controller
                 }
             }
 
-            $before = [
-                'date' => $booking->session_date?->toDateString(),
-                'time' => substr((string) $booking->session_time, 0, 5),
-                'location' => $booking->location,
-            ];
             $updated = $bookings->updateCoachBooking($coach, $booking->fresh(), $this->withAgeRange($data));
         } catch (ValidationException $e) {
             if ($request->expectsJson()) {
@@ -165,7 +155,6 @@ class CoachScheduleSessionController extends Controller
 
         $coach->forceFill(['last_active_at' => now()])->save();
         $this->forgetCoachCaches($coach);
-        $notified = $this->tellFamiliesAboutChanges($updated, $before);
 
         if ($request->expectsJson()) {
             $updated->load(['groupSession', 'location']);
@@ -193,9 +182,7 @@ class CoachScheduleSessionController extends Controller
                     'players' => $group?->bookedCount(),
                     'capacity_label' => $group?->capacityLabel(),
                     'location' => $updated->location?->name,
-                    'location_id' => $updated->location_id,
                     'is_group' => (bool) $updated->group_session_id,
-                    'notified' => $notified,
                 ],
             ]);
         }
@@ -207,40 +194,6 @@ class CoachScheduleSessionController extends Controller
                 'date' => optional($updated->session_date)->toDateString(),
             ]))
             ->with('success', 'Session updated.');
-    }
-
-    /**
-     * Booked families hear about a new date, time or place. Players added by name only have no
-     * account or email, so they're skipped.
-     *
-     * @param  array{date: ?string, time: string, location: ?Location}  $before
-     */
-    private function tellFamiliesAboutChanges(Booking $updated, array $before): int
-    {
-        $updated->loadMissing('location');
-        $timeChanged = $before['date'] !== $updated->session_date?->toDateString()
-            || $before['time'] !== substr((string) $updated->session_time, 0, 5);
-        $placeChanged = (int) $before['location']?->id !== (int) $updated->location_id;
-
-        // A session that started as a request shows the request's venue to families too.
-        if ($placeChanged && $updated->session_request_id && $updated->location) {
-            SessionRequest::query()->whereKey($updated->session_request_id)->update([
-                'location_id' => $updated->location_id,
-                'location_name' => $updated->location->name,
-                'location_city' => $updated->location->area,
-            ]);
-        }
-
-        if ((! $timeChanged && ! $placeChanged) || ! $updated->startsAt()?->isFuture()) {
-            return 0;
-        }
-
-        return app(AppMailer::class)->notifySessionRescheduled(
-            $updated,
-            (string) $before['date'],
-            $before['time'],
-            $placeChanged ? $before['location'] : null,
-        );
     }
 
     public function move(Request $request, Booking $booking, SessionBookingService $bookings): JsonResponse

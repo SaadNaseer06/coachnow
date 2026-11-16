@@ -4,7 +4,6 @@
   $isHosted = in_array($status, ['accepted', 'confirmed', 'awaiting_deposit', 'hosted'], true);
   $players = $request['players'] ?? [];
   $joined = (int) ($request['players_joined'] ?? count($players));
-  $joinedCount = (int) ($request['joined_count'] ?? count($players));
   $confirmedCount = (int) ($request['confirmed_count'] ?? 0);
   $pendingCount = (int) ($request['pending_count'] ?? 0);
   $minPlayers = $request['min_players'] ?? '';
@@ -18,8 +17,7 @@
   };
 
   $priceRaw = (string) ($request['price_range'] ?? '');
-  $estJoined = $isOpen ? $joinedCount : $joined;
-  $estCount = $estJoined > 0 ? $estJoined : (int) ($maxPlayers !== '' ? $maxPlayers : ($minPlayers !== '' ? $minPlayers : 0));
+  $estCount = $joined > 0 ? $joined : (int) ($maxPlayers !== '' ? $maxPlayers : ($minPlayers !== '' ? $minPlayers : 0));
   $preferredCoach = trim((string) ($request['requested_coach'] ?? ''));
   $isTargeted = $preferredCoach !== '' || ($request['requested_coach_id'] ?? null) !== null;
   $invitedIds = array_map('intval', $request['invited_coach_ids'] ?? []);
@@ -37,7 +35,7 @@
           || (int) $request['acceptExpiresAt'] > (int) (microtime(true) * 1000)
       );
   $estPayout = '';
-  $estLabel = $estJoined > 0 ? 'Est. payout' : 'Est. if filled';
+  $estLabel = $joined > 0 ? 'Est. payout' : 'Est. if filled';
   if ($estCount > 0 && $priceRaw !== '') {
       if (preg_match('/up to\s*\$?\s*(\d+)/i', $priceRaw, $m)) {
           $estPayout = 'Up to $'.number_format(((int) $m[1]) * $estCount).($joined > 0 ? ' est.' : '').' ('.$estCount.' × up to $'.$m[1].')';
@@ -134,29 +132,10 @@
       <dt>Sport</dt>
       <dd>{{ $request['sport'] ?? '—' }}</dd>
     </div>
-    @if ($isOpen)
-      <div class="coach-req-joined">
-        <dt>Currently joined</dt>
-        <dd>
-          {{ $joinedCount }} player{{ $joinedCount === 1 ? '' : 's' }}@if ($maxPlayers !== '' && $maxPlayers !== null) · Maximum: {{ $maxPlayers }}@endif
-          @if ($joinedCount > 0)
-            <button type="button" class="coach-req-joined__toggle" data-toggle-joined aria-expanded="false">View players</button>
-          @endif
-        </dd>
-        @if ($joinedCount > 0)
-          <ul class="coach-req-joined__list" hidden>
-            @foreach ($players as $player)
-              <li><strong>{{ $player['name'] ?? 'Player' }}</strong><span>{{ ($player['role'] ?? '') === 'requester' ? 'Original player' : 'Joined' }}</span></li>
-            @endforeach
-          </ul>
-        @endif
-      </div>
-    @else
-      <div data-players-row @if ($playersLabel === '' && ! $isHosted) hidden @endif>
-        <dt>Players</dt>
-        <dd data-field="players">{{ $playersLabel !== '' ? $playersLabel : '—' }}</dd>
-      </div>
-    @endif
+    <div data-players-row @if ($playersLabel === '' && ! $isHosted) hidden @endif>
+      <dt>Players</dt>
+      <dd data-field="players">{{ $playersLabel !== '' ? $playersLabel : '—' }}</dd>
+    </div>
     @if (! empty($request['player_level']))
       <div>
         <dt>Level</dt>

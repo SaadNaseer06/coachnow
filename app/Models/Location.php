@@ -19,7 +19,6 @@ class Location extends Model
         'latitude',
         'longitude',
         'status',
-        'coach_id',
         'image_path',
     ];
 
@@ -72,23 +71,6 @@ class Location extends Model
             + cos($latFrom) * cos($latTo) * sin($lngDelta / 2) ** 2;
 
         return round($earthRadius * 2 * asin(min(1, sqrt($a))), 1);
-    }
-
-    /** Admin parks, plus venues this coach entered themselves. */
-    public function scopeUsableBy($query, Coach $coach)
-    {
-        return $query->where(fn ($q) => $q->where('status', 'live')->orWhere('coach_id', $coach->id));
-    }
-
-    /** "Sommers Bend · Temecula" for parks; for a coach's own venue the area is the street address. */
-    public function label(): string
-    {
-        return $this->name.($this->area ? ' · '.$this->area : '');
-    }
-
-    public function directionsUrl(): string
-    {
-        return 'https://www.google.com/maps/search/?api=1&query='.rawurlencode(trim($this->name.', '.$this->area, ', '));
     }
 
     public function coaches(): HasMany

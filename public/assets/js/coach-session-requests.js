@@ -50,8 +50,6 @@
 
   let lastFocus = null;
   let adjustingCard = null;
-  // Cards are redrawn on every refresh, so remember which player lists the coach opened.
-  const openPlayerLists = new Set();
   let acceptingId = null;
   let lookingManual = false;
   let cachedRequests = [];
@@ -162,35 +160,7 @@
       minPlayers: req.min_players ?? '',
     });
     if (!value) return '';
-    let html = `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`;
-    // Before accepting, also show what a full session would be worth.
-    const max = Number(req.max_players || 0);
-    if ((req.status || 'open') === 'open' && Number(joined || 0) > 0 && max > Number(joined)) {
-      const full = estimatePayout(req.price_range, max);
-      if (full) html += `<div><dt>If full</dt><dd>${escapeHtml(full.replace(' est.', ''))}</dd></div>`;
-    }
-    return html;
-  }
-
-  function joinedCount(req) {
-    const players = Array.isArray(req.players) ? req.players : [];
-    return Number(req.joined_count ?? players.length) || players.length;
-  }
-
-  // Before a coach accepts: how many families are on it, the maximum, and who they are.
-  function joinedFieldHtml(req) {
-    const players = Array.isArray(req.players) ? req.players : [];
-    const n = joinedCount(req);
-    const max = req.max_players ? ` · Maximum: ${escapeHtml(req.max_players)}` : '';
-    const open = openPlayerLists.has(String(req.id));
-    const list = players.map((p) => `<li><strong>${escapeHtml(p.name || 'Player')}</strong><span>${p.role === 'requester' ? 'Original player' : 'Joined'}</span></li>`).join('');
-    return `<div class="coach-req-joined">
-      <dt>Currently joined</dt>
-      <dd>${n} player${n === 1 ? '' : 's'}${max}
-        ${n ? `<button type="button" class="coach-req-joined__toggle" data-toggle-joined aria-expanded="${open}">${open ? 'Hide players' : 'View players'}</button>` : ''}
-      </dd>
-      ${n ? `<ul class="coach-req-joined__list"${open ? '' : ' hidden'}>${list}</ul>` : ''}
-    </div>`;
+    return `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`;
   }
 
   function spotsLabel(joined, max, lookingFor) {
@@ -551,9 +521,7 @@
   function extraFieldsHtml(req) {
     const parts = [];
     const label = playersLabel(req.min_players, req.max_players);
-    if ((req.status || 'open') === 'open') {
-      parts.push(joinedFieldHtml(req));
-    } else if (label) {
+    if (label) {
       parts.push(`<div data-players-row><dt>Players</dt><dd data-field="players">${escapeHtml(label)}</dd></div>`);
     } else {
       parts.push('<div data-players-row hidden><dt>Players</dt><dd data-field="players">—</dd></div>');
@@ -660,7 +628,7 @@
         ${preferredCoachFieldHtml(req)}
         <div><dt>Age range</dt><dd>${escapeHtml(req.age_range || '—')}</dd></div>
         <div><dt>Budget / player</dt><dd>${escapeHtml(req.price_range || '—')}</dd></div>
-        ${payoutFieldHtml(req, joinedCount(req))}
+        ${payoutFieldHtml(req, 0)}
         <div><dt>Sport</dt><dd>${escapeHtml(req.sport || '—')}</dd></div>
         ${extraFieldsHtml(req)}
       </div>
@@ -859,20 +827,6 @@
     } finally {
       window.CoachNowBusy?.clearBusy(acceptSaveBtn);
     }
-  });
-
-  list.addEventListener('click', (event) => {
-    const toggle = event.target.closest('[data-toggle-joined]');
-    if (!toggle) return;
-    const card = toggle.closest('.coach-req-card');
-    const listEl = card?.querySelector('.coach-req-joined__list');
-    if (!card || !listEl) return;
-    const show = listEl.hidden;
-    listEl.hidden = !show;
-    toggle.textContent = show ? 'Hide players' : 'View players';
-    toggle.setAttribute('aria-expanded', String(show));
-    if (show) openPlayerLists.add(card.dataset.requestId);
-    else openPlayerLists.delete(card.dataset.requestId);
   });
 
   // Roster buttons are redrawn on every refresh, so listen on the list.
