@@ -18,6 +18,7 @@ use App\Mail\SessionRescheduledMail;
 use App\Mail\WelcomeUserMail;
 use App\Models\Booking;
 use App\Models\Coach;
+use App\Models\Location;
 use App\Models\SessionRequest;
 use App\Models\SessionRequestPlayer;
 use App\Models\User;
@@ -142,7 +143,7 @@ class AppMailer
      *
      * @return int Number of parents emailed.
      */
-    public function notifySessionRescheduled(Booking $booking, string $oldDate, string $oldTime): int
+    public function notifySessionRescheduled(Booking $booking, string $oldDate, string $oldTime, ?Location $oldLocation = null): int
     {
         $booking->loadMissing(['coach', 'location', 'groupSession']);
 
@@ -164,6 +165,7 @@ class AppMailer
                 $playerNames !== [] ? $playerNames : ['your player'],
                 $oldDate,
                 $oldTime,
+                $oldLocation,
             ));
             $sent++;
         }

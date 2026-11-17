@@ -1109,3 +1109,11 @@ a.player-history-item {
   display: flex;
   text-decoration: none;
 }
+
+/* Directions link next to a booking's park or address. */
+.player-directions {
+  color: #f87171;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
