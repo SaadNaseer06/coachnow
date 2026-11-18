@@ -230,6 +230,16 @@
     return basket.some((s) => slotKey(s) === slotKey(slot));
   }
 
+  const toMinutes = (time) => {
+    const [h, m] = String(time).split(':').map(Number);
+    return h * 60 + (m || 0);
+  };
+  const overlaps = (a, b) => {
+    const aStart = toMinutes(a.time);
+    const bStart = toMinutes(b.time);
+    return aStart < bStart + Number(b.duration_minutes || 60) && bStart < aStart + Number(a.duration_minutes || 60);
+  };
+
   function pickSlot(slot) {
     if (slot.joinable && slot.group_session_id) {
       // Group join is its own single-slot checkout.
@@ -245,6 +255,9 @@
       selected = basket[basket.length - 1] || null;
     } else {
       if (selected && usesPlayers()) selected = null;
+      // Start times are 15 minutes apart, so a new pick can overlap one already chosen
+      // that day. The new time replaces it instead of failing at checkout.
+      basket = basket.filter((s) => s.date !== slot.date || s.group_session_id || !overlaps(s, slot));
       if (basket.length >= maxSessions) {
         showError(`You can book up to ${maxSessions} sessions at once.`);
         return;
@@ -256,6 +269,14 @@
     renderTimes();
     updateSummary();
   }
+
+  // The hour whose quarter-hour start times are showing, as "date|HH".
+  let openHour = '';
+  const hourLabel = (hh) => {
+    const h = Number(hh);
+    return `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
+  };
+  const timeOnly = (slot) => String(slot.time_label || slot.time).replace(/ · .*$/, '');
 
   function renderTimes() {
     timesEl.innerHTML = '';
@@ -271,7 +292,57 @@
       return;
     }
     hintEl.hidden = true;
+
+    // Group sessions keep their own larger yellow buttons. 1-on-1 times are grouped by
+    // hour to keep the list short; tapping an hour shows its start times.
+    const items = [];
+    const hours = new Map();
     list.forEach((slot) => {
+      if (slot.group_session_id) {
+        items.push({ at: slot.time, slot });
+        return;
+      }
+      const hh = String(slot.time).slice(0, 2);
+      if (!hours.has(hh)) {
+        hours.set(hh, []);
+        items.push({ at: `${hh}:00`, hour: hh });
+      }
+      hours.get(hh).push(slot);
+    });
+    items.sort((a, b) => a.at.localeCompare(b.at));
+
+    items.forEach((item) => {
+      if (item.slot) {
+        timesEl.appendChild(slotChip(item.slot));
+        return;
+      }
+      const slots = hours.get(item.hour);
+      const key = `${selectedDate}|${item.hour}`;
+      const open = openHour === key;
+      const picked = slots.find((s) => inBasket(s) || (selected && slotKey(selected) === slotKey(s)));
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `book-chip book-chip--hour${picked ? ' is-selected' : ''}${open ? ' is-open' : ''}`;
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.innerHTML = `${escapeHtml(picked ? timeOnly(picked) : hourLabel(item.hour))}<span class="book-chip__caret" aria-hidden="true"></span>`;
+      btn.addEventListener('click', () => {
+        openHour = open ? '' : key;
+        renderTimes();
+      });
+      timesEl.appendChild(btn);
+
+      if (open) {
+        const menu = document.createElement('div');
+        menu.className = 'book-quarters';
+        menu.setAttribute('role', 'group');
+        menu.setAttribute('aria-label', `Start times from ${hourLabel(item.hour)}`);
+        slots.forEach((s) => menu.appendChild(slotChip(s, () => { openHour = ''; })));
+        timesEl.appendChild(menu);
+      }
+    });
+  }
+
+  function slotChip(slot, beforePick) {
       const btn = document.createElement('button');
       btn.type = 'button';
       const isFull = !bookable(slot);
@@ -291,9 +362,13 @@
       }
       btn.setAttribute('aria-pressed', isPicked ? 'true' : 'false');
       if (slot.label) btn.title = slot.label;
-      if (!isFull) btn.addEventListener('click', () => pickSlot(slot));
-      timesEl.appendChild(btn);
-    });
+      if (!isFull) {
+        btn.addEventListener('click', () => {
+          beforePick?.();
+          pickSlot(slot);
+        });
+      }
+      return btn;
   }
 
   // —— Weekly repeat ——

@@ -53,9 +53,16 @@
     requestId: '',
   };
 
-  const morningSlots = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM'];
-  const afternoonSlots = ['12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM'];
-  const eveningSlots = ['7:30 PM', '8:30 PM', '9:30 PM'];
+  // Start times every 15 minutes. Each time of day lists its hours; tapping an hour shows
+  // its four start times (7 PM → 7:00, 7:15, 7:30, 7:45).
+  const periodHours = {
+    Morning: [8, 9, 10, 11],
+    Afternoon: [12, 13, 14, 15, 16, 17, 18],
+    Evening: [19, 20, 21],
+  };
+  let openHour = null;
+  const hourLabel = (h) => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
+  const quarterLabel = (h, m) => `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 
   const els = {
     progressFill: document.getElementById('reqProgressFill'),
@@ -348,25 +355,57 @@
     window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   }
 
-  function renderTimeSlots(container, slots) {
+  function renderTimeSlots(container, hours) {
     if (!container) return;
     container.innerHTML = '';
-    slots.forEach((label) => {
+    hours.forEach((h) => {
+      const quarters = [0, 15, 30, 45].map((m) => quarterLabel(h, m));
+      const picked = quarters.includes(state.selectedTime) ? state.selectedTime : '';
+      const open = openHour === h;
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'req-time-slot';
-      btn.textContent = label;
-      btn.dataset.time = label;
-      btn.addEventListener('click', () => selectTime(label, btn));
+      btn.className = `req-time-slot req-time-hour${picked ? ' is-active' : ''}${open ? ' is-open' : ''}`;
+      btn.dataset.hour = String(h);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.innerHTML = `${escapeHtml(picked || hourLabel(h))}<span class="req-time-caret" aria-hidden="true"></span>`;
+      btn.addEventListener('click', () => {
+        openHour = open ? null : h;
+        renderAllTimeSlots();
+      });
       container.appendChild(btn);
+
+      if (open) {
+        const menu = document.createElement('div');
+        menu.className = 'req-time-quarters';
+        menu.setAttribute('role', 'group');
+        menu.setAttribute('aria-label', `Start times from ${hourLabel(h)}`);
+        quarters.forEach((label) => {
+          const q = document.createElement('button');
+          q.type = 'button';
+          q.className = `req-time-slot req-time-quarter${state.selectedTime === label ? ' is-active' : ''}`;
+          q.textContent = label.replace(/ (AM|PM)$/, '');
+          q.dataset.time = label;
+          q.setAttribute('aria-label', label);
+          q.addEventListener('click', () => {
+            openHour = null;
+            selectTime(label);
+          });
+          menu.appendChild(q);
+        });
+        container.appendChild(menu);
+      }
     });
   }
 
-  function selectTime(label, btn) {
+  function renderAllTimeSlots() {
+    renderTimeSlots(els.morningSlots, periodHours.Morning);
+    renderTimeSlots(els.afternoonSlots, periodHours.Afternoon);
+    renderTimeSlots(els.eveningSlots, periodHours.Evening);
+  }
+
+  function selectTime(label) {
     state.selectedTime = label;
-    document.querySelectorAll('.req-time-slot').forEach((el) => {
-      el.classList.toggle('is-active', el === btn);
-    });
+    renderAllTimeSlots();
     if (els.toDetailsBtn) els.toDetailsBtn.disabled = false;
     updateSummary();
   }
@@ -909,12 +948,11 @@
       if (els.locationInput) els.locationInput.value = state.locationName;
       if (els.locationLabel) els.locationLabel.textContent = state.locationName;
       els.locationCards.forEach((c) => c.classList.toggle('is-selected', c === card));
-      renderTimeSlots(els.morningSlots, morningSlots);
-      renderTimeSlots(els.afternoonSlots, afternoonSlots);
-      renderTimeSlots(els.eveningSlots, eveningSlots);
+      state.selectedTime = '';
+      openHour = null;
+      renderAllTimeSlots();
       filterTimeGroups();
       if (els.toDetailsBtn) els.toDetailsBtn.disabled = true;
-      state.selectedTime = '';
       updateSummary();
       goToStep(3);
     };
@@ -1146,9 +1184,7 @@
 
   setInterval(syncLiveRequestStatus, 2500);
 
-  renderTimeSlots(els.morningSlots, morningSlots);
-  renderTimeSlots(els.afternoonSlots, afternoonSlots);
-  renderTimeSlots(els.eveningSlots, eveningSlots);
+  renderAllTimeSlots();
   setMinDate();
   applySearchPrefill();
 

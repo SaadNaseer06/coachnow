@@ -35,8 +35,6 @@ class CoachAvailabilityService
 
         // Busy time for exactly the dates being shown (Book Now can look months ahead).
         $occupancy = Coach::occupancyByCoachIds([$coach->id], $from, $to)[$coach->id] ?? [];
-        // Coach's buffer keeps a gap around every booked session.
-        $busy = $this->busyWindows($occupancy, max(0, (int) ($coach->buffer_minutes ?? 0)));
 
         $groups = CoachGroupSession::query()
             ->with('location')
@@ -45,6 +43,19 @@ class CoachAvailabilityService
             ->whereDate('session_date', '>=', $from->toDateString())
             ->whereDate('session_date', '<=', $to->toDateString())
             ->get();
+
+        // Group sessions keep their own button, but 1-on-1 time must not run into one:
+        // with 15-minute starts, a 4:30 session would overlap a 5:00 group.
+        foreach ($groups as $group) {
+            $occupancy[] = [
+                'date' => $group->session_date?->toDateString(),
+                'time' => substr((string) $group->session_time, 0, 5),
+                'minutes' => $group->durationMinutes(),
+            ];
+        }
+
+        // Coach's buffer keeps a gap around every booked session.
+        $busy = $this->busyWindows($occupancy, max(0, (int) ($coach->buffer_minutes ?? 0)));
 
         $groupsByKey = [];
         foreach ($groups as $group) {
@@ -75,7 +86,7 @@ class CoachAvailabilityService
                     $group = $groupsByKey[$groupKey] ?? null;
 
                     if ($slotStart->lt(now())) {
-                        $slotStart->addMinutes($duration);
+                        $slotStart->addMinutes(self::STEP_MINUTES);
                         continue;
                     }
 
@@ -113,7 +124,7 @@ class CoachAvailabilityService
                     if ($group) {
                         // Private groups are reserved — hide from other families.
                         if (! $group->is_public) {
-                            $slotStart->addMinutes($duration);
+                            $slotStart->addMinutes(self::STEP_MINUTES);
                             continue;
                         }
 
@@ -125,7 +136,8 @@ class CoachAvailabilityService
                     }
 
                     $slots[] = $slot;
-                    $slotStart->addMinutes($duration);
+                    // Parents can start on any quarter hour, not only on the hour.
+                    $slotStart->addMinutes(self::STEP_MINUTES);
                 }
             }
 

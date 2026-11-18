@@ -761,3 +761,44 @@ body.book-flow #coachnowPreloader {
 #bookMultiHint[hidden] {
   display: none !important;
 }
+
+/* 1-on-1 start times: an hour button opens its four quarter-hour times. */
+.book-chip--hour {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.book-chip__caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: 0.7;
+  transition: transform 0.15s ease;
+}
+
+.book-chip--hour.is-open .book-chip__caret {
+  transform: rotate(180deg);
+}
+
+.book-chip--hour.is-open {
+  border-color: #da020c;
+}
+
+.book-quarters {
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: #141618;
+}
+
+.book-quarters .book-chip {
+  padding: 0.5rem 0.25rem;
+  text-align: center;
+}
