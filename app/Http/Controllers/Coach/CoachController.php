@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Coach;
 use App\Models\CoachAvailabilitySlot;
+use App\Models\CoachPlayerNote;
 use App\Models\CoachTimeBlock;
 use App\Models\Location;
 use App\Models\SessionRequest;
@@ -23,6 +24,7 @@ use App\Support\CoachLocation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -669,29 +671,49 @@ class CoachController extends Controller
 
         $reports = SessionReport::query()
             ->where('coach_id', $coach->id)
-            ->where(function ($q) use ($profile) {
-                if (! empty($profile['athlete_id'])) {
-                    $q->where('athlete_id', $profile['athlete_id']);
-                } else {
-                    $q->whereNull('athlete_id')->where('athlete_name', $profile['name'] ?? '');
-                }
-            })
+            ->where(fn ($q) => $this->whereSamePlayer($q, $profile))
             ->orderByDesc('created_at')
             ->limit(20)
             ->get()
             ->map->toDisplayArray()
             ->all();
 
+        $notes = CoachPlayerNote::query()
+            ->where('coach_id', $coach->id)
+            ->where(fn ($q) => $this->whereSamePlayer($q, $profile))
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get()
+            ->map(fn (CoachPlayerNote $note) => [
+                'id' => $note->id,
+                'author' => $coach->display_name ?: 'You',
+                'date' => $note->created_at?->format('M j, Y · g:i A') ?? '',
+                'edited' => $note->updated_at && $note->created_at && $note->updated_at->gt($note->created_at),
+                'text' => $note->body,
+            ])
+            ->all();
+
+        $tabs = ['overview', 'history', 'goals', 'videos', 'notes'];
+        $activeTab = (string) $request->query('tab', '');
+        if (! in_array($activeTab, $tabs, true)) {
+            $activeTab = match (true) {
+                (bool) session('open_videos_tab', false) => 'videos',
+                (bool) session('open_goals_tab', false) => 'goals',
+                (bool) session('errors')?->getBag('note')->any() => 'notes',
+                default => 'overview',
+            };
+        }
+
         return view('coach.player-show', [
             'player' => $profile,
             'skills' => [],
             'sessions' => $history,
             'goals' => [],
-            'notes' => [],
+            'notes' => $notes,
             'videos' => $videos,
             'reports' => $reports,
-            'openVideosTab' => $request->query('tab') === 'videos' || session('open_videos_tab', false),
-            'openGoalsTab' => $request->query('tab') === 'goals' || session('open_goals_tab', false),
+            'activeTab' => $activeTab,
         ]);
     }
 
@@ -947,32 +969,9 @@ class CoachController extends Controller
                 ->withErrors(['player' => 'Select a player from your roster before saving.']);
         }
 
-        $videos = [];
-        if (! empty($data['recommended_videos'])) {
-            $decoded = json_decode($data['recommended_videos'], true);
-            if (is_array($decoded)) {
-                $videos = collect($decoded)
-                    ->filter(fn ($row) => is_array($row) && filled($row['title'] ?? null))
-                    ->map(fn ($row) => [
-                        'title' => Str::limit((string) $row['title'], 80),
-                        'meta' => Str::limit((string) ($row['meta'] ?? 'Technique guide'), 40),
-                    ])
-                    ->take(3)
-                    ->values()
-                    ->all();
-            }
-        }
-
+        $videos = $this->reportVideos($data['recommended_videos'] ?? null);
         $share = $request->boolean('share');
-
-        // Coach-picked status per skill (shown on the player's Skill progress).
-        $skillStatuses = collect(json_decode((string) ($data['skill_statuses'] ?? '[]'), true) ?: [])
-            ->filter(fn ($row) => is_array($row) && filled($row['skill'] ?? null)
-                && in_array($row['status'] ?? null, ['strong', 'developing', 'needs_work'], true))
-            ->map(fn ($row) => ['skill' => Str::limit(trim((string) $row['skill']), 60, ''), 'status' => $row['status']])
-            ->take(5)
-            ->values()
-            ->all();
+        $skillStatuses = $this->reportSkillStatuses($data['skill_statuses'] ?? null);
 
         $report = SessionReport::query()->create([
             'coach_id' => $coach->id,
@@ -1001,6 +1000,133 @@ class CoachController extends Controller
             ->route('coach.players.show', ['player' => $profile['slug'], 'tab' => 'goals'])
             ->with('status', $status)
             ->with('open_goals_tab', true);
+    }
+
+    /** Reopen a saved report so the coach can fix the feedback or fill in missed ratings. */
+    public function editReport(SessionReport $report): View
+    {
+        $coach = $this->currentCoach();
+        abort_unless((int) $report->coach_id === (int) $coach->id, 404);
+
+        $profile = $this->profileForRecord($coach, $report->athlete_id, $report->athlete_name);
+
+        return view('coach.add-report', [
+            'player' => $profile ?: [
+                'slug' => $report->athlete_id ? (string) $report->athlete_id : Str::slug((string) $report->athlete_name),
+                'name' => $report->athlete_name ?: 'Player',
+                'age' => '—',
+                'sport' => '—',
+            ],
+            'roster' => [],
+            'ollamaReady' => app(OllamaReportService::class)->isReady(),
+            'generateUrl' => route('coach.add-report.generate'),
+            'storeUrl' => route('coach.reports.update', $report),
+            'report' => $report,
+            'backUrl' => $profile ? route('coach.players.show', ['player' => $profile['slug'], 'tab' => 'goals']) : route('coach.player-overview'),
+        ]);
+    }
+
+    public function updateReport(Request $request, SessionReport $report): RedirectResponse
+    {
+        $coach = $this->currentCoach();
+        abort_unless((int) $report->coach_id === (int) $coach->id, 404);
+
+        $data = $request->validate([
+            'keywords' => ['nullable', 'string', 'max:255'],
+            'skill_statuses' => ['nullable', 'string', 'max:2000'],
+            'coach_notes_wins' => ['nullable', 'string', 'max:2000'],
+            'coach_notes_work_ons' => ['nullable', 'string', 'max:2000'],
+            'focus' => ['required', 'string', 'max:5000'],
+            'went_well' => ['required', 'string', 'max:5000'],
+            'needs_work' => ['required', 'string', 'max:5000'],
+            'home_plan' => ['required', 'string', 'max:5000'],
+            'summary' => ['nullable', 'string', 'max:1000'],
+            'recommended_videos' => ['nullable', 'string', 'max:4000'],
+            'ai_source' => ['nullable', 'string', 'max:40'],
+            'share' => ['nullable', 'boolean'],
+        ]);
+
+        // A report the player can already see stays shared; the player just sees the update.
+        $wasShared = (bool) $report->shared_with_player;
+        $share = $wasShared || $request->boolean('share');
+
+        $report->update([
+            'keywords' => $data['keywords'] ?? null,
+            'skill_statuses' => $this->reportSkillStatuses($data['skill_statuses'] ?? null) ?: null,
+            'coach_notes_wins' => $data['coach_notes_wins'] ?? null,
+            'coach_notes_work_ons' => $data['coach_notes_work_ons'] ?? null,
+            'focus' => $data['focus'],
+            'went_well' => $data['went_well'],
+            'needs_work' => $data['needs_work'],
+            'home_plan' => $data['home_plan'],
+            'summary' => $data['summary'] ?? null,
+            'recommended_videos' => $this->reportVideos($data['recommended_videos'] ?? null) ?: null,
+            'ai_source' => $data['ai_source'] ?? $report->ai_source,
+            'shared_with_player' => $share,
+            'shared_at' => $report->shared_at ?? ($share ? now() : null),
+        ]);
+
+        $name = $report->athlete_name ?: 'the player';
+        $status = match (true) {
+            $wasShared => 'Report updated. '.$name.' will see the changes.',
+            $share => 'Report updated and shared with '.$name.'.',
+            default => 'Report updated.',
+        };
+
+        $profile = $this->profileForRecord($coach, $report->athlete_id, $report->athlete_name);
+        if (! $profile) {
+            return redirect()->route('coach.player-overview')->with('status', $status);
+        }
+
+        return redirect()
+            ->route('coach.players.show', ['player' => $profile['slug'], 'tab' => 'goals'])
+            ->with('status', $status)
+            ->with('open_goals_tab', true);
+    }
+
+    public function storeNote(Request $request, string $player): RedirectResponse
+    {
+        $coach = $this->currentCoach();
+        $profile = $this->resolvePlayerProfile($coach, $player);
+        abort_unless($profile, 404);
+
+        $validator = $this->noteValidator($request);
+        if ($validator->fails()) {
+            return $this->backToNotes($profile)->withErrors($validator, 'note')->withInput();
+        }
+
+        CoachPlayerNote::query()->create([
+            'coach_id' => $coach->id,
+            'athlete_id' => $profile['athlete_id'] ?? null,
+            'athlete_name' => $profile['name'] ?? null,
+            'body' => trim((string) $validator->validated()['body']),
+        ]);
+
+        return $this->backToNotes($profile)->with('status', 'Note saved. Only you can see it.');
+    }
+
+    public function updateNote(Request $request, string $player, CoachPlayerNote $note): RedirectResponse
+    {
+        $coach = $this->currentCoach();
+        $profile = $this->ownedNoteProfile($coach, $player, $note);
+
+        $validator = $this->noteValidator($request);
+        if ($validator->fails()) {
+            return $this->backToNotes($profile)->withErrors($validator, 'note')->withInput();
+        }
+
+        $note->update(['body' => trim((string) $validator->validated()['body'])]);
+
+        return $this->backToNotes($profile)->with('status', 'Note updated.');
+    }
+
+    public function destroyNote(string $player, CoachPlayerNote $note): RedirectResponse
+    {
+        $coach = $this->currentCoach();
+        $profile = $this->ownedNoteProfile($coach, $player, $note);
+        $note->delete();
+
+        return $this->backToNotes($profile)->with('status', 'Note removed.');
     }
 
     public function profile(): View
@@ -1447,6 +1573,104 @@ class CoachController extends Controller
                 || (string) ($player['athlete_id'] ?? '') === $slug
                 || Str::slug($player['name']) === $slug;
         });
+    }
+
+    /**
+     * The roster entry for a saved report or note: same account, or same name for guest players.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function profileForRecord(Coach $coach, ?int $athleteId, ?string $name): ?array
+    {
+        return $this->rosterFromBookings($coach)->first(function (array $player) use ($athleteId, $name) {
+            if ($athleteId) {
+                return (int) ($player['athlete_id'] ?? 0) === $athleteId;
+            }
+
+            return empty($player['athlete_id']) && Str::lower((string) $player['name']) === Str::lower(trim((string) $name));
+        });
+    }
+
+    /**
+     * Limit a query on records with athlete_id / athlete_name to one roster player.
+     *
+     * @param  array<string, mixed>  $profile
+     */
+    private function whereSamePlayer($query, array $profile): void
+    {
+        if (! empty($profile['athlete_id'])) {
+            $query->where('athlete_id', $profile['athlete_id']);
+        } else {
+            $query->whereNull('athlete_id')->where('athlete_name', $profile['name'] ?? '');
+        }
+    }
+
+    /**
+     * The player a note belongs to, or 404 when it isn't this coach's note for this player.
+     *
+     * @return array<string, mixed>
+     */
+    private function ownedNoteProfile(Coach $coach, string $player, CoachPlayerNote $note): array
+    {
+        $profile = $this->resolvePlayerProfile($coach, $player);
+        $samePlayer = $profile && (! empty($profile['athlete_id'])
+            ? (int) $note->athlete_id === (int) $profile['athlete_id']
+            : empty($note->athlete_id) && Str::lower((string) $note->athlete_name) === Str::lower((string) $profile['name']));
+
+        abort_unless((int) $note->coach_id === (int) $coach->id && $samePlayer, 404);
+
+        return $profile;
+    }
+
+    private function noteValidator(Request $request): \Illuminate\Validation\Validator
+    {
+        return Validator::make($request->all(), [
+            'body' => ['required', 'string', 'max:2000'],
+        ], [
+            'body.required' => 'Write something before saving the note.',
+            'body.max' => 'Keep notes under 2,000 characters.',
+        ]);
+    }
+
+    /** @param  array<string, mixed>  $profile */
+    private function backToNotes(array $profile): RedirectResponse
+    {
+        return redirect()->route('coach.players.show', ['player' => $profile['slug'], 'tab' => 'notes']);
+    }
+
+    /** @return list<array{title: string, meta: string}> */
+    private function reportVideos(?string $json): array
+    {
+        $decoded = json_decode((string) $json, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        return collect($decoded)
+            ->filter(fn ($row) => is_array($row) && filled($row['title'] ?? null))
+            ->map(fn ($row) => [
+                'title' => Str::limit((string) $row['title'], 80),
+                'meta' => Str::limit((string) ($row['meta'] ?? 'Technique guide'), 40),
+            ])
+            ->take(3)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Coach-picked status per skill (shown on the player's Skill progress).
+     *
+     * @return list<array{skill: string, status: string}>
+     */
+    private function reportSkillStatuses(?string $json): array
+    {
+        return collect(json_decode((string) ($json ?: '[]'), true) ?: [])
+            ->filter(fn ($row) => is_array($row) && filled($row['skill'] ?? null)
+                && in_array($row['status'] ?? null, ['strong', 'developing', 'needs_work'], true))
+            ->map(fn ($row) => ['skill' => Str::limit(trim((string) $row['skill']), 60, ''), 'status' => $row['status']])
+            ->take(5)
+            ->values()
+            ->all();
     }
 
     /**

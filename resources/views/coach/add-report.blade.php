@@ -1,11 +1,23 @@
 @extends('layouts.coach')
 
-@section('title', 'Add Report')
-@section('page_title', 'Add Session Report')
+@php
+  // The same form adds a new report or edits a saved one.
+  $editing = isset($report) && $report;
+  $saved = fn (string $field, $fallback = '') => old($field, $editing ? ($report->{$field} ?? $fallback) : $fallback);
+  $savedJson = fn (string $field) => old($field, $editing ? json_encode($report->{$field} ?: []) : '[]');
+@endphp
+
+@section('title', $editing ? 'Edit Report' : 'Add Report')
+@section('page_title', $editing ? 'Edit Session Report' : 'Add Session Report')
 @section('page_subtitle', 'Report for ' . $player['name'] . ' · ' . ($player['age'] ?? '—') . ' · ' . ($player['sport'] ?? '—'))
 
 @section('topbar_actions')
-  @if (! empty($player['slug']))
+  @if ($editing)
+    <a href="{{ $backUrl }}" class="admin-btn admin-btn-ghost coach-top-action" aria-label="Back to player">
+      <span class="coach-top-action__full">&larr; Back to player</span>
+      <span class="coach-top-action__short">&larr;</span>
+    </a>
+  @elseif (! empty($player['slug']))
     <a href="{{ route('coach.players.show', $player['slug']) }}" class="admin-btn admin-btn-ghost coach-top-action" aria-label="Back to player">
       <span class="coach-top-action__full">&larr; Back to player</span>
       <span class="coach-top-action__short">&larr;</span>
@@ -17,7 +29,7 @@
     </a>
   @endif
   <button type="submit" form="sessionReportForm" class="admin-btn admin-btn-primary coach-top-action" data-share="0" data-loading-text="Saving…">
-    <span class="coach-top-action__full">Save Report</span>
+    <span class="coach-top-action__full">{{ $editing ? 'Save Changes' : 'Save Report' }}</span>
     <span class="coach-top-action__short">Save</span>
   </button>
 @endsection
@@ -34,7 +46,11 @@
     <div class="admin-card-header">
       <div>
         <h2>Session Report</h2>
-        <p>{{ now()->format('M j, Y') }} · Private session · Development report</p>
+        @if ($editing)
+          <p>{{ $report->created_at?->format('M j, Y') }} · {{ $report->shared_with_player ? 'Shared with player' : 'Private' }} · Editing saved report</p>
+        @else
+          <p>{{ now()->format('M j, Y') }} · Private session · Development report</p>
+        @endif
       </div>
     </div>
     <div class="admin-card-body">
@@ -46,12 +62,16 @@
 
       <form method="POST" action="{{ $storeUrl }}" id="sessionReportForm" data-no-busy>
         @csrf
-        <input type="hidden" name="summary" id="reportSummary" value="{{ old('summary') }}">
-        <input type="hidden" name="recommended_videos" id="reportVideosJson" value="{{ old('recommended_videos', '[]') }}">
-        <input type="hidden" name="ai_source" id="reportAiSource" value="{{ old('ai_source') }}">
+        @if ($editing)
+          @method('PUT')
+        @else
+          <input type="hidden" name="summary" id="reportSummary" value="{{ old('summary') }}">
+        @endif
+        <input type="hidden" name="recommended_videos" id="reportVideosJson" value="{{ $savedJson('recommended_videos') }}">
+        <input type="hidden" name="ai_source" id="reportAiSource" value="{{ $saved('ai_source') }}">
         <input type="hidden" name="share" id="reportShareFlag" value="0">
 
-        @if (!empty($roster) && count($roster) > 1)
+        @if (!$editing && !empty($roster) && count($roster) > 1)
           <div class="coach-form-block">
             <label class="coach-field-label" for="reportPlayerSelect">Player</label>
             <select id="reportPlayerSelect" class="admin-input" name="player">
@@ -68,12 +88,12 @@
 
         <div class="coach-form-block">
           <label class="coach-field-label" for="reportWins">Wins (what went well)</label>
-          <textarea id="reportWins" class="admin-input coach-textarea coach-textarea--sm" name="coach_notes_wins_input" placeholder="What did you actually see go well today?" required>{{ old('coach_notes_wins') }}</textarea>
+          <textarea id="reportWins" class="admin-input coach-textarea coach-textarea--sm" name="coach_notes_wins_input" placeholder="What did you actually see go well today?" @unless($editing) required @endunless>{{ $saved('coach_notes_wins') }}</textarea>
         </div>
 
         <div class="coach-form-block">
           <label class="coach-field-label" for="reportWorkOns">Work-ons / needs improvement</label>
-          <textarea id="reportWorkOns" class="admin-input coach-textarea coach-textarea--sm" name="coach_notes_work_ons_input" placeholder="What needs work based on this session?" required>{{ old('coach_notes_work_ons') }}</textarea>
+          <textarea id="reportWorkOns" class="admin-input coach-textarea coach-textarea--sm" name="coach_notes_work_ons_input" placeholder="What needs work based on this session?" @unless($editing) required @endunless>{{ $saved('coach_notes_work_ons') }}</textarea>
         </div>
 
         <div class="coach-form-block">
@@ -84,7 +104,7 @@
         <div class="coach-form-block">
           <label class="coach-field-label" for="reportKeywords">Session keywords (optional)</label>
           <div class="coach-keyword-row">
-            <input id="reportKeywords" class="admin-input" type="text" name="keywords" value="{{ old('keywords') }}" placeholder="e.g. first touch, scanning" maxlength="255">
+            <input id="reportKeywords" class="admin-input" type="text" name="keywords" value="{{ $saved('keywords') }}" placeholder="e.g. first touch, scanning" maxlength="255">
             <button type="button" class="admin-btn admin-btn-primary" id="reportGenerateBtn" data-loading-text="Generating…">Generate with AI</button>
           </div>
           <p class="coach-field-hint">
@@ -100,36 +120,48 @@
           <span class="coach-field-label">Skill status</span>
           <p class="coach-field-hint" style="margin-top:0">Shown on the player’s Skill progress. Update it as they improve.</p>
           <div id="reportSkillStatuses" class="coach-skill-status-list"></div>
-          <input type="hidden" name="skill_statuses" id="reportSkillStatusesJson" value="{{ old('skill_statuses', '[]') }}">
+          <input type="hidden" name="skill_statuses" id="reportSkillStatusesJson" value="{{ $savedJson('skill_statuses') }}">
         </div>
 
-        <input type="hidden" name="coach_notes_wins" id="reportNotesWins" value="{{ old('coach_notes_wins') }}">
-        <input type="hidden" name="coach_notes_work_ons" id="reportNotesWorkOns" value="{{ old('coach_notes_work_ons') }}">
+        <input type="hidden" name="coach_notes_wins" id="reportNotesWins" value="{{ $saved('coach_notes_wins') }}">
+        <input type="hidden" name="coach_notes_work_ons" id="reportNotesWorkOns" value="{{ $saved('coach_notes_work_ons') }}">
+
+        @if ($editing)
+          <div class="coach-form-block">
+            <label class="coach-field-label" for="reportSummary">Summary (optional)</label>
+            <textarea id="reportSummary" name="summary" class="admin-input coach-textarea coach-textarea--sm" maxlength="1000" placeholder="A short overview the player sees first">{{ $saved('summary') }}</textarea>
+          </div>
+        @endif
 
         <div class="coach-form-block">
           <label class="coach-field-label" for="reportFocus">Focus of the week</label>
-          <textarea id="reportFocus" name="focus" class="admin-input coach-textarea coach-textarea--sm" placeholder="What should the player focus on this week?" required>{{ old('focus') }}</textarea>
+          <textarea id="reportFocus" name="focus" class="admin-input coach-textarea coach-textarea--sm" placeholder="What should the player focus on this week?" required>{{ $saved('focus') }}</textarea>
         </div>
 
         <div class="coach-form-grid">
           <div>
             <label class="coach-field-label" for="reportWentWell">What went well</label>
-            <textarea id="reportWentWell" name="went_well" class="admin-input coach-textarea" placeholder="Positive observations…" required>{{ old('went_well') }}</textarea>
+            <textarea id="reportWentWell" name="went_well" class="admin-input coach-textarea" placeholder="Positive observations…" required>{{ $saved('went_well') }}</textarea>
           </div>
           <div>
             <label class="coach-field-label" for="reportNeedsWork">Needs work</label>
-            <textarea id="reportNeedsWork" name="needs_work" class="admin-input coach-textarea" placeholder="Areas to improve…" required>{{ old('needs_work') }}</textarea>
+            <textarea id="reportNeedsWork" name="needs_work" class="admin-input coach-textarea" placeholder="Areas to improve…" required>{{ $saved('needs_work') }}</textarea>
           </div>
         </div>
 
         <div class="coach-form-block">
           <label class="coach-field-label" for="reportHome">Home training plan</label>
-          <textarea id="reportHome" name="home_plan" class="admin-input coach-textarea coach-textarea--lg" placeholder="Drills the player can do at home…" required>{{ old('home_plan') }}</textarea>
+          <textarea id="reportHome" name="home_plan" class="admin-input coach-textarea coach-textarea--lg" placeholder="Drills the player can do at home…" required>{{ $saved('home_plan') }}</textarea>
         </div>
 
+        @if ($editing && $report->shared_with_player)
+          <p class="coach-field-hint">This report is already shared, so {{ $player['name'] }} will see your changes once you save.</p>
+        @endif
         <div class="coach-form-actions">
-          <button type="submit" class="admin-btn admin-btn-primary" data-share="0" data-loading-text="Saving…">Save report</button>
-          <button type="submit" class="admin-btn admin-btn-ghost" data-share="1" data-loading-text="Sharing…">Save &amp; share with player</button>
+          <button type="submit" class="admin-btn admin-btn-primary" data-share="0" data-loading-text="Saving…">{{ $editing ? 'Save changes' : 'Save report' }}</button>
+          @unless ($editing && $report->shared_with_player)
+            <button type="submit" class="admin-btn admin-btn-ghost" data-share="1" data-loading-text="Sharing…">Save &amp; share with player</button>
+          @endunless
         </div>
       </form>
     </div>

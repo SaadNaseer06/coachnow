@@ -88,15 +88,14 @@
 
 <div class="coach-layout-split">
   <div>
+    @php $activeTab = $activeTab ?? 'overview'; @endphp
     <div class="coach-tabs" role="tablist" data-coach-tabs="player">
-      <button type="button" role="tab" class="coach-tab {{ empty($openVideosTab) ? 'is-active' : '' }}" data-coach-tab="overview" aria-selected="{{ empty($openVideosTab) ? 'true' : 'false' }}" @if(!empty($openVideosTab)) tabindex="-1" @endif>Overview</button>
-      <button type="button" role="tab" class="coach-tab" data-coach-tab="history" aria-selected="false" tabindex="-1">Session History</button>
-      <button type="button" role="tab" class="coach-tab" data-coach-tab="goals" aria-selected="false" tabindex="-1">Goals &amp; Feedback</button>
-      <button type="button" role="tab" class="coach-tab {{ !empty($openVideosTab) ? 'is-active' : '' }}" data-coach-tab="videos" aria-selected="{{ !empty($openVideosTab) ? 'true' : 'false' }}" @if(empty($openVideosTab)) tabindex="-1" @endif>Videos</button>
-      <button type="button" role="tab" class="coach-tab" data-coach-tab="notes" aria-selected="false" tabindex="-1">Notes</button>
+      @foreach (['overview' => 'Overview', 'history' => 'Session History', 'goals' => 'Goals & Feedback', 'videos' => 'Videos', 'notes' => 'Notes'] as $tabKey => $tabLabel)
+        <button type="button" role="tab" class="coach-tab {{ $activeTab === $tabKey ? 'is-active' : '' }}" data-coach-tab="{{ $tabKey }}" aria-selected="{{ $activeTab === $tabKey ? 'true' : 'false' }}" @if($activeTab !== $tabKey) tabindex="-1" @endif>{{ $tabLabel }}</button>
+      @endforeach
     </div>
 
-    <div role="tabpanel" data-coach-panel="overview" data-coach-group="player" @if(!empty($openVideosTab)) hidden @endif>
+    <div role="tabpanel" data-coach-panel="overview" data-coach-group="player" @if($activeTab !== 'overview') hidden @endif>
       <div class="admin-card coach-panel-gap">
         <div class="admin-card-header">
           <div>
@@ -145,7 +144,7 @@
       </div>
     </div>
 
-    <div role="tabpanel" data-coach-panel="history" data-coach-group="player" hidden>
+    <div role="tabpanel" data-coach-panel="history" data-coach-group="player" @if($activeTab !== 'history') hidden @endif>
       <div class="admin-card">
         <div class="admin-card-header">
           <div>
@@ -186,7 +185,7 @@
       </div>
     </div>
 
-    <div role="tabpanel" data-coach-panel="goals" data-coach-group="player" @if(empty($openGoalsTab)) hidden @endif>
+    <div role="tabpanel" data-coach-panel="goals" data-coach-group="player" @if($activeTab !== 'goals') hidden @endif>
       <div class="admin-card">
         <div class="admin-card-header">
           <div>
@@ -197,18 +196,28 @@
         </div>
         <div class="admin-card-body">
           @forelse (($reports ?? []) as $report)
-            <article class="coach-note" style="margin-bottom:14px">
+            <article class="coach-note" style="margin-bottom:14px" data-report-id="{{ $report['id'] }}">
               <div class="coach-note__head">
                 <p class="coach-note__author">{{ $report['keywords'] ?: 'Session report' }}</p>
-                <span class="coach-note__date">
-                  {{ $report['created_at'] }}
-                  @if (!empty($report['shared']))
-                    · Shared
-                  @else
-                    · Private
-                  @endif
-                </span>
+                <div class="coach-note__side">
+                  <span class="coach-note__date">
+                    {{ $report['created_at'] }}
+                    @if (!empty($report['shared']))
+                      · Shared
+                    @else
+                      · Private
+                    @endif
+                  </span>
+                  <a href="{{ route('coach.reports.edit', $report['id']) }}" class="admin-btn admin-btn-ghost admin-btn-sm" data-report-edit>Edit</a>
+                </div>
               </div>
+              @if (!empty($report['skills']))
+                <p class="coach-note__text" style="margin-bottom:8px"><strong>Skill ratings:</strong>
+                  @foreach ($report['skills'] as $rated)
+                    {{ $rated['skill'] }} – {{ $rated['label'] }}@if (!$loop->last) · @endif
+                  @endforeach
+                </p>
+              @endif
               <p class="coach-note__text"><strong>Focus:</strong> {{ $report['focus'] }}</p>
               <p class="coach-note__text" style="margin-top:8px"><strong>Went well:</strong> {{ $report['went_well'] }}</p>
               <p class="coach-note__text" style="margin-top:8px"><strong>Needs work:</strong> {{ $report['needs_work'] }}</p>
@@ -238,7 +247,7 @@
       </div>
     </div>
 
-    <div role="tabpanel" data-coach-panel="videos" data-coach-group="player" @if(empty($openVideosTab)) hidden @endif>
+    <div role="tabpanel" data-coach-panel="videos" data-coach-group="player" @if($activeTab !== 'videos') hidden @endif>
       <div class="admin-card">
         <div class="admin-card-header">
           <div>
@@ -313,25 +322,45 @@
       </div>
     </div>
 
-    <div role="tabpanel" data-coach-panel="notes" data-coach-group="player" hidden>
+    <div role="tabpanel" data-coach-panel="notes" data-coach-group="player" @if($activeTab !== 'notes') hidden @endif>
       <div class="admin-card">
         <div class="admin-card-header">
           <div>
             <h2>Coach Notes</h2>
             <p>Private notes visible only to you</p>
           </div>
-          <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm">Add note</button>
+          <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" data-note-add>Add note</button>
         </div>
         <div class="admin-card-body">
-          @foreach ($notes as $coachNote)
-            <div class="coach-note">
+          @forelse ($notes as $coachNote)
+            <div class="coach-note" data-note-id="{{ $coachNote['id'] }}">
               <div class="coach-note__head">
                 <p class="coach-note__author">{{ $coachNote['author'] }}</p>
-                <span class="coach-note__date">{{ $coachNote['date'] }}</span>
+                <span class="coach-note__date">{{ $coachNote['date'] }}@if (!empty($coachNote['edited'])) · Edited @endif</span>
               </div>
-              <p class="coach-note__text">{{ $coachNote['text'] }}</p>
+              <p class="coach-note__text coach-note__text--pre">{{ $coachNote['text'] }}</p>
+              <div class="coach-note__actions">
+                <button
+                  type="button"
+                  class="admin-btn admin-btn-ghost admin-btn-sm"
+                  data-note-edit
+                  data-note-url="{{ route('coach.players.notes.update', ['player' => $player['slug'], 'note' => $coachNote['id']]) }}"
+                  data-note-key="{{ $coachNote['id'] }}"
+                  data-note-text="{{ $coachNote['text'] }}"
+                >Edit</button>
+                <form method="POST" action="{{ route('coach.players.notes.destroy', ['player' => $player['slug'], 'note' => $coachNote['id']]) }}" data-confirm-note data-no-busy>
+                  @csrf
+                  @method('DELETE')
+                  <button type="submit" class="admin-btn admin-btn-ghost admin-btn-sm" data-loading-text="Removing…">Remove</button>
+                </form>
+              </div>
             </div>
-          @endforeach
+          @empty
+            <div class="coach-media-empty">
+              <p>No notes yet. Notes you add here are private to you.</p>
+              <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-note-add>Add first note</button>
+            </div>
+          @endforelse
         </div>
       </div>
     </div>
@@ -345,7 +374,7 @@
       <div class="admin-card-body coach-action-stack">
         <a href="{{ route('coach.add-report', ['player' => $player['slug']]) }}" class="admin-btn admin-btn-primary">Add Report</a>
         <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-open="shareVideoModal">Share Video</button>
-        <button type="button" class="admin-btn admin-btn-ghost">Add Note</button>
+        <button type="button" class="admin-btn admin-btn-ghost" data-note-add>Add Note</button>
       </div>
     </div>
 
@@ -368,6 +397,47 @@
 @include('partials.coach.subscription-note')
 
 @include('partials.video-player-modal')
+
+@php
+  $noteErrors = $errors->getBag('note');
+  $editingNoteId = $noteErrors->any() ? old('_note_id') : null;
+@endphp
+<div class="admin-modal{{ $noteErrors->any() ? ' is-open' : '' }}" id="coachNoteModal" aria-hidden="{{ $noteErrors->any() ? 'false' : 'true' }}">
+  <div class="admin-modal__backdrop" data-admin-modal-close></div>
+  <div class="admin-modal__panel" role="dialog" aria-modal="true" aria-labelledby="coachNoteTitle">
+    <div class="admin-modal__header">
+      <div>
+        <h2 id="coachNoteTitle">{{ $editingNoteId ? 'Edit note' : 'Add note' }}</h2>
+        <p>Private to you. {{ $player['name'] }} and their family can’t see this.</p>
+      </div>
+      <button type="button" class="admin-modal__close" data-admin-modal-close aria-label="Close">&times;</button>
+    </div>
+    <form
+      method="POST"
+      action="{{ $editingNoteId ? route('coach.players.notes.update', ['player' => $player['slug'], 'note' => $editingNoteId]) : route('coach.players.notes.store', $player['slug']) }}"
+      class="admin-modal__body"
+      data-note-form
+      data-store-url="{{ route('coach.players.notes.store', $player['slug']) }}"
+    >
+      @csrf
+      <input type="hidden" name="_method" value="PUT" data-note-method @unless($editingNoteId) disabled @endunless>
+      <input type="hidden" name="_note_id" value="{{ $editingNoteId }}" data-note-key-input>
+      @if ($noteErrors->any())
+        <div class="admin-alert admin-alert--error" role="alert" data-note-error>
+          <div class="admin-alert__body"><p class="admin-alert__text">{{ $noteErrors->first() }}</p></div>
+        </div>
+      @endif
+      <label class="admin-field admin-field--full">
+        <span>Note</span>
+        <textarea class="admin-input admin-textarea" name="body" rows="6" maxlength="2000" required placeholder="e.g. Responds well to short, specific cues. Ask about the knee next session.">{{ $noteErrors->any() ? old('body') : '' }}</textarea>
+      </label>
+      <div class="admin-modal__footer">
+        <button type="button" class="admin-btn admin-btn-ghost" data-admin-modal-close>Cancel</button>
+        <button type="submit" class="admin-btn admin-btn-primary" data-loading-text="Saving…">Save note</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <div class="admin-modal{{ $errors->any() ? ' is-open' : '' }}" id="shareVideoModal" aria-hidden="{{ $errors->any() ? 'false' : 'true' }}">
   <div class="admin-modal__backdrop" data-admin-modal-close></div>
@@ -755,6 +825,57 @@
         });
 
         xhr.send(body);
+      });
+    })();
+
+    // Private coach notes: one window for adding and editing.
+    (() => {
+      const modal = document.getElementById('coachNoteModal');
+      const form = modal?.querySelector('[data-note-form]');
+      if (!modal || !form) return;
+      const title = modal.querySelector('#coachNoteTitle');
+      const method = form.querySelector('[data-note-method]');
+      const key = form.querySelector('[data-note-key-input]');
+      const body = form.querySelector('textarea[name="body"]');
+
+      const open = (url, text, id) => {
+        form.action = url;
+        method.disabled = !id;
+        key.value = id || '';
+        title.textContent = id ? 'Edit note' : 'Add note';
+        body.value = text || '';
+        form.querySelector('[data-note-error]')?.remove();
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('admin-modal-open');
+        window.setTimeout(() => body.focus(), 50);
+      };
+
+      document.querySelectorAll('[data-note-add]').forEach((btn) => {
+        btn.addEventListener('click', () => open(form.dataset.storeUrl, '', ''));
+      });
+      document.querySelectorAll('[data-note-edit]').forEach((btn) => {
+        btn.addEventListener('click', () => open(btn.dataset.noteUrl, btn.dataset.noteText, btn.dataset.noteKey));
+      });
+
+      document.querySelectorAll('[data-confirm-note]').forEach((removeForm) => {
+        removeForm.addEventListener('submit', async (event) => {
+          if (removeForm.dataset.confirmed === '1') return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          const ok = window.CoachNowDialog?.confirm
+            ? await window.CoachNowDialog.confirm({
+                title: 'Remove this note?',
+                message: 'This private note will be deleted.',
+                confirmLabel: 'Remove note',
+                cancelLabel: 'Keep it',
+              })
+            : window.confirm('Remove this note?');
+          if (!ok) return;
+          removeForm.dataset.confirmed = '1';
+          window.CoachNowBusy?.setFormBusy(removeForm, { label: 'Removing…' });
+          removeForm.submit();
+        });
       });
     })();
 

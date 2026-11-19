@@ -78,6 +78,18 @@ class SessionReport extends Model
             'went_well' => $this->went_well,
             'needs_work' => $this->needs_work,
             'home_plan' => $this->home_plan,
+            'skills' => collect($this->skill_statuses ?? [])
+                ->filter(fn ($row) => is_array($row) && filled($row['skill'] ?? null))
+                ->map(fn ($row) => [
+                    'skill' => (string) $row['skill'],
+                    'label' => match ($row['status'] ?? 'developing') {
+                        'strong' => 'Strong',
+                        'needs_work' => 'Needs work',
+                        default => 'Developing',
+                    },
+                ])
+                ->values()
+                ->all(),
             'summary' => $this->summary ?: Str::limit(strip_tags((string) $this->focus), 160),
             'recommended_videos' => $this->recommended_videos ?: [],
             'shared' => (bool) $this->shared_with_player,

@@ -124,6 +124,11 @@ Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach'])->grou
     Route::get('/add-report', [CoachController::class, 'addReport'])->name('add-report');
     Route::post('/add-report/generate', [CoachController::class, 'generateReport'])->name('add-report.generate');
     Route::post('/add-report', [CoachController::class, 'storeReport'])->name('add-report.store');
+    Route::get('/reports/{report}/edit', [CoachController::class, 'editReport'])->name('reports.edit');
+    Route::put('/reports/{report}', [CoachController::class, 'updateReport'])->name('reports.update');
+    Route::post('/players/{player}/notes', [CoachController::class, 'storeNote'])->name('players.notes.store');
+    Route::put('/players/{player}/notes/{note}', [CoachController::class, 'updateNote'])->name('players.notes.update');
+    Route::delete('/players/{player}/notes/{note}', [CoachController::class, 'destroyNote'])->name('players.notes.destroy');
 });
 
 /*
