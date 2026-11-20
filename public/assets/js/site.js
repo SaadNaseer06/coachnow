@@ -154,7 +154,8 @@
     syncTouch: false,
   });
 
-  document.documentElement.classList.add('lenis', 'lenis-smooth');
+  // Lenis adds lenis-smooth itself only while it is smoothing; pinning it blocks taps on iframes (Stripe card fields).
+  document.documentElement.classList.add('lenis');
   window.coachNowLenis = lenis;
 
   function raf(time) {

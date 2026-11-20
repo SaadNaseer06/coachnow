@@ -14,9 +14,24 @@ body {
   min-height: 100%;
 }
 
-/* Lenis smooth scroll — html is the only scrollport */
+/* Lenis smooth scroll — html is the only scrollport.
+   Lenis only smooths the mouse wheel (syncTouch: false), so phones scroll natively.
+   html must stay scrollable: overflow:hidden here stopped one-finger scrolling on iPhone.
+   The scrollbar stays hidden so desktop looks the same as before. */
 html.lenis {
   height: auto;
+  overflow-x: clip;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+html.lenis::-webkit-scrollbar {
+  display: none;
+}
+
+/* Keep the page still behind the phone menu and the video player, as before. */
+html.lenis:has(> body.mobile-nav-open),
+html.lenis:has(> body.player-video-modal-open) {
   overflow: hidden;
 }
 

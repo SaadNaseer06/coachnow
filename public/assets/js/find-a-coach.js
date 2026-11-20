@@ -837,9 +837,9 @@
           syncTouch: false
         });
 
+      // Lenis adds lenis-smooth itself only while it is smoothing; pinning it blocks taps on iframes.
       document.documentElement.classList.add(
-        'lenis',
-        'lenis-smooth'
+        'lenis'
       );
 
       window.coachNowLenis =
