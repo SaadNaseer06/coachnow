@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\AppMailer;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -115,6 +116,14 @@ class User extends Authenticatable
         }
 
         return (float) config('coachnow.payments.convenience_fee', 2);
+    }
+
+    /**
+     * CoachNow's own email instead of Laravel's default one.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        app(AppMailer::class)->sendPasswordReset($this, (string) $token);
     }
 
     public function isAdmin(): bool

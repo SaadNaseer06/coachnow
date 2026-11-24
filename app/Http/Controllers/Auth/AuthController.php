@@ -10,6 +10,7 @@ use App\Rules\PhoneNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -43,15 +44,50 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        // One account guessed from one place, and one place guessing many accounts.
+        $limits = [
+            self::loginLimitKey($credentials['email'], $request->ip()) => [5, 300],
+            'login-ip:'.$request->ip() => [30, 900],
+        ];
+        $this->stopIfTooManyTries($limits);
+
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+            foreach ($limits as $key => [, $seconds]) {
+                RateLimiter::hit($key, $seconds);
+            }
+
             throw ValidationException::withMessages([
                 'email' => 'These credentials do not match our records.',
             ]);
         }
 
+        RateLimiter::clear(array_key_first($limits));
         $request->session()->regenerate();
 
         return redirect()->intended(Auth::user()->dashboardPath());
+    }
+
+    public static function loginLimitKey(string $email, ?string $ip): string
+    {
+        return 'login:'.sha1(Str::lower($email).'|'.$ip);
+    }
+
+    /**
+     * Checked before the password, so a correct guess during the wait doesn't get in either.
+     *
+     * @param  array<string, array{0: int, 1: int}>  $limits
+     */
+    private function stopIfTooManyTries(array $limits): void
+    {
+        foreach ($limits as $key => [$max]) {
+            if (RateLimiter::tooManyAttempts($key, $max)) {
+                $minutes = max(1, (int) ceil(RateLimiter::availableIn($key) / 60));
+
+                throw ValidationException::withMessages([
+                    'email' => 'Too many tries. Please wait '.$minutes.' minute'.($minutes === 1 ? '' : 's').' and try again, or use Forgot password.',
+                ]);
+            }
+        }
     }
 
     public function showRegister()

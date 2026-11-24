@@ -9,6 +9,7 @@ use App\Mail\CoachPendingReviewMail;
 use App\Mail\CoachStatusChangedMail;
 use App\Mail\ContactMessageMail;
 use App\Mail\MembershipConfirmedMail;
+use App\Mail\PasswordResetMail;
 use App\Mail\SessionRequestAcceptedMail;
 use App\Mail\SessionRequestConfirmationMail;
 use App\Mail\SessionRequestJoinMail;
@@ -31,6 +32,11 @@ class AppMailer
     public function sendWelcome(User $user): void
     {
         $this->deliver($user->email, new WelcomeUserMail($user));
+    }
+
+    public function sendPasswordReset(User $user, string $token): void
+    {
+        $this->deliver($user->email, new PasswordResetMail($user, $token));
     }
 
     public function notifyAdminsOfPendingCoach(Coach $coach): void

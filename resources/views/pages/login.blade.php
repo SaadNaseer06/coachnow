@@ -24,6 +24,9 @@
         <h2 class="text-[22px] font-semibold text-[#191615] mb-1">Sign in</h2>
         <p class="text-[13px] text-zinc-500 mb-6">Enter your details to continue.</p>
 
+        @if (session('status'))
+          <div class="mb-4 rounded-[10px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] text-emerald-800" role="status">{{ session('status') }}</div>
+        @endif
         @if ($errors->any())
           <div class="mb-4 rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
             {{ $errors->first() }}
@@ -45,6 +48,7 @@
               <input type="checkbox" name="remember" value="1" class="w-4 h-4 accent-[#DA020C]">
               Remember me
             </label>
+            <a href="{{ route('password.request') }}" class="text-brand-red font-medium hover:text-brand-red-hover">Forgot password?</a>
           </div>
           <button type="submit" class="w-full h-11 rounded-full bg-brand-red hover:bg-brand-red-hover text-white text-[13px] font-semibold transition-colors">Login</button>
         </form>
