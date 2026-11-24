@@ -45,18 +45,15 @@ return [
     ],
 
     'payments' => [
-        // When true: skip live Stripe Connect/checkout and use sample bookings + card-on-file.
+        // When true: no Stripe. Bookings and memberships are samples (testing only).
         'sample_mode' => filter_var(env('COACHNOW_SAMPLE_PAYMENTS', false), FILTER_VALIDATE_BOOL),
-        // Launch: $2 convenience fee per booking transaction (one fee per checkout, not per player).
+        // Families pay the coach directly. Non-members pay CoachNow this fee per session booked
+        // on Book Now (per session, not per player). Members don't pay it.
         'convenience_fee' => (float) env('COACHNOW_CONVENIENCE_FEE', 2),
-        // Parents may cancel direct/group bookings up to this many hours before start.
-        // Refund = the player's session price; the convenience fee is non-refundable.
+        // Parents may cancel direct/group bookings up to this many hours before start. The coach
+        // handles any session money; the CoachNow fee is non-refundable when the parent cancels.
         'cancel_cutoff_hours' => (int) env('COACHNOW_CANCEL_CUTOFF_HOURS', 24),
-        'platform_fee_percent' => (float) env('COACHNOW_PLATFORM_FEE_PERCENT', 0),
-        'platform_fee_fixed' => (float) env('COACHNOW_PLATFORM_FEE_FIXED', 0),
-        'require_payouts_for_paid' => filter_var(
-            env('COACHNOW_REQUIRE_PAYOUTS', env('COACHNOW_SAMPLE_PAYMENTS', false) ? false : true),
-            FILTER_VALIDATE_BOOL
-        ),
+        // Give the CoachNow fee back when the coach is the one who cancels.
+        'refund_fee_on_coach_cancel' => filter_var(env('COACHNOW_REFUND_FEE_ON_COACH_CANCEL', true), FILTER_VALIDATE_BOOL),
     ],
 ];

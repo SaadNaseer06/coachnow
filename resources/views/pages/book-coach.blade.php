@@ -16,6 +16,7 @@
   data-coach-name="{{ $coach->display_name }}"
   data-rate="{{ (float) $coach->rate }}"
   data-convenience-fee="{{ (float) ($convenienceFee ?? config('coachnow.payments.convenience_fee', 2)) }}"
+  data-member="{{ ($isMember ?? false) ? '1' : '' }}"
   data-focus-group="{{ $focusGroupId ?? '' }}"
   data-user-name="{{ auth()->user()?->name }}"
   data-group-rate="{{ $coach->offersGroupBooking() ? (float) $coach->group_rate : '' }}"
@@ -35,7 +36,7 @@
     <div class="book-wrap">
       <p class="book-kicker">Direct booking</p>
       <h1>Book {{ $coach->display_name }}</h1>
-      <p class="book-lead">Pick one or more open times — or repeat weekly — and confirm them all in one checkout.</p>
+      <p class="book-lead">Pick one or more open times — or repeat weekly — and book them all at once. You pay {{ $coach->display_name }} directly for the sessions.</p>
       <div class="book-coach-chip">
         <img src="{{ $coach->photoUrl() }}" alt="">
         <div>
@@ -143,7 +144,8 @@
             <div id="sumAgeRow" hidden><dt>Ages</dt><dd id="sumAge">—</dd></div>
             <div id="sumSpotsRow" hidden><dt>Spots</dt><dd id="sumSpots">—</dd></div>
             <div><dt>Price</dt><dd id="sumPrice">${{ number_format((float) $coach->rate, 0) }}</dd></div>
-            <div id="sumTotalRow" hidden><dt>Total</dt><dd id="sumTotal">—</dd></div>
+            <div id="sumTotalRow" hidden><dt>Pay your coach</dt><dd id="sumTotal">—</dd></div>
+            <div id="sumFeeRow" hidden><dt>CoachNow fee</dt><dd id="sumFee">—</dd></div>
           </dl>
           <div class="book-mode" id="bookMode" role="radiogroup" aria-label="Session type" hidden>
             <button type="button" class="book-mode__opt is-selected" data-book-mode="single" role="radio" aria-checked="true">1-on-1</button>
@@ -155,13 +157,16 @@
               <select id="bookPlayerCount"></select>
             </div>
             <div class="book-players__names" id="bookPlayerNames"></div>
-            <p class="book-hint">One CoachNow fee per booking, no matter how many players you add.</p>
+            @if (($convenienceFee ?? 0) > 0)
+              <p class="book-hint">One CoachNow fee per session, no matter how many players you add.</p>
+            @endif
           </div>
           <p class="book-error" id="bookError" hidden></p>
           <div id="bookPayPanel" class="book-pay-panel" hidden>
-            <p class="book-hint" id="bookPayHint">Pay securely in CoachNow — card and Apple Pay where supported.</p>
+            <p class="book-hint" id="bookPayHint">Pay the CoachNow fee by card. You pay your coach directly for the sessions.</p>
             <div id="bookStripeMount" class="book-stripe-mount"></div>
-            <button type="button" class="book-btn" id="bookPayConfirmBtn">Pay & confirm</button>
+            <p class="book-hint">You can save your card so you only enter it once. Stripe stores it securely; CoachNow never sees the card number.</p>
+            <button type="button" class="book-btn" id="bookPayConfirmBtn">Pay &amp; book</button>
             <button type="button" class="book-link" id="bookPayCancelBtn">Cancel payment</button>
           </div>
           <button type="button" class="book-btn" id="bookConfirmBtn" disabled>Confirm booking</button>
@@ -171,6 +176,7 @@
         <div class="book-success" id="bookSuccess" hidden>
           <h2>You’re booked</h2>
           <p id="bookSuccessText"></p>
+          <div class="book-pay-coach" id="bookPayCoach" hidden></div>
           <a href="{{ route('player-dashboard') }}" class="book-btn">Go to dashboard</a>
         </div>
       </aside>

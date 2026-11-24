@@ -130,7 +130,7 @@
     const ok = window.CoachNowDialog?.confirm
       ? await window.CoachNowDialog.confirm({
           title: 'Cancel the whole series?',
-          message: 'All upcoming sessions in this weekly series will be cancelled, paid sessions refunded, and the parent emailed.',
+          message: 'All upcoming sessions in this weekly series will be cancelled and the parent emailed. If they’ve already paid you, please refund them directly.',
           confirmLabel: 'Cancel series',
           cancelLabel: 'Keep series',
         })

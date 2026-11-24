@@ -127,7 +127,7 @@ class AppMailer
         }
 
         foreach ($bookings as $booking) {
-            $booking->loadMissing(['coach.user', 'location', 'groupSession']);
+            $booking->loadMissing(['coach.user', 'athlete', 'location', 'groupSession']);
         }
 
         $this->deliver($parent->email, new BookingConfirmedMail($bookings, $kind));
@@ -188,17 +188,38 @@ class AppMailer
         }
     }
 
-    public function notifyBookingCancelled(Booking $booking, float $refund): void
+    /** The parent cancelled. */
+    public function notifyBookingCancelled(Booking $booking): void
     {
         $booking->loadMissing(['coach.user', 'athlete', 'location', 'groupSession']);
 
         if ($booking->athlete?->email) {
-            $this->deliver($booking->athlete->email, new BookingCancelledMail($booking, $refund, 'parent'));
+            $this->deliver($booking->athlete->email, new BookingCancelledMail($booking, 'parent'));
         }
 
         if ($booking->coach?->user?->email) {
-            $this->deliver($booking->coach->user->email, new BookingCancelledMail($booking, $refund, 'coach'));
+            $this->deliver($booking->coach->user->email, new BookingCancelledMail($booking, 'coach'));
         }
+    }
+
+    /**
+     * The coach cancelled a session: one email per family, for sessions that haven't happened yet.
+     *
+     * @param  list<Booking>  $cancelled
+     * @param  array<int, float>  $refunds  CoachNow fee refunded, by booking id.
+     */
+    public function notifyCoachCancelled(array $cancelled, array $refunds): void
+    {
+        collect($cancelled)
+            ->filter(fn (Booking $b) => $b->athlete_id && ! ($b->startsAt()?->isPast() ?? true))
+            ->groupBy('athlete_id')
+            ->each(function ($family) use ($refunds) {
+                $first = $family->first()->loadMissing(['coach.user', 'athlete', 'location', 'groupSession']);
+                if ($first->athlete?->email) {
+                    $names = $family->map(fn (Booking $b) => $b->displayName())->unique()->implode(', ');
+                    $this->deliver($first->athlete->email, new BookingCancelledMail($first, 'coach_cancelled', (float) $family->sum(fn (Booking $b) => $refunds[$b->id] ?? 0), $names));
+                }
+            });
     }
 
     /**

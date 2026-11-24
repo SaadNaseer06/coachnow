@@ -77,67 +77,25 @@ class BookingController extends Controller
         }
 
         $newGroup = (bool) ($data['new_group'] ?? false);
-        $price = $newGroup
-            ? $bookings->newGroupCheckoutQuote($coach, count($data['players'] ?? []), $user)['total']
-            : (float) ($coach->rate ?? 0);
+        $quote = $newGroup
+            ? $bookings->newGroupCheckoutQuote($coach, count($data['players'] ?? []), $user)
+            : $bookings->multiSessionQuote($coach, 1, $user);
 
-        $stripe = app(StripeService::class);
-        if (
-            $stripe->enabled()
-            && config('coachnow.payments.require_payouts_for_paid')
-            && $price > 0
-        ) {
-            if (! $stripe->canChargeFor($coach)) {
-                return response()->json([
-                    'message' => 'This coach has not finished payout setup yet.',
-                ], 422);
-            }
-
-            return response()->json([
-                'message' => 'Paid bookings must complete Stripe checkout on this page.',
-                'requires_stripe' => true,
-            ], 422);
+        if ($blocked = $this->feeNotPaid($quote)) {
+            return $blocked;
         }
 
-        if ($newGroup) {
-            try {
-                $created = $bookings->createPrivateGroupBooking($coach, $user, [
-                    'date' => Carbon::parse($data['date'])->toDateString(),
-                    'time' => $data['time'],
-                    'location_id' => (int) $data['location_id'],
-                    'duration_minutes' => $data['duration_minutes'] ?? 60,
-                ], $data['players'] ?? []);
-            } catch (ValidationException $e) {
-                return response()->json([
-                    'message' => collect($e->errors())->flatten()->first() ?: 'Could not book that group.',
-                ], 422);
-            }
-
-            app(AppMailer::class)->notifyBookingCreated($created, 'private_group', $user);
-            $first = $created[0]->load(['coach', 'location']);
-
-            return response()->json([
-                'message' => 'Private group booked.',
-                'data' => [
-                    'reference' => $first->reference,
-                    'coach' => $first->coach?->display_name,
-                    'date' => $first->session_date?->toDateString(),
-                    'time' => $first->session_time,
-                    'location' => $first->location?->name,
-                    'players' => count($created),
-                    'amount' => $price,
-                ],
-            ], 201);
-        }
+        $slot = [
+            'date' => Carbon::parse($data['date'])->toDateString(),
+            'time' => $data['time'],
+            'location_id' => (int) $data['location_id'],
+            'duration_minutes' => $data['duration_minutes'] ?? 60,
+        ];
 
         try {
-            $booking = $bookings->createDirectBooking($coach, $user, [
-                'date' => Carbon::parse($data['date'])->toDateString(),
-                'time' => $data['time'],
-                'location_id' => (int) $data['location_id'],
-                'duration_minutes' => $data['duration_minutes'] ?? 60,
-                'session_type' => $coach->resolveSessionType($data['session_type'] ?? null),
-            ]);
+            $created = $newGroup
+                ? $bookings->createPrivateGroupBooking($coach, $user, $slot, $data['players'] ?? [])
+                : [$bookings->createDirectBooking($coach, $user, $slot + ['session_type' => $coach->resolveSessionType($data['session_type'] ?? null)])];
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => collect($e->errors())->flatten()->first() ?: 'Could not book that slot.',
@@ -145,29 +103,35 @@ class BookingController extends Controller
         }
 
         $coach->forceFill(['last_active_at' => now()])->save();
-        app(AppMailer::class)->notifyBookingCreated([$booking], 'single', $user);
+        app(AppMailer::class)->notifyBookingCreated($created, $newGroup ? 'private_group' : 'single', $user);
 
-        $booking->load(['coach', 'location']);
-
-        return response()->json([
-            'message' => 'Session booked.',
-            'data' => [
-                'reference' => $booking->reference,
-                'coach' => $booking->coach?->display_name,
-                'date' => $booking->session_date?->toDateString(),
-                'time' => $booking->session_time,
-                'location' => $booking->location?->name,
-                'amount' => (float) $booking->amount,
-            ],
-        ], 201);
+        return response()->json(self::bookedPayload($created, $coach), 201);
     }
 
     /**
-     * Several 1-on-1 sessions with the same coach in one checkout (picked dates or a weekly
-     * series). Paid sessions go through Stripe (booking-intent with `slots`); this handles
-     * sample mode and free sessions.
+     * Non-members pay the CoachNow fee on the booking page first. Members, free sessions and
+     * sample mode have nothing to pay.
+     *
+     * @param  array<string, mixed>  $quote
      */
-    public function storeMultiple(Request $request, SessionBookingService $bookings, StripeService $stripe): JsonResponse
+    private function feeNotPaid(array $quote): ?JsonResponse
+    {
+        $stripe = app(StripeService::class);
+        if ($quote['convenience_fee'] <= 0 || $stripe->sampleMode()) {
+            return null;
+        }
+
+        return $stripe->enabled()
+            ? response()->json(['message' => 'Please pay the CoachNow fee on this page to finish booking.', 'requires_stripe' => true], 422)
+            : response()->json(['message' => 'Booking checkout isn’t available right now. Please try again shortly.'], 503);
+    }
+
+    /**
+     * Several 1-on-1 sessions with the same coach at once (picked dates or a weekly series).
+     * Non-members pay the fee first (booking-intent with `slots`); this books for members,
+     * free sessions and sample mode.
+     */
+    public function storeMultiple(Request $request, SessionBookingService $bookings): JsonResponse
     {
         $user = $request->user();
         if (! $user?->isAthlete()) {
@@ -181,11 +145,8 @@ class BookingController extends Controller
         }
 
         $quote = $bookings->multiSessionQuote($coach, count($data['slots']), $user);
-        if ($stripe->enabled() && $quote['total'] > 0) {
-            return response()->json([
-                'message' => 'Paid bookings must complete Stripe checkout on this page.',
-                'requires_stripe' => true,
-            ], 422);
+        if ($blocked = $this->feeNotPaid($quote)) {
+            return $blocked;
         }
 
         try {
@@ -197,7 +158,7 @@ class BookingController extends Controller
         $coach->forceFill(['last_active_at' => now()])->save();
         app(AppMailer::class)->notifyBookingCreated($created, 'single', $user);
 
-        return response()->json(self::multiBookingPayload($created, $coach, $quote['total']), 201);
+        return response()->json(self::bookedPayload($created, $coach), 201);
     }
 
     /**
@@ -220,21 +181,46 @@ class BookingController extends Controller
     }
 
     /**
+     * What the parent sees after booking: what's booked, what they owe the coach and how to pay.
+     *
      * @param  list<Booking>  $created
      * @return array<string, mixed>
      */
-    public static function multiBookingPayload(array $created, Coach $coach, float $total): array
+    public static function bookedPayload(array $created, Coach $coach): array
     {
-        $count = count($created);
+        $first = $created[0];
+        $first->loadMissing('location');
+        $coach->loadMissing('user');
+        $isGroup = (bool) $first->group_session_id;
+        $sessions = count(array_unique(array_map(fn (Booking $b) => $b->session_date?->toDateString().' '.$b->session_time, $created)));
+        $players = $isGroup ? count($created) : 1;
+        $contact = $coach->contactForFamilies();
 
         return [
-            'message' => $count === 1 ? 'Session booked.' : "{$count} sessions booked.",
+            'message' => match (true) {
+                $isGroup && $first->groupSession?->is_public => 'You’re in — '.$players.' player'.($players === 1 ? '' : 's').' booked on this group session.',
+                $isGroup => 'Private group booked.',
+                $sessions > 1 => "{$sessions} sessions booked.",
+                default => 'Session booked.',
+            },
             'data' => [
+                'reference' => $first->reference,
+                'references' => array_map(fn (Booking $b) => $b->reference, $created),
                 'coach' => $coach->display_name,
-                'sessions' => count($created),
-                'series' => (bool) ($created[0]->series_id ?? null),
-                'amount' => $total,
+                'date' => $first->session_date?->toDateString(),
+                'time' => substr((string) $first->session_time, 0, 5),
+                'location' => $first->location?->name,
+                'group_session_id' => $first->group_session_id,
+                'players' => $players,
+                'sessions' => $sessions,
+                'series' => (bool) $first->series_id,
                 'dates' => array_map(fn (Booking $b) => $b->whenLabel(), $created),
+                'due_to_coach' => round(array_sum(array_map(fn (Booking $b) => (float) $b->amount, $created)), 2),
+                'convenience_fee' => round(array_sum(array_map(fn (Booking $b) => (float) $b->platform_fee_amount, $created)), 2),
+                'payment_status' => $first->payment_status,
+                'how_to_pay' => $contact['payment_note'],
+                'coach_email' => $contact['email'],
+                'coach_phone' => $contact['phone'],
             ],
         ];
     }
@@ -245,31 +231,24 @@ class BookingController extends Controller
         $booking = Booking::query()->where('reference', $reference)->firstOrFail();
 
         try {
-            $refund = $bookings->cancelByAthlete($user, $booking);
+            $bookings->cancelByAthlete($user, $booking);
         } catch (ValidationException $e) {
             return response()->json(['message' => collect($e->errors())->flatten()->first()], 422);
-        } catch (\Stripe\Exception\ApiErrorException $e) {
-            report($e);
-
-            return response()->json(['message' => 'The refund could not be processed: '.$e->getMessage()], 422);
         }
 
-        app(AppMailer::class)->notifyBookingCancelled($booking->fresh(), $refund);
+        app(AppMailer::class)->notifyBookingCancelled($booking->fresh());
 
         return response()->json([
-            'message' => $refund > 0
-                ? 'Booking cancelled. $'.number_format($refund, 2).' will be refunded to your card.'
-                : 'Booking cancelled.',
-            'data' => ['reference' => $booking->reference, 'refund' => $refund],
+            'message' => 'Booking cancelled. If you’ve already paid your coach, contact them about a refund.',
+            'data' => ['reference' => $booking->reference],
         ]);
     }
 
     /**
-     * Join a public group session for one or more players. Paid groups go through
-     * Stripe checkout (booking-intent → confirm-booking); this endpoint handles
-     * sample mode and free groups.
+     * Join a public group session for one or more players. Non-members pay the fee first
+     * (booking-intent → confirm-booking); this books for members, free groups and sample mode.
      */
-    public function requestJoin(Request $request, CoachGroupSession $group, SessionBookingService $bookings, StripeService $stripe): JsonResponse
+    public function requestJoin(Request $request, CoachGroupSession $group, SessionBookingService $bookings): JsonResponse
     {
         $user = $request->user();
         if (! $user?->isAthlete()) {
@@ -289,11 +268,8 @@ class BookingController extends Controller
         $players = $data['players'] ?? [$user->name];
         $quote = $bookings->groupCheckoutQuote($group, count($players), $user);
 
-        if ($stripe->enabled() && $quote['total'] > 0) {
-            return response()->json([
-                'message' => 'Paid group sessions must complete Stripe checkout on this page.',
-                'requires_stripe' => true,
-            ], 422);
+        if ($blocked = $this->feeNotPaid($quote)) {
+            return $blocked;
         }
 
         try {
@@ -305,19 +281,7 @@ class BookingController extends Controller
         }
 
         app(AppMailer::class)->notifyBookingCreated($created, 'group_join', $user);
-        $group->refresh();
-        $count = count($created);
 
-        return response()->json([
-            'message' => 'You’re in — '.$count.' player'.($count === 1 ? '' : 's').' booked on this group session.',
-            'data' => [
-                'group_session_id' => $group->id,
-                'references' => array_map(fn ($b) => $b->reference, $created),
-                'players' => $count,
-                'amount' => $quote['total'],
-                'convenience_fee' => $quote['convenience_fee'],
-                'label' => $group->session_type.' · '.$group->capacityLabel(),
-            ],
-        ], 201);
+        return response()->json(self::bookedPayload($created, $coach), 201);
     }
 }

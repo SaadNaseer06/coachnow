@@ -13,8 +13,11 @@
 @endif
 - Where: {{ $first->location?->name ?? 'Field TBD' }}
 - Player{{ count($players) === 1 ? '' : 's' }}: {{ implode(', ', $players) }}
-@if ($payout > 0)
-- Your share: ${{ number_format($payout, 2) }}
+@if ($due > 0)
+- They pay you directly: ${{ number_format($due, 2) }}
+@endif
+@if ($parent?->phone || $parent?->email)
+- Contact: {{ collect([$parent->phone, $parent->email])->filter()->implode(' · ') }}
 @endif
 @if ($group)
 - Group roster: {{ $group->capacityLabel() }} · {{ $group->spotsRemaining() }} spot{{ $group->spotsRemaining() === 1 ? '' : 's' }} left
@@ -22,6 +25,10 @@
 
 @if ($isPrivateGroup && $group && $group->spotsRemaining() > 0)
 This group is **private**. Want to fill the {{ $group->spotsRemaining() }} remaining spot{{ $group->spotsRemaining() === 1 ? '' : 's' }}? Set an age range and choose **Open to public** in Manage session.
+@endif
+
+@if ($due > 0 && blank($howToPay))
+Families don’t know how to pay you yet. [Add your payment details]({{ $profileUrl }}) to your profile so they see them after booking.
 @endif
 
 <x-mail::button :url="$scheduleUrl">

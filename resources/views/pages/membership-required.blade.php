@@ -24,7 +24,7 @@
         <div class="book-field is-group">
           <strong>Family Membership · ${{ number_format((float) config('coachnow.subscription.price', 10), 0) }}/month</strong>
           <div class="book-field__meta">
-            <span>✓ No ${{ number_format((float) config('coachnow.payments.convenience_fee', 2), 0) }} booking fee on any checkout</span>
+            <span>✓ No ${{ number_format((float) config('coachnow.payments.convenience_fee', 2), 0) }} booking fee per session</span>
             <span>✓ Request a Session — post requests and join other families’ sessions</span>
             <span>✓ Coach development reports and skill progress</span>
           </div>

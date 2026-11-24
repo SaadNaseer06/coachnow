@@ -106,7 +106,7 @@ class User extends Authenticatable
     }
 
     /**
-     * $2 convenience fee per checkout, waived for members.
+     * $2 CoachNow fee per session booked, waived for members.
      */
     public static function convenienceFeeFor(?self $user): float
     {

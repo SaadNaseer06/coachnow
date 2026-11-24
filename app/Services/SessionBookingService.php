@@ -234,7 +234,7 @@ class SessionBookingService
      *   group_session_id?: int|null
      * }  $slot
      */
-    public function createDirectBooking(Coach $coach, User $athlete, array $slot): Booking
+    public function createDirectBooking(Coach $coach, User $athlete, array $slot, ?string $paymentIntentId = null, ?float $feePerSession = null): Booking
     {
         $date = $slot['date'];
         $time = substr((string) $slot['time'], 0, 5);
@@ -248,46 +248,83 @@ class SessionBookingService
             ]);
         }
 
-        $match = $this->matchOpenSlot($coach, $slot);
+        return DB::transaction(function () use ($coach, $athlete, $slot, $date, $time, $duration, $locationId, $paymentIntentId, $feePerSession) {
+            $this->lockCoach($coach);
+            $match = $this->matchOpenSlot($coach, $slot);
+            $quote = $this->multiSessionQuote($coach, 1, $athlete, $feePerSession);
 
-        $sessionAmount = (float) ($coach->rate ?? 0);
-        $convenienceFee = User::convenienceFeeFor($athlete);
-
-        return Booking::query()->create([
-            'reference' => Booking::generateReference(),
-            'session_request_id' => null,
-            'coach_id' => $coach->id,
-            'athlete_id' => $athlete->id,
-            'location_id' => $locationId,
-            'athlete_name' => $athlete->name,
-            'session_type' => $slot['session_type'] ?? 'Private 1-on-1',
-            'session_date' => $date,
-            'session_time' => $time,
-            'duration_minutes' => (int) ($match['duration_minutes'] ?? $duration),
-            'amount' => $sessionAmount + $convenienceFee,
-            'platform_fee_amount' => $convenienceFee,
-            'coach_payout_amount' => $sessionAmount,
-            'status' => 'confirmed',
-        ]);
+            return Booking::query()->create([
+                'reference' => Booking::generateReference(),
+                'session_request_id' => null,
+                'coach_id' => $coach->id,
+                'athlete_id' => $athlete->id,
+                'location_id' => $locationId,
+                'athlete_name' => $athlete->name,
+                'session_type' => $slot['session_type'] ?? 'Private 1-on-1',
+                'session_date' => $date,
+                'session_time' => $time,
+                'duration_minutes' => (int) ($match['duration_minutes'] ?? $duration),
+                'status' => 'confirmed',
+            ] + $this->paymentFields($quote['rate'], $quote['fee_per_session'], $paymentIntentId, $athlete));
+        });
     }
 
     /**
-     * Quote for several 1-on-1 sessions in one checkout: rate × sessions + one convenience fee.
+     * Families pay the coach directly. CoachNow only charges non-members its fee, per session
+     * (never per player), and nothing on free sessions.
      *
-     * @return array{rate: float, session_amount: float, convenience_fee: float, total: float}
+     * @return array{sessions: int, session_amount: float, fee_per_session: float, convenience_fee: float, total: float}
      */
-    public function multiSessionQuote(Coach $coach, int $sessions, ?User $payer = null): array
+    private function quote(float $sessionAmount, int $sessions, ?User $payer, ?float $feePerSession = null): array
     {
-        $rate = (float) ($coach->rate ?? 0);
-        $sessionAmount = round($rate * max(1, $sessions), 2);
-        $fee = $sessionAmount > 0 ? User::convenienceFeeFor($payer) : 0.0;
+        $sessions = max(1, $sessions);
+        $perSession = $sessionAmount > 0 ? ($feePerSession ?? User::convenienceFeeFor($payer)) : 0.0;
+        $fee = round($perSession * $sessions, 2);
 
         return [
-            'rate' => $rate,
-            'session_amount' => $sessionAmount,
+            'sessions' => $sessions,
+            'session_amount' => round($sessionAmount, 2),
+            'fee_per_session' => $perSession,
             'convenience_fee' => $fee,
             'total' => round($sessionAmount + $fee, 2),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function paymentFields(float $price, float $fee, ?string $paymentIntentId, User $payer): array
+    {
+        return [
+            'amount' => $price,
+            'platform_fee_amount' => $fee,
+            'fee_status' => match (true) {
+                $fee > 0 => $paymentIntentId ? 'paid' : 'sample',
+                $price > 0 && $payer->hasActiveSubscription() => 'waived',
+                default => null,
+            },
+            'coach_payout_amount' => $price,
+            'stripe_payment_intent_id' => $fee > 0 ? $paymentIntentId : null,
+            'payment_status' => Booking::PAID_DIRECTLY,
+        ];
+    }
+
+    /** One booking at a time per coach, so two families can't both get the same open time. */
+    private function lockCoach(Coach $coach): void
+    {
+        Coach::query()->whereKey($coach->id)->lockForUpdate()->first();
+    }
+
+    /**
+     * Quote for one or more 1-on-1 sessions: rate × sessions for the coach, plus the fee per session.
+     *
+     * @return array{rate: float, sessions: int, session_amount: float, fee_per_session: float, convenience_fee: float, total: float}
+     */
+    public function multiSessionQuote(Coach $coach, int $sessions, ?User $payer = null, ?float $feePerSession = null): array
+    {
+        $rate = (float) ($coach->rate ?? 0);
+
+        return ['rate' => $rate] + $this->quote($rate * max(1, $sessions), $sessions, $payer, $feePerSession);
     }
 
     /**
@@ -333,25 +370,24 @@ class SessionBookingService
 
     /**
      * Book several 1-on-1 sessions in one checkout (picked dates, or a weekly series).
-     * One convenience fee for the whole checkout, recorded on the first session.
+     * The CoachNow fee is recorded on every session.
      *
      * @param  list<array{date: string, time: string, location_id: int, duration_minutes?: int}>  $slots
      * @return list<Booking>
      */
-    public function createMultipleDirectBookings(Coach $coach, User $athlete, array $slots, bool $recurring = false, ?string $paymentIntentId = null, ?string $sessionType = null): array
+    public function createMultipleDirectBookings(Coach $coach, User $athlete, array $slots, bool $recurring = false, ?string $paymentIntentId = null, ?string $sessionType = null, ?float $feePerSession = null): array
     {
         $sessionType = $coach->resolveSessionType($sessionType);
 
-        return DB::transaction(function () use ($coach, $athlete, $slots, $recurring, $paymentIntentId, $sessionType) {
+        return DB::transaction(function () use ($coach, $athlete, $slots, $recurring, $paymentIntentId, $sessionType, $feePerSession) {
+            $this->lockCoach($coach);
             $matched = collect($this->assertSlotsBookable($coach, $slots))
                 ->sortBy(fn ($m) => $m['date'].' '.$m['time'])
                 ->values();
-            $quote = $this->multiSessionQuote($coach, $matched->count(), $athlete);
+            $quote = $this->multiSessionQuote($coach, $matched->count(), $athlete, $feePerSession);
             $seriesId = $recurring ? (string) Str::uuid() : null;
 
-            return $matched->map(function (array $match, int $index) use ($coach, $athlete, $quote, $seriesId, $paymentIntentId, $sessionType) {
-                $fee = $index === 0 ? $quote['convenience_fee'] : 0.0;
-
+            return $matched->map(function (array $match) use ($coach, $athlete, $quote, $seriesId, $paymentIntentId, $sessionType) {
                 return Booking::query()->create([
                     'reference' => Booking::generateReference(),
                     'coach_id' => $coach->id,
@@ -362,38 +398,35 @@ class SessionBookingService
                     'session_date' => $match['date'],
                     'session_time' => $match['time'],
                     'duration_minutes' => (int) $match['duration_minutes'],
-                    'amount' => $quote['rate'] + $fee,
-                    'platform_fee_amount' => $fee,
-                    'coach_payout_amount' => $quote['rate'],
-                    'stripe_payment_intent_id' => $paymentIntentId,
-                    'payment_status' => $paymentIntentId ? 'paid' : 'unpaid',
                     'status' => 'confirmed',
                     'series_id' => $seriesId,
-                ]);
+                ] + $this->paymentFields($quote['rate'], $quote['fee_per_session'], $paymentIntentId, $athlete));
             })->all();
         });
     }
 
     /**
-     * Price for one parent checkout on a public group: per-player price × players,
-     * plus a single convenience fee for the whole transaction.
+     * Price for one family on a public group: per-player price × players for the coach,
+     * plus one CoachNow fee (it's one session).
      *
-     * @return array{price_per_player: float, session_amount: float, convenience_fee: float, total: float}
+     * @return array{price_per_player: float, sessions: int, session_amount: float, fee_per_session: float, convenience_fee: float, total: float}
      */
-    public function groupCheckoutQuote(CoachGroupSession $group, int $playerCount, ?User $payer = null): array
+    public function groupCheckoutQuote(CoachGroupSession $group, int $playerCount, ?User $payer = null, ?float $feePerSession = null): array
     {
         $price = $group->price_per_player !== null
             ? (float) $group->price_per_player
             : (float) ($group->coach?->rate ?? 0);
-        $sessionAmount = round($price * max(1, $playerCount), 2);
-        $fee = $sessionAmount > 0 ? User::convenienceFeeFor($payer) : 0.0;
 
-        return [
-            'price_per_player' => $price,
-            'session_amount' => $sessionAmount,
-            'convenience_fee' => $fee,
-            'total' => round($sessionAmount + $fee, 2),
-        ];
+        // Adding a player later is still the same session, so the fee isn't charged again.
+        if ($feePerSession === null && $payer && Booking::query()
+            ->where('group_session_id', $group->id)
+            ->where('athlete_id', $payer->id)
+            ->whereIn('fee_status', ['paid', 'sample'])
+            ->exists()) {
+            $feePerSession = 0.0;
+        }
+
+        return ['price_per_player' => $price] + $this->quote($price * max(1, $playerCount), 1, $payer, $feePerSession);
     }
 
     /**
@@ -440,19 +473,19 @@ class SessionBookingService
 
     /**
      * Parent books one or more players onto a public group session in one transaction.
-     * The convenience fee is recorded once, on the first player's booking.
+     * It's one session, so the CoachNow fee is recorded once, on the first player's booking.
      *
      * @param  list<string>  $playerNames
      * @return list<Booking>
      */
-    public function joinGroupSession(Coach $coach, User $athlete, int $groupSessionId, array $playerNames, ?string $paymentIntentId = null): array
+    public function joinGroupSession(Coach $coach, User $athlete, int $groupSessionId, array $playerNames, ?string $paymentIntentId = null, ?float $feePerSession = null): array
     {
         $playerNames = array_values(array_unique(array_filter(array_map(
             fn ($name) => trim((string) $name),
             $playerNames
         ))));
 
-        return DB::transaction(function () use ($coach, $athlete, $groupSessionId, $playerNames, $paymentIntentId) {
+        return DB::transaction(function () use ($coach, $athlete, $groupSessionId, $playerNames, $paymentIntentId, $feePerSession) {
             $group = CoachGroupSession::query()
                 ->with('coach')
                 ->whereKey($groupSessionId)
@@ -461,27 +494,20 @@ class SessionBookingService
 
             $this->assertGroupJoinable($coach, $group, $athlete, $playerNames);
 
-            return $this->createGroupBookings($coach, $athlete, $group, $playerNames, $paymentIntentId);
+            return $this->createGroupBookings($coach, $athlete, $group, $playerNames, $paymentIntentId, $feePerSession);
         });
     }
 
     /**
      * Quote for a parent booking a new private group on an open Book Now slot.
      *
-     * @return array{price_per_player: float, session_amount: float, convenience_fee: float, total: float}
+     * @return array{price_per_player: float, sessions: int, session_amount: float, fee_per_session: float, convenience_fee: float, total: float}
      */
     public function newGroupCheckoutQuote(Coach $coach, int $playerCount, ?User $payer = null): array
     {
         $price = (float) ($coach->group_rate ?? 0);
-        $sessionAmount = round($price * max(1, $playerCount), 2);
-        $fee = $sessionAmount > 0 ? User::convenienceFeeFor($payer) : 0.0;
 
-        return [
-            'price_per_player' => $price,
-            'session_amount' => $sessionAmount,
-            'convenience_fee' => $fee,
-            'total' => round($sessionAmount + $fee, 2),
-        ];
+        return ['price_per_player' => $price] + $this->quote($price * max(1, $playerCount), 1, $payer);
     }
 
     /**
@@ -516,16 +542,16 @@ class SessionBookingService
      * @param  list<string>  $playerNames
      * @return list<Booking>
      */
-    public function createPrivateGroupBooking(Coach $coach, User $athlete, array $slot, array $playerNames, ?string $paymentIntentId = null): array
+    public function createPrivateGroupBooking(Coach $coach, User $athlete, array $slot, array $playerNames, ?string $paymentIntentId = null, ?float $feePerSession = null): array
     {
         $playerNames = array_values(array_unique(array_filter(array_map(
             fn ($name) => trim((string) $name),
             $playerNames
         ))));
 
-        $match = $this->assertNewGroupBookable($coach, $slot, $playerNames);
-
-        return DB::transaction(function () use ($coach, $athlete, $match, $playerNames, $paymentIntentId) {
+        return DB::transaction(function () use ($coach, $athlete, $slot, $playerNames, $paymentIntentId, $feePerSession) {
+            $this->lockCoach($coach);
+            $match = $this->assertNewGroupBookable($coach, $slot, $playerNames);
             $group = CoachGroupSession::query()->create([
                 'coach_id' => $coach->id,
                 'location_id' => (int) $match['location_id'],
@@ -541,19 +567,19 @@ class SessionBookingService
             ]);
             $group->setRelation('coach', $coach);
 
-            return $this->createGroupBookings($coach, $athlete, $group, $playerNames, $paymentIntentId);
+            return $this->createGroupBookings($coach, $athlete, $group, $playerNames, $paymentIntentId, $feePerSession);
         });
     }
 
     /**
-     * One booking per player; the convenience fee is recorded once, on the first booking.
+     * One booking per player; the CoachNow fee is recorded once, on the first booking.
      *
      * @param  list<string>  $playerNames
      * @return list<Booking>
      */
-    private function createGroupBookings(Coach $coach, User $athlete, CoachGroupSession $group, array $playerNames, ?string $paymentIntentId): array
+    private function createGroupBookings(Coach $coach, User $athlete, CoachGroupSession $group, array $playerNames, ?string $paymentIntentId, ?float $feePerSession = null): array
     {
-        $quote = $this->groupCheckoutQuote($group, count($playerNames), $athlete);
+        $quote = $this->groupCheckoutQuote($group, count($playerNames), $athlete, $feePerSession);
         $price = $quote['price_per_player'];
         $bookings = [];
 
@@ -569,16 +595,11 @@ class SessionBookingService
                 'session_date' => $group->session_date?->toDateString(),
                 'session_time' => $group->session_time,
                 'duration_minutes' => $group->durationMinutes(),
-                'amount' => $price + $fee,
-                'platform_fee_amount' => $fee,
-                'coach_payout_amount' => $price,
-                'stripe_payment_intent_id' => $paymentIntentId,
-                'payment_status' => $paymentIntentId ? 'paid' : 'unpaid',
                 'status' => 'confirmed',
                 'notes' => $group->notes,
                 'max_players' => $group->max_players,
                 'group_session_id' => $group->id,
-            ]);
+            ] + $this->paymentFields($price, $fee, $paymentIntentId, $athlete));
         }
 
         $group->syncStatusFromRoster();
@@ -1050,6 +1071,7 @@ class SessionBookingService
         $booking->update(['status' => 'cancelled']);
         $this->releaseRequestPlace($booking, false);
         $group?->syncStatusFromRoster();
+        $this->refundFeesAfterCoachCancel([$booking->fresh()]);
     }
 
     public function moveCoachBooking(
@@ -1067,42 +1089,90 @@ class SessionBookingService
     }
 
     /**
-     * Parent cancels one player's booking. Refunds the player's session price when it
-     * was paid by card; the convenience fee stays. Frees the group spot if any.
-     *
-     * @return float Amount refunded.
+     * Parent cancels one player's booking. The coach handles any session money paid to them,
+     * and the CoachNow fee stays. Frees the group spot if any.
      */
-    public function cancelByAthlete(User $athlete, Booking $booking): float
+    public function cancelByAthlete(User $athlete, Booking $booking): void
     {
         if ($reason = $booking->athleteCancelBlockReason($athlete)) {
             throw ValidationException::withMessages(['booking' => $reason]);
         }
 
-        $refundCents = 0;
-        $stripe = app(StripeService::class);
-        if ($booking->stripe_payment_intent_id && $booking->payment_status === 'paid' && $stripe->enabled()) {
-            $refundCents = (int) round(((float) $booking->coach_payout_amount) * 100);
-            $stripe->refundPaymentIntent($booking->stripe_payment_intent_id, $refundCents, [
-                'booking_reference' => (string) $booking->reference,
-                'reason' => 'parent_cancelled',
-            ]);
-        }
-
-        DB::transaction(function () use ($booking, $refundCents) {
-            $booking->forceFill([
-                'status' => 'cancelled',
-                'payment_status' => $refundCents > 0 ? 'partially_refunded' : $booking->payment_status,
-            ])->save();
-
+        DB::transaction(function () use ($booking) {
+            $booking->forceFill(['status' => 'cancelled'])->save();
             $booking->groupSession?->syncStatusFromRoster();
         });
-
-        return $refundCents / 100;
     }
 
     /**
-     * Coach cancels every upcoming session in a parent's weekly series. Paid sessions are
-     * refunded in full (the coach cancelled, so the family shouldn't lose the fee).
+     * The coach cancelled, so the family shouldn't lose the CoachNow fee. A problem at Stripe
+     * never blocks the cancellation; it's logged for the admin to refund by hand.
+     *
+     * @param  iterable<Booking>  $bookings  Bookings that were just cancelled.
+     * @return array<int, float> Fee refunded, by booking id.
+     */
+    public function refundFeesAfterCoachCancel(iterable $bookings): array
+    {
+        $stripe = app(StripeService::class);
+        $refunded = [];
+
+        if (! config('coachnow.payments.refund_fee_on_coach_cancel', true) || ! $stripe->enabled()) {
+            return $refunded;
+        }
+
+        foreach ($bookings as $cancelled) {
+            $booking = $this->feeBookingFor($cancelled);
+            if (! $booking) {
+                continue;
+            }
+            $cents = (int) round(((float) $booking->platform_fee_amount) * 100);
+            // Tidying up a past session isn't cancelling it.
+            if ($booking->startsAt()?->isPast() ?? true) {
+                continue;
+            }
+
+            try {
+                $stripe->refundPaymentIntent($booking->stripe_payment_intent_id, $cents, [
+                    'booking_reference' => (string) $booking->reference,
+                    'reason' => 'coach_cancelled',
+                ], 'booking-fee-refund-'.$booking->id);
+                $booking->forceFill(['fee_status' => 'refunded'])->save();
+                $refunded[$cancelled->id] = $cents / 100;
+            } catch (\Stripe\Exception\ApiErrorException $e) {
+                report($e);
+            }
+        }
+
+        return $refunded;
+    }
+
+    /**
+     * The booking holding the paid fee. In a group, one fee covers all of a family's players, so
+     * it's only given back once none of them has a place left.
+     */
+    private function feeBookingFor(Booking $cancelled): ?Booking
+    {
+        if (! $cancelled->group_session_id) {
+            $holder = $cancelled;
+        } else {
+            $family = Booking::query()
+                ->where('group_session_id', $cancelled->group_session_id)
+                ->where('athlete_id', $cancelled->athlete_id)
+                ->get();
+            if (! $cancelled->athlete_id || $family->contains(fn (Booking $b) => $b->status !== 'cancelled')) {
+                return null;
+            }
+            $holder = $family->first(fn (Booking $b) => $b->fee_status === 'paid');
+        }
+
+        return $holder && $holder->fee_status === 'paid' && (float) $holder->platform_fee_amount > 0 && $holder->stripe_payment_intent_id
+            ? $holder
+            : null;
+    }
+
+    /**
+     * Coach cancels every upcoming session in a parent's weekly series. The coach sorts out any
+     * session money directly; the CoachNow fees for those sessions are refunded.
      *
      * @return array{cancelled: list<Booking>, refunded: float}
      */
@@ -1114,32 +1184,27 @@ class SessionBookingService
             ->upcoming()
             ->get();
 
-        $stripe = app(StripeService::class);
-        $refunded = 0.0;
-
         foreach ($upcoming as $booking) {
-            if ($booking->stripe_payment_intent_id && $booking->payment_status === 'paid' && $stripe->enabled()) {
-                $cents = (int) round(((float) $booking->amount) * 100);
-                $stripe->refundPaymentIntent($booking->stripe_payment_intent_id, $cents, [
-                    'booking_reference' => (string) $booking->reference,
-                    'reason' => 'coach_cancelled_series',
-                ]);
-                $refunded += $cents / 100;
-                $booking->payment_status = 'refunded';
-            }
-
             $booking->status = 'cancelled';
             $booking->save();
         }
 
-        return ['cancelled' => $upcoming->all(), 'refunded' => $refunded];
+        return ['cancelled' => $upcoming->all(), 'refunded' => array_sum($this->refundFeesAfterCoachCancel($upcoming))];
     }
 
-    public function cancelCoachBooking(Coach $coach, Booking $booking): void
+    /**
+     * @return array{cancelled: list<Booking>, refunds: array<int, float>}
+     */
+    public function cancelCoachBooking(Coach $coach, Booking $booking): array
     {
         if ((int) $booking->coach_id !== (int) $coach->id) {
             abort(403);
         }
+
+        // Everyone losing their place, so families can be told and their fees returned.
+        $ids = ($booking->group_session_id ? Booking::query()->where('group_session_id', $booking->group_session_id) : Booking::query()->whereKey($booking->id))
+            ->where('status', '!=', 'cancelled')
+            ->pluck('id');
 
         DB::transaction(function () use ($booking) {
             if ($booking->group_session_id) {
@@ -1155,6 +1220,10 @@ class SessionBookingService
                 $this->releaseRequestPlace($booking, true);
             }
         });
+
+        $cancelled = Booking::query()->whereIn('id', $ids)->get();
+
+        return ['cancelled' => $cancelled->all(), 'refunds' => $this->refundFeesAfterCoachCancel($cancelled)];
     }
 
     public function acceptGroupJoinRequest(Coach $coach, GroupJoinRequest $join): Booking

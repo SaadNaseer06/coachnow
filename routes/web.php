@@ -3,7 +3,6 @@
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Coach\CoachController;
-use App\Http\Controllers\StripeConnectController;
 use App\Http\Controllers\StripePaymentController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\Coach\CoachScheduleSessionController;
@@ -40,8 +39,8 @@ Route::get('/api/stripe/config', [StripePaymentController::class, 'config'])->na
 Route::post('/api/stripe/webhook', StripeWebhookController::class)->name('stripe.webhook');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/api/stripe/setup-intent', [StripePaymentController::class, 'setupIntent'])->name('stripe.setup-intent');
-    Route::post('/api/stripe/booking-intent', [StripePaymentController::class, 'createBookingIntent'])->name('stripe.booking-intent');
+    // Limited per account so the $2 checkout can't be used to test stolen cards.
+    Route::post('/api/stripe/booking-intent', [StripePaymentController::class, 'createBookingIntent'])->middleware('throttle:12,1')->name('stripe.booking-intent');
     Route::post('/api/stripe/confirm-booking', [StripePaymentController::class, 'confirmBooking'])->name('stripe.confirm-booking');
 
     Route::middleware('role:athlete')->group(function () {
@@ -112,11 +111,6 @@ Route::prefix('coach')->name('coach.')->middleware(['auth', 'role:coach'])->grou
     Route::get('/profile', [CoachController::class, 'profile'])->name('profile');
     Route::get('/api/status', [CoachController::class, 'status'])->name('status');
     Route::put('/profile', [CoachController::class, 'updateProfile'])->name('profile.update');
-    Route::get('/stripe/status', [StripeConnectController::class, 'status'])->name('stripe.status');
-    Route::get('/stripe/onboard', [StripeConnectController::class, 'onboard'])->name('stripe.onboard');
-    Route::get('/stripe/dashboard', [StripeConnectController::class, 'dashboard'])->name('stripe.dashboard');
-    Route::get('/stripe/return', [StripeConnectController::class, 'returnFromStripe'])->name('stripe.return');
-    Route::get('/stripe/refresh', [StripeConnectController::class, 'refresh'])->name('stripe.refresh');
     Route::get('/player-overview', [CoachController::class, 'playerOverview'])->name('player-overview');
     Route::get('/players/{player}', [CoachController::class, 'playerShow'])->name('players.show');
     Route::post('/players/{player}/videos', [CoachController::class, 'storeVideo'])->name('players.videos.store');

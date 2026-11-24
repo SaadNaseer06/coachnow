@@ -1187,6 +1187,7 @@ class CoachController extends Controller
             'max_group_size' => ['nullable', 'integer', 'min:2', 'max:30'],
             'buffer_minutes' => ['nullable', 'integer', Rule::in([0, 5, 10, 15, 20, 30])],
             'custom_services' => ['nullable', 'string', 'max:300'],
+            'payment_instructions' => ['nullable', 'string', 'max:500'],
             'bio' => ['nullable', 'string', 'max:2000'],
             'languages_spoken' => ['nullable', 'string', 'max:255'],
             'coaching_philosophy' => ['nullable', 'string', 'max:5000'],

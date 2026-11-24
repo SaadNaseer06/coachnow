@@ -64,7 +64,7 @@
             <span><strong>Booked:</strong> {{ $meta['booked_count'] }} of {{ $meta['max_players'] }}</span>
             <span><strong>Available spaces:</strong> {{ $meta['spots_remaining'] }}</span>
             @if($convenienceFee > 0)
-              <span><strong>CoachNow fee:</strong> ${{ number_format($convenienceFee, 0) }} per booking</span>
+              <span><strong>CoachNow fee:</strong> ${{ number_format($convenienceFee, 0) }} for the session</span>
             @endif
           </div>
         </div>
@@ -74,7 +74,7 @@
         <div class="book-summary">
           <h2>Join this session</h2>
           @if ($meta['joinable'])
-            <p class="book-hint" style="margin-bottom:1rem">{{ $meta['spots_remaining'] }} spot{{ $meta['spots_remaining'] === 1 ? '' : 's' }} left. Choose how many players on the next screen — one CoachNow fee per booking.</p>
+            <p class="book-hint" style="margin-bottom:1rem">{{ $meta['spots_remaining'] }} spot{{ $meta['spots_remaining'] === 1 ? '' : 's' }} left. Choose how many players on the next screen. You pay the coach directly{{ $convenienceFee > 0 ? ', plus one CoachNow fee for the session' : '' }}.</p>
             @auth
               @if(auth()->user()->isAthlete())
                 <a href="{{ $bookUrl }}" class="book-btn">Join Group Session</a>

@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 class Booking extends Model
 {
-    /** Arranged between the family and the coach; CoachNow took no money. */
+    /** Session money is between the family and the coach; CoachNow never takes it. */
     public const PAID_DIRECTLY = 'direct';
 
     /** @use HasFactory<\Database\Factories\BookingFactory> */
@@ -31,6 +31,7 @@ class Booking extends Model
         'amount',
         'stripe_payment_intent_id',
         'platform_fee_amount',
+        'fee_status',
         'coach_payout_amount',
         'payment_status',
         'status',
@@ -153,6 +154,20 @@ class Booking extends Model
         }
 
         return null;
+    }
+
+    /**
+     * How to reach and pay the coach, for a Book Now booking. Session requests have their own.
+     *
+     * @return array{name: string, email: ?string, phone: ?string, payment_note: ?string}|null
+     */
+    public function coachContact(): ?array
+    {
+        if ($this->session_request_id || $this->status === 'cancelled') {
+            return null;
+        }
+
+        return $this->coach?->contactForFamilies();
     }
 
     /**

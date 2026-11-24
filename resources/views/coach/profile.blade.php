@@ -278,6 +278,12 @@
       With a group rate set, parents can book a <strong>private</strong> group for 2+ players on any open time. Open spare spots to the public later from Manage session.
     </p>
 
+    <label class="admin-field admin-field--full" id="how-families-pay">
+      <span>How families pay you</span>
+      <textarea class="admin-input admin-textarea" name="payment_instructions" rows="2" maxlength="500" placeholder="e.g. Venmo @your-name or cash at the session">{{ old('payment_instructions', $coach->payment_instructions) }}</textarea>
+      <span class="text-[12px] text-zinc-500">Families pay you directly for sessions, and you handle any refunds. They see this after they book. Only share what you’re happy for families to have, like a Venmo or Zelle name.</span>
+    </label>
+
     <label class="admin-field admin-field--full">
       <span>Bio</span>
       <textarea class="admin-input admin-textarea" name="bio" rows="4" maxlength="2000" placeholder="Short intro for athletes and parents">{{ old('bio', $coach->bio) }}</textarea>
@@ -328,53 +334,6 @@
     <button type="submit" class="admin-btn admin-btn-primary" data-loading-text="Saving…">Save profile</button>
   </div>
 </form>
-
-<section class="admin-card coach-profile-card" style="margin-top:16px">
-  <div class="admin-card__header">
-    <div>
-      <h2>Payouts</h2>
-      @if (config('coachnow.payments.sample_mode'))
-        <p>Sample mode is on — bookings and session requests work without Stripe for now. Live bank payouts will connect here when Stripe goes live.</p>
-      @else
-        <p>Connect your bank account so parent payments can reach you automatically. CoachNow keeps its platform fee; you receive the rest.</p>
-      @endif
-    </div>
-  </div>
-  <div class="admin-form-grid" style="gap:12px">
-    @php
-      $samplePayments = (bool) config('coachnow.payments.sample_mode');
-      $stripeReady = $coach->canReceivePayouts();
-      $stripeStarted = filled($coach->stripe_account_id);
-    @endphp
-    <div class="admin-field admin-field--full">
-      @if ($samplePayments)
-        <p class="admin-alert admin-alert--success" style="margin:0">
-          <span class="admin-alert__body"><span class="admin-alert__text">Sample payouts active — you can accept bookings and requests without Stripe Connect.</span></span>
-        </p>
-      @elseif ($stripeReady)
-        <p class="admin-alert admin-alert--success" style="margin:0">
-          <span class="admin-alert__body"><span class="admin-alert__text">Payout setup complete — you can accept paid bookings and session requests.</span></span>
-        </p>
-      @elseif ($stripeStarted)
-        <p class="admin-alert admin-alert--warning" style="margin:0">
-          <span class="admin-alert__body"><span class="admin-alert__text">Stripe account started, but payouts are not fully enabled yet. Continue setup.</span></span>
-        </p>
-      @else
-        <p style="margin:0;font-size:13px;color:#52525b">Required before accepting paid Request-a-Session jobs or Book Now payments when Stripe is live.</p>
-      @endif
-    </div>
-    @unless ($samplePayments)
-      <div class="admin-field admin-field--full" style="display:flex;flex-wrap:wrap;gap:8px">
-        <a href="{{ route('coach.stripe.onboard') }}" class="admin-btn admin-btn-primary">
-          {{ $stripeReady ? 'Update payout details' : 'Set up payouts with Stripe' }}
-        </a>
-        @if ($stripeStarted)
-          <a href="{{ route('coach.stripe.dashboard') }}" class="admin-btn admin-btn-ghost">Open Stripe dashboard</a>
-        @endif
-      </div>
-    @endunless
-  </div>
-</section>
 @endsection
 
 @push('scripts')

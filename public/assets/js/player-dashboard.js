@@ -211,7 +211,7 @@
   });
 })();
 
-// Cancel an upcoming booking (refunds the player's session price; the CoachNow fee stays).
+// Cancel an upcoming booking. The coach handles any session money; the CoachNow fee stays.
 (() => {
   const root = document.querySelector('[data-player-bookings]');
   if (!root) return;
@@ -223,12 +223,11 @@
     if (!btn) return;
 
     const reference = btn.getAttribute('data-reference');
-    const refund = btn.getAttribute('data-refund');
+    const fee = btn.getAttribute('data-fee');
     if (!reference) return;
 
-    const message = refund
-      ? `Cancel this booking? $${refund} will be refunded to your card. The CoachNow convenience fee is non-refundable.`
-      : 'Cancel this booking? Your coach will be notified.';
+    const message = 'Cancel this booking? Your coach will be notified. If you’ve already paid them, contact them about a refund.'
+      + (fee ? ` The $${fee} CoachNow fee is non-refundable.` : '');
     const confirmed = window.CoachNowDialog?.confirm
       ? await window.CoachNowDialog.confirm({
           title: 'Cancel booking?',

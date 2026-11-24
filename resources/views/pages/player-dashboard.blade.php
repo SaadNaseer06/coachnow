@@ -225,6 +225,13 @@
                   <p class="player-req-card__title">{{ $booking->session_type ?? 'Session' }}@if($booking->athlete_name && $booking->athlete_name !== auth()->user()->name) · {{ $booking->athlete_name }}@endif</p>
                   <p class="player-req-card__meta">{{ $booking->whenLabel() }} · {{ $booking->location?->label() ?? 'Field TBD' }}@if ($booking->location) · <a href="{{ $booking->location->directionsUrl() }}" target="_blank" rel="noopener" class="player-directions">Directions</a>@endif</p>
                   <p class="player-req-card__sub">{{ $booking->coach?->display_name ?? 'Coach' }}@if ($booking->status === 'pending') · Waiting for the coach to confirm @endif</p>
+                  @if ($payContact = $booking->coachContact())
+                    <details class="player-pay">
+                      <summary>Pay your coach{{ (float) $booking->coach_payout_amount > 0 ? ' · $'.number_format((float) $booking->coach_payout_amount, 0) : '' }}</summary>
+                      <p class="player-req-card__sub">You pay {{ $payContact['name'] }} directly. They also handle cancellations and refunds for session payments.</p>
+                      @include('partials.message-coach', ['contact' => $payContact])
+                    </details>
+                  @endif
                 </div>
                 @if (! $booking->athleteCancelBlockReason(auth()->user()))
                   <button
@@ -232,7 +239,7 @@
                     class="player-req-cancel"
                     data-cancel-booking
                     data-reference="{{ $booking->reference }}"
-                    data-refund="{{ $booking->payment_status === 'paid' ? number_format((float) $booking->coach_payout_amount, 2) : '' }}"
+                    data-fee="{{ $booking->fee_status === 'paid' ? number_format((float) $booking->platform_fee_amount, 2) : '' }}"
                   >Cancel</button>
                 @endif
               </div>
@@ -534,7 +541,7 @@
           @else
             <h2 class="player-panel-title mb-2">Family Membership · ${{ number_format($ms['price'], 0) }}/mo</h2>
             <ul class="player-membership-perks">
-              <li>No ${{ number_format($ms['fee'], 0) }} fee on any booking</li>
+              <li>No ${{ number_format($ms['fee'], 0) }} fee per session</li>
               <li>Request a Session &amp; join open requests</li>
               <li>Coach development reports &amp; skill progress</li>
             </ul>
@@ -543,7 +550,7 @@
               @csrf
               <button type="submit" class="player-req-cta player-req-cta--block">Become a member</button>
             </form>
-            <p class="text-[12px] text-zinc-500 mt-2">Booking coaches and your upcoming sessions stay free either way.</p>
+            <p class="text-[12px] text-zinc-500 mt-2">You can book coaches without a membership. The ${{ number_format($ms['fee'], 0) }} CoachNow fee per session then applies.</p>
           @endif
         </article>
 

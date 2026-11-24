@@ -32,9 +32,9 @@
     </div>
   </article>
   <article class="admin-kpi">
-    <div class="admin-kpi-label">Revenue (MTD)</div>
+    <div class="admin-kpi-label">Booking fees (MTD)</div>
     <div class="admin-kpi-value">${{ $revenueMtd >= 1000 ? number_format($revenueMtd / 1000, 1).'k' : number_format($revenueMtd, 0) }}</div>
-    <div class="admin-kpi-trend flat">Non-cancelled bookings</div>
+    <div class="admin-kpi-trend flat">CoachNow fees paid by card</div>
   </article>
 </section>
 

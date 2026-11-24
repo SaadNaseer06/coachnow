@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Booking;
-use App\Models\Coach;
-use App\Models\SessionRequestPlayer;
+use App\Models\BookingCheckout;
+use App\Services\BookingCheckoutService;
 use App\Services\StripeService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -50,9 +49,7 @@ class StripeWebhookController extends Controller
 
         try {
             match ($type) {
-                'account.updated' => $this->handleAccountUpdated($object, $stripe),
                 'payment_intent.succeeded' => $this->handlePaymentSucceeded($object),
-                'payment_intent.payment_failed' => $this->handlePaymentFailed($object),
                 'customer.subscription.created',
                 'customer.subscription.updated',
                 'customer.subscription.deleted' => $this->handleSubscription($object, $stripe),
@@ -61,41 +58,30 @@ class StripeWebhookController extends Controller
         } catch (\Throwable $e) {
             report($e);
             Log::error('Stripe webhook handler error', ['type' => $type, 'error' => $e->getMessage()]);
+
+            // A paid fee must end in a booking or a refund, so have Stripe send it again.
+            if ($type === 'payment_intent.succeeded') {
+                return response('Try again', 500);
+            }
         }
 
         return response('ok', 200);
     }
 
-    private function handleAccountUpdated(mixed $account, StripeService $stripe): void
-    {
-        $accountId = is_object($account) ? ($account->id ?? null) : null;
-        if (! $accountId) {
-            return;
-        }
-
-        $coach = Coach::query()->where('stripe_account_id', $accountId)->first();
-        if ($coach) {
-            $stripe->syncConnectAccount($coach);
-        }
-    }
-
+    /**
+     * Books the sessions if the parent's browser never came back after paying the fee.
+     */
     private function handlePaymentSucceeded(mixed $intent): void
     {
         $id = is_object($intent) ? ($intent->id ?? null) : null;
-        if (! $id) {
+        if (! $id || ! BookingCheckout::query()->where('stripe_payment_intent_id', $id)->exists()) {
             return;
         }
 
-        Booking::query()
-            ->where('stripe_payment_intent_id', $id)
-            ->update([
-                'payment_status' => 'paid',
-                'status' => 'confirmed',
-            ]);
-
-        SessionRequestPlayer::query()
-            ->where('stripe_payment_intent_id', $id)
-            ->update(['paid' => true]);
+        $checkout = app(BookingCheckoutService::class)->complete($id);
+        if ($checkout->status === BookingCheckout::REFUND_DUE) {
+            throw new \RuntimeException('Booking fee refund still due for '.$id);
+        }
     }
 
     /**
@@ -112,17 +98,5 @@ class StripeWebhookController extends Controller
             : \Stripe\Subscription::constructFrom(json_decode(json_encode($object), true));
 
         $stripe->applySubscription($subscription);
-    }
-
-    private function handlePaymentFailed(mixed $intent): void
-    {
-        $id = is_object($intent) ? ($intent->id ?? null) : null;
-        if (! $id) {
-            return;
-        }
-
-        Booking::query()
-            ->where('stripe_payment_intent_id', $id)
-            ->update(['payment_status' => 'failed']);
     }
 }

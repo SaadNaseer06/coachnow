@@ -35,7 +35,8 @@
           <th>Location</th>
           <th>Session</th>
           <th>When</th>
-          <th>Amount</th>
+          <th>Session price</th>
+          <th>CoachNow fee</th>
           <th>Status</th>
         </tr>
       </thead>
@@ -60,12 +61,21 @@
             <td>{{ $booking->location?->name ?? '—' }}</td>
             <td>{{ $booking->session_type ?? '—' }}</td>
             <td>{{ $when }}</td>
-            <td>${{ number_format((float) $booking->amount, 0) }}</td>
+            <td>${{ number_format((float) ($booking->coach_payout_amount ?? $booking->amount), 0) }}</td>
+            <td>
+              @switch($booking->fee_status)
+                @case('paid') ${{ number_format((float) $booking->platform_fee_amount, 2) }} @break
+                @case('refunded') Refunded @break
+                @case('waived') Member @break
+                @case('sample') Sample @break
+                @default —
+              @endswitch
+            </td>
             <td><span class="admin-badge {{ $statusClass }}">{{ ucfirst($booking->status) }}</span></td>
           </tr>
         @empty
           <tr>
-            <td colspan="8" class="text-center text-zinc-500 py-8">No bookings match these filters.</td>
+            <td colspan="9" class="text-center text-zinc-500 py-8">No bookings match these filters.</td>
           </tr>
         @endforelse
       </tbody>

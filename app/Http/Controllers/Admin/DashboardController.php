@@ -31,12 +31,11 @@ class DashboardController extends Controller
         $activeCoaches = Coach::query()->where('status', 'active')->count();
         $bookingsToday = Booking::query()->whereDate('session_date', Carbon::today())->count();
         $parkCount = Location::query()->count();
+        // CoachNow's own money only: booking fees collected this month and not given back.
         $revenueMtd = (float) Booking::query()
-            ->where('status', '!=', 'cancelled')
-            ->whereMonth('session_date', Carbon::now()->month)
-            ->whereYear('session_date', Carbon::now()->year)
-            ->where('payment_status', '!=', Booking::PAID_DIRECTLY)
-            ->sum('amount');
+            ->where('fee_status', 'paid')
+            ->where('created_at', '>=', Carbon::now()->startOfMonth())
+            ->sum('platform_fee_amount');
 
         $recentBookings = Booking::query()
             ->with(['coach', 'location'])

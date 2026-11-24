@@ -299,8 +299,9 @@ class CoachScheduleSessionController extends Controller
         $this->assertOwnsBooking($coach, $booking);
         $date = $booking->session_date?->toDateString();
 
-        $bookings->cancelCoachBooking($coach, $booking);
+        $result = $bookings->cancelCoachBooking($coach, $booking);
         $this->forgetCoachCaches($coach);
+        app(AppMailer::class)->notifyCoachCancelled($result['cancelled'], $result['refunds']);
 
         if ($request->expectsJson()) {
             return response()->json(['message' => 'Session cancelled.']);
@@ -398,20 +399,13 @@ class CoachScheduleSessionController extends Controller
     }
 
     /**
-     * Cancel every upcoming session in a parent's weekly series (refunds paid sessions).
+     * Cancel every upcoming session in a parent's weekly series (CoachNow fees are refunded).
      */
     public function cancelSeries(Request $request, string $series, SessionBookingService $bookings): JsonResponse
     {
         $coach = $this->currentCoach();
 
-        try {
-            $result = $bookings->cancelSeriesByCoach($coach, $series);
-        } catch (\Stripe\Exception\ApiErrorException $e) {
-            report($e);
-
-            return response()->json(['message' => 'A refund failed: '.$e->getMessage()], 422);
-        }
-
+        $result = $bookings->cancelSeriesByCoach($coach, $series);
         $count = count($result['cancelled']);
         if ($count === 0) {
             return response()->json(['message' => 'No upcoming sessions left in this series.'], 404);
@@ -422,7 +416,6 @@ class CoachScheduleSessionController extends Controller
 
         return response()->json([
             'message' => "Cancelled {$count} upcoming session".($count === 1 ? '' : 's').' in this series.'
-                .($result['refunded'] > 0 ? ' $'.number_format($result['refunded'], 2).' refunded.' : '')
                 .' The parent has been notified.',
             'cancelled_ids' => array_map(fn (Booking $b) => $b->id, $result['cancelled']),
         ]);

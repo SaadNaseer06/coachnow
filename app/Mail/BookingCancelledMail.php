@@ -16,7 +16,10 @@ class BookingCancelledMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public Booking $booking, public float $refund, public string $audience) {}
+    /**
+     * @param  'parent'|'coach'|'coach_cancelled'  $audience  coach_cancelled goes to the family when the coach cancels.
+     */
+    public function __construct(public Booking $booking, public string $audience, public float $feeRefund = 0.0, public ?string $players = null) {}
 
     public function envelope(): Envelope
     {
@@ -33,8 +36,10 @@ class BookingCancelledMail extends Mailable
             markdown: 'emails.booking-cancelled',
             with: [
                 'booking' => $this->booking,
-                'refund' => $this->refund,
+                'feeRefund' => $this->feeRefund,
+                'players' => $this->players ?: $this->booking->athlete_name,
                 'forCoach' => $this->audience === 'coach',
+                'byCoach' => $this->audience === 'coach_cancelled',
                 'group' => $group,
                 'url' => $this->audience === 'coach'
                     ? route('coach.schedule', ['date' => $this->booking->session_date?->toDateString()], absolute: true)

@@ -48,7 +48,10 @@ class CoachNewBookingMail extends Mailable
                 // Several dates in one checkout (multi-date or weekly series).
                 'sessions' => array_values(array_unique(array_map(fn (Booking $b) => $b->whenLabel(), $this->bookings))),
                 'isSeries' => (bool) ($this->bookings[0]->series_id ?? null),
-                'payout' => array_sum(array_map(fn (Booking $b) => (float) $b->coach_payout_amount, $this->bookings)),
+                'due' => array_sum(array_map(fn (Booking $b) => (float) $b->amount, $this->bookings)),
+                'parent' => $first->athlete,
+                'howToPay' => $first->coach?->contactForFamilies()['payment_note'] ?? null,
+                'profileUrl' => route('coach.profile', absolute: true),
                 'group' => $group,
                 'isPrivateGroup' => $this->kind === 'private_group',
                 'scheduleUrl' => route('coach.schedule', ['date' => $first->session_date?->toDateString()], absolute: true),

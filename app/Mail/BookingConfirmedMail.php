@@ -43,8 +43,10 @@ class BookingConfirmedMail extends Mailable
                 // Several dates in one checkout (multi-date or weekly series).
                 'sessions' => array_values(array_unique(array_map(fn (Booking $b) => $b->whenLabel(), $this->bookings))),
                 'isSeries' => (bool) ($this->bookings[0]->series_id ?? null),
-                'total' => array_sum(array_map(fn (Booking $b) => (float) $b->amount, $this->bookings)),
-                'fee' => array_sum(array_map(fn (Booking $b) => (float) $b->platform_fee_amount, $this->bookings)),
+                'dueToCoach' => array_sum(array_map(fn (Booking $b) => (float) $b->amount, $this->bookings)),
+                'feePaid' => array_sum(array_map(fn (Booking $b) => $b->fee_status === 'paid' ? (float) $b->platform_fee_amount : 0.0, $this->bookings)),
+                'feeWaived' => $first->fee_status === 'waived',
+                'contact' => $first->coach?->contactForFamilies(),
                 'dashboardUrl' => route('player-dashboard', absolute: true),
             ],
         );

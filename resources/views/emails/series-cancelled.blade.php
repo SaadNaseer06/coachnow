@@ -8,8 +8,10 @@
 @endforeach
 
 @if ($refund > 0)
-${{ number_format($refund, 2) }} is being refunded to your card (usually 5–10 business days).
+Your CoachNow fees for these sessions (${{ number_format($refund, 2) }}) are being refunded to your card, usually within 5–10 business days.
 @endif
+
+If you’ve already paid your coach for these sessions, contact them about a refund.
 
 <x-mail::button :url="$dashboardUrl">
 View my bookings

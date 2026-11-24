@@ -285,11 +285,19 @@ class Coach extends Model
         return $this->group_rate !== null && (int) ($this->max_group_size ?? 0) >= 2;
     }
 
-    public function canReceivePayouts(): bool
+    /**
+     * What a family who booked needs to reach and pay this coach.
+     *
+     * @return array{name: string, email: ?string, phone: ?string, payment_note: ?string}
+     */
+    public function contactForFamilies(): array
     {
-        return filled($this->stripe_account_id)
-            && (bool) $this->stripe_charges_enabled
-            && (bool) $this->stripe_payouts_enabled;
+        return [
+            'name' => $this->display_name ?? 'Your coach',
+            'email' => $this->user?->email,
+            'phone' => $this->user?->phone,
+            'payment_note' => filled($this->payment_instructions) ? trim((string) $this->payment_instructions) : null,
+        ];
     }
 
     public function planLabel(): string

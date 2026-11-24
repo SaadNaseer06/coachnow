@@ -58,6 +58,20 @@
     </div>
   </div>
 @endif
+@if (blank($coach->payment_instructions ?? null))
+  <div class="admin-alert admin-alert--success" role="status" style="margin-bottom:14px;" data-how-families-pay>
+    <span class="admin-alert__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    </span>
+    <div class="admin-alert__body">
+      <p class="admin-alert__label">Tell families how to pay you</p>
+      <p class="admin-alert__text">
+        Families pay you directly. Add your Venmo, Zelle or cash details so they see them after booking.
+        <a href="{{ route('coach.profile') }}#how-families-pay" class="font-semibold underline" style="color:inherit;">Add payment details</a>
+      </p>
+    </div>
+  </div>
+@endif
 
 <section class="admin-kpi-grid">
   <article class="admin-kpi">

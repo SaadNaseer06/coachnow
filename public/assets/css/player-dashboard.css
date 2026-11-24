@@ -1117,3 +1117,18 @@ a.player-history-item {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* How to pay the coach, on an upcoming booking. */
+.player-pay {
+  margin-top: 8px;
+}
+
+.player-pay > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: #f87171;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}

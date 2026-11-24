@@ -1,4 +1,4 @@
-{{-- Contact for the accepting coach. $contact comes from SessionRequest::coachContactFor(). --}}
+{{-- Coach contact. $contact comes from SessionRequest::coachContactFor() or Booking::coachContact(). --}}
 @once
   @push('styles')
     <link rel="stylesheet" href="{{ asset('assets/css/message-coach.css') }}?v={{ @filemtime(public_path('assets/css/message-coach.css')) ?: time() }}">

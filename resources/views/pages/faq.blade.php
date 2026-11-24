@@ -29,7 +29,7 @@
             </div>
             <div class="faq-item">
               <button type="button" aria-expanded="false"><span>How do I book a session?</span><span class="faq-icon" aria-hidden="true">+</span></button>
-              <div class="faq-body"><p>Open a coach profile, choose a session type, select a date and time, then submit your booking request for confirmation.</p></div>
+              <div class="faq-body"><p>Open a coach profile, choose Book Now, pick the type of training and one or more open times, then confirm. No open time that suits you? Send a session request instead.</p></div>
             </div>
             <div class="faq-item">
               <button type="button" aria-expanded="false"><span>What sports are available?</span><span class="faq-icon" aria-hidden="true">+</span></button>
@@ -37,7 +37,11 @@
             </div>
             <div class="faq-item">
               <button type="button" aria-expanded="false"><span>How do payments work?</span><span class="faq-icon" aria-hidden="true">+</span></button>
-              <div class="faq-body"><p>Payments are processed securely through the platform after your coach confirms the session. You will not be charged before confirmation.</p></div>
+              <div class="faq-body"><p>You pay your coach directly for sessions, for example by Venmo or cash. After you book, you’ll see how your coach likes to be paid. When you use Book Now, CoachNow charges a ${{ number_format((float) config('coachnow.payments.convenience_fee', 2), 0) }} fee per session by card. Family members don’t pay it.</p></div>
+            </div>
+            <div class="faq-item">
+              <button type="button" aria-expanded="false"><span>What about cancellations and refunds?</span><span class="faq-icon" aria-hidden="true">+</span></button>
+              <div class="faq-body"><p>You can cancel a Book Now booking from your dashboard up to {{ (int) config('coachnow.payments.cancel_cutoff_hours', 24) }} hours before it starts. Because you pay your coach directly, refunds for session payments are handled by your coach. The CoachNow fee is non-refundable if you cancel{{ config('coachnow.payments.refund_fee_on_coach_cancel', true) ? ', and refunded if your coach cancels' : '' }}.</p></div>
             </div>
             <div class="faq-item">
               <button type="button" aria-expanded="false"><span>Can I become a coach on CoachNow?</span><span class="faq-icon" aria-hidden="true">+</span></button>

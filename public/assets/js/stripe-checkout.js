@@ -15,7 +15,9 @@
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data.message || 'Request failed');
+      const error = new Error(data.message || 'Request failed');
+      error.status = res.status;
+      throw error;
     }
     return data;
   }
@@ -60,49 +62,8 @@
   }
 
   /**
-   * Save a card via SetupIntent. Returns { payment_method_id, label }.
-   */
-  async function saveCard(mountEl) {
-    const { enabled, stripe, config } = await getStripe();
-    if (!enabled) {
-      throw new Error('Stripe is not configured.');
-    }
-
-    const setup = await api('/api/stripe/setup-intent');
-    const elements = stripe.elements({
-      clientSecret: setup.data.client_secret,
-      appearance: { theme: 'stripe' },
-    });
-    const paymentElement = elements.create('payment');
-    mountEl.innerHTML = '';
-    paymentElement.mount(mountEl);
-
-    return {
-      elements,
-      paymentElement,
-      async confirm() {
-        const result = await stripe.confirmSetup({
-          elements,
-          redirect: 'if_required',
-          confirmParams: {
-            return_url: window.location.href,
-          },
-        });
-        if (result.error) {
-          throw new Error(result.error.message || 'Could not save card.');
-        }
-        const pm = result.setupIntent?.payment_method;
-        const id = typeof pm === 'string' ? pm : pm?.id;
-        return {
-          payment_method_id: id,
-          label: 'Card on file',
-        };
-      },
-    };
-  }
-
-  /**
-   * Charge a booking: create intent → confirm → create booking row.
+   * Pay the CoachNow fee for a booking. Saved cards show in Stripe's form, with the choice to
+   * save a new one. Resolves without a payment when nothing is owed.
    */
   async function payAndBook(payload, mountEl) {
     const { enabled, stripe } = await getStripe();
@@ -110,42 +71,59 @@
       throw new Error('Stripe is not configured.');
     }
 
-    const intentRes = await api('/api/stripe/booking-intent', {
+    const { data } = await api('/api/stripe/booking-intent', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    if (!data.requires_payment) {
+      return data;
+    }
 
     const elements = stripe.elements({
-      clientSecret: intentRes.data.client_secret,
-      appearance: { theme: 'stripe' },
+      clientSecret: data.client_secret,
+      customerSessionClientSecret: data.customer_session_client_secret,
+      // The booking page is dark, so the form's labels have to be light.
+      appearance: {
+        theme: 'night',
+        variables: { colorPrimary: '#da020c', colorBackground: '#1b1e22', colorText: '#f4f4f5', colorTextSecondary: '#a1a1aa', colorDanger: '#f87171', borderRadius: '10px' },
+      },
     });
-    const paymentElement = elements.create('payment');
+    // Link off, so there's only one "save my card" choice.
+    const paymentElement = elements.create('payment', { wallets: { link: 'never' } });
     mountEl.innerHTML = '';
     paymentElement.mount(mountEl);
 
+    let paid = false;
+
     return {
-      amount: intentRes.data.amount,
-      session_amount: intentRes.data.session_amount,
-      convenience_fee: intentRes.data.convenience_fee,
-      platform_fee: intentRes.data.platform_fee,
-      payment_intent_id: intentRes.data.payment_intent_id,
+      ...data,
       async confirm() {
-        const result = await stripe.confirmPayment({
-          elements,
-          redirect: 'if_required',
-          confirmParams: { return_url: window.location.href },
-        });
-        if (result.error) {
-          throw new Error(result.error.message || 'Payment failed.');
+        if (!paid) {
+          const result = await stripe.confirmPayment({
+            elements,
+            redirect: 'if_required',
+            confirmParams: { return_url: window.location.href },
+          });
+          // Already paid on an earlier try: carry on to the booking instead of charging again.
+          if (result.error && result.error.payment_intent?.status !== 'succeeded') {
+            throw new Error(result.error.message || 'Payment failed.');
+          }
+          if (!result.error && result.paymentIntent && result.paymentIntent.status !== 'succeeded') {
+            const pending = new Error('Your payment is still being processed. We’ll email you as soon as your booking is confirmed. Please don’t pay again.');
+            pending.pending = true;
+            throw pending;
+          }
+          paid = true;
         }
-        const booking = await api('/api/stripe/confirm-booking', {
-          method: 'POST',
-          body: JSON.stringify({
-            ...payload,
-            payment_intent_id: intentRes.data.payment_intent_id,
-          }),
-        });
-        return booking;
+        try {
+          return await api('/api/stripe/confirm-booking', {
+            method: 'POST',
+            body: JSON.stringify({ payment_intent_id: data.payment_intent_id }),
+          });
+        } catch (error) {
+          error.paid = true;
+          throw error;
+        }
       },
     };
   }
@@ -153,7 +131,6 @@
   window.CoachNowStripe = {
     loadConfig,
     getStripe,
-    saveCard,
     payAndBook,
     enabled: async () => {
       const config = await loadConfig();

@@ -657,6 +657,7 @@ class PageController extends Controller
             'slotsJson' => $slots,
             'focusGroupId' => $focusGroupId,
             'convenienceFee' => User::convenienceFeeFor(request()->user()),
+            'isMember' => (bool) request()->user()?->hasActiveSubscription(),
         ]);
     }
 

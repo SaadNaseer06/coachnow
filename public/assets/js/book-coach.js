@@ -34,7 +34,10 @@
   const sumSessionsRow = $('sumSessionsRow');
   const sumSessions = $('sumSessions');
   const defaultRate = Number(root.dataset.rate || 0);
+  // CoachNow's fee per session for non-members (0 for members). The session itself is paid to the coach.
   const convenienceFee = Number(root.dataset.convenienceFee || 0);
+  const isMember = root.dataset.member === '1';
+  const coachName = root.dataset.coachName || 'your coach';
   const focusGroupId = root.dataset.focusGroup ? Number(root.dataset.focusGroup) : null;
   const userName = root.dataset.userName || '';
   const playersEl = $('bookPlayers');
@@ -42,6 +45,8 @@
   const playerNamesEl = $('bookPlayerNames');
   const sumTotalRow = $('sumTotalRow');
   const sumTotal = $('sumTotal');
+  const sumFeeRow = $('sumFeeRow');
+  const sumFee = $('sumFee');
 
   const groupRate = root.dataset.groupRate !== '' && root.dataset.groupRate != null ? Number(root.dataset.groupRate) : null;
   const maxGroupSize = Math.max(2, Number(root.dataset.maxGroupSize || 6));
@@ -524,22 +529,30 @@
     if (!sumTotalRow || !sumTotal) return;
     if (!selected && !basket.length) {
       sumTotalRow.hidden = true;
+      if (sumFeeRow) sumFeeRow.hidden = true;
       return;
     }
     let session;
     let breakdown;
+    let sessions = 1;
     if (usesPlayers()) {
       const players = Math.max(1, playerNames.length);
       session = groupPrice() * players;
       breakdown = `${players} × ${money(groupPrice())}`;
     } else {
-      const n = Math.max(1, basket.length);
-      session = defaultRate * n;
-      breakdown = n > 1 ? `${n} × ${money(defaultRate)}` : money(session);
+      sessions = Math.max(1, basket.length);
+      session = defaultRate * sessions;
+      breakdown = sessions > 1 ? `${sessions} × ${money(defaultRate)}` : money(session);
     }
-    const fee = session > 0 ? convenienceFee : 0;
     sumTotalRow.hidden = false;
-    sumTotal.textContent = fee > 0 ? `${money(session + fee)} (${breakdown} + ${money(fee)} fee)` : money(session);
+    sumTotal.textContent = breakdown !== money(session) ? `${money(session)} (${breakdown})` : money(session);
+
+    if (!sumFeeRow || !sumFee) return;
+    const fee = session > 0 ? convenienceFee * sessions : 0;
+    sumFeeRow.hidden = !(fee > 0 || (isMember && session > 0));
+    sumFee.textContent = fee > 0
+      ? (sessions > 1 ? `${money(fee)} (${sessions} × ${money(convenienceFee)})` : money(fee))
+      : 'None, you’re a member';
   }
 
   function renderSessionList() {
@@ -577,6 +590,8 @@
   }
 
   function updateSummary() {
+    // The payment form belongs to the old picks.
+    if (activeCheckout && !activeCheckout.isPaid && !payConfirmBtn?.disabled) hidePayPanel();
     const multiHint = $('bookMultiHint');
     if (multiHint) multiHint.hidden = serviceKind() !== 'private';
     const current = selected || basket[basket.length - 1] || null;
@@ -608,16 +623,14 @@
       setRow(sumAgeRow, sumAge, selected.age_range || '');
       setRow(sumSpotsRow, sumSpots, `${booked} booked · ${spots} left`);
       if (sumPrice) {
-        sumPrice.textContent = convenienceFee > 0
-          ? `${money(price)} / player + ${money(convenienceFee)} fee`
-          : `${money(price)} / player`;
+        sumPrice.textContent = `${money(price)} / player`;
       }
     } else if (current) {
       const newGroup = isNewGroup();
       fieldEl.classList.remove('is-group');
       fieldEl.innerHTML = `<strong>${escapeHtml(current.location_name)}</strong><span>${escapeHtml(current.location_area || 'Training location for this slot')}</span>`
         + (newGroup ? '<span>Private group — your places are reserved and not shown to other families.</span>' : '')
-        + (isMulti() ? `<span>${basket.length} sessions selected${recurring ? ' (weekly)' : ''} — one checkout, one CoachNow fee.</span>` : '');
+        + (isMulti() ? `<span>${basket.length} sessions selected${recurring ? ' (weekly)' : ''}, booked together.</span>` : '');
       const typeLabel = newGroup ? 'Private group' : (service && service.session_type !== 'Private 1-on-1' ? service.label : '');
       setRow(sumTypeRow, sumType, [typeLabel, isMulti() && recurring ? 'weekly' : ''].filter(Boolean).join(' · '));
       setRow(sumAgeRow, sumAge, '');
@@ -625,9 +638,7 @@
       if (sumPrice) {
         const price = newGroup ? groupRate : defaultRate;
         const unit = newGroup ? ' / player' : (isMulti() ? ' / session' : '');
-        sumPrice.textContent = convenienceFee > 0
-          ? `${money(price)}${unit} + ${money(convenienceFee)} fee`
-          : `${money(price)}${unit}`;
+        sumPrice.textContent = `${money(price)}${unit}`;
       }
     } else {
       fieldEl.classList.remove('is-group');
@@ -639,7 +650,7 @@
         // Groups and camps are priced per player, per session — not the 1-on-1 rate.
         sumPrice.textContent = ['group', 'camp'].includes(serviceKind())
           ? 'Per player — pick a time'
-          : (convenienceFee > 0 ? `${money(defaultRate)} + ${money(convenienceFee)} fee` : money(defaultRate));
+          : money(defaultRate);
       }
     }
 
@@ -669,6 +680,7 @@
   const hidePayPanel = () => {
     if (payPanel) payPanel.hidden = true;
     if (confirmBtn) confirmBtn.hidden = false;
+    if (payCancelBtn) payCancelBtn.hidden = false;
     activeCheckout = null;
   };
 
@@ -685,11 +697,32 @@
     const d = data?.data || {};
     if (Number(d.sessions || 0) > 1) {
       successText.textContent = `${d.sessions} sessions booked with ${d.coach || 'your coach'}${d.series ? ' (weekly)' : ''}: ${(d.dates || []).join(', ')}.`;
-      return;
+    } else {
+      const playerCount = Number(d.players || 1);
+      const slot = fallbackSlot || {};
+      successText.textContent = `Confirmed with ${d.coach || 'your coach'} on ${formatDateLabel(d.date || slot.date)} at ${slot.time_label || ''}${d.location ? ' · ' + d.location : ''}${playerCount > 1 ? ` · ${playerCount} players` : ''}.`;
     }
-    const playerCount = Number(d.players || 1);
-    const slot = fallbackSlot || {};
-    successText.textContent = `Confirmed with ${d.coach || 'your coach'} on ${formatDateLabel(d.date || slot.date)} at ${slot.time_label || ''}${d.location ? ' · ' + d.location : ''}${playerCount > 1 ? ` · ${playerCount} players` : ''}.`;
+    showHowToPay(d);
+  }
+
+  // The coach is paid directly, so this is the parent's next step.
+  function showHowToPay(d) {
+    const box = $('bookPayCoach');
+    const due = Number(d.due_to_coach || 0);
+    if (!box || due <= 0) return;
+    const phone = String(d.coach_phone || '').trim();
+    const digits = phone.replace(/[^0-9+]/g, '');
+    const lines = [`<p><strong>Pay ${escapeHtml(d.coach || 'your coach')} ${money(due)} directly.</strong></p>`];
+    lines.push(d.how_to_pay
+      ? `<p><strong>How to pay:</strong> <span class="book-pay-coach__note">${escapeHtml(d.how_to_pay)}</span></p>`
+      : `<p>${escapeHtml(d.coach || 'Your coach')} will let you know how to pay.</p>`);
+    const contact = [];
+    if (digits) contact.push(`<a href="sms:${escapeHtml(digits)}">Text ${escapeHtml(phone)}</a>`);
+    if (d.coach_email) contact.push(`<a href="mailto:${escapeHtml(d.coach_email)}">${escapeHtml(d.coach_email)}</a>`);
+    if (contact.length) lines.push(`<p>${contact.join(' · ')}</p>`);
+    lines.push('<p>Cancellations and refunds for session payments are handled by your coach.</p>');
+    box.innerHTML = lines.join('');
+    box.hidden = false;
   }
 
   async function postJson(url, body) {
@@ -718,12 +751,34 @@
   payConfirmBtn?.addEventListener('click', async () => {
     if (!activeCheckout) return;
     payConfirmBtn.disabled = true;
+    if (payCancelBtn) payCancelBtn.hidden = true;
     errorEl.hidden = true;
     try {
       const booking = await activeCheckout.confirm();
       showSuccess(booking, selected || basket[0]);
     } catch (err) {
-      showError(err.message || 'Payment failed.');
+      if (err.pending) {
+        // Stripe's webhook books it once the payment clears.
+        payPanel.hidden = true;
+        showError(err.message);
+        return;
+      }
+      if (err.paid && err.status === 422) {
+        // Paid, but the time was taken: the server has already started the refund.
+        hidePayPanel();
+        renderPlayers();
+        confirmBtn.disabled = false;
+        showError(err.message);
+        return;
+      }
+      if (err.paid) {
+        activeCheckout.isPaid = true;
+        payConfirmBtn.textContent = 'Finish booking';
+        showError('Your payment went through, but we couldn’t confirm the booking yet. Press Finish booking. You won’t be charged again.');
+      } else {
+        if (payCancelBtn) payCancelBtn.hidden = false;
+        showError(err.message || 'Payment failed.');
+      }
       payConfirmBtn.disabled = false;
     }
   });
@@ -745,19 +800,10 @@
       const sessionType = !usesPlayers() ? (service?.session_type || 'Private 1-on-1') : undefined;
       const multiPayload = multi ? { slots: basket.map(slotPayload), recurring, session_type: sessionType } : {};
 
-      const groupTotal = isGroup ? groupPrice() * players.length : 0;
-      const stripeOn = window.CoachNowStripe && await window.CoachNowStripe.enabled();
-
-      if (isGroup && !(stripeOn && groupTotal > 0)) {
-        const data = await postJson(`${joinUrlBase}/${selected.group_session_id}/join`, { players });
-        document.querySelector('.book-summary')?.setAttribute('hidden', '');
-        successEl.hidden = false;
-        successText.textContent = `${data.message || 'You’re in.'} ${formatDateLabel(selected.date)} at ${selected.time_label}${selected.location_name ? ' · ' + selected.location_name : ''}.`;
-        return;
-      }
-
-      if (stripeOn && payMount && payPanel && (defaultRate > 0 || usesPlayers())) {
-        activeCheckout = await window.CoachNowStripe.payAndBook({
+      // Non-members pay the CoachNow fee first. The server works out what's owed.
+      const feeByCard = convenienceFee > 0 && payMount && payPanel && window.CoachNowStripe && await window.CoachNowStripe.enabled();
+      if (feeByCard) {
+        const checkout = await window.CoachNowStripe.payAndBook({
           coach: coachToken,
           ...slotPayload(first),
           ...(sessionType ? { session_type: sessionType } : {}),
@@ -765,16 +811,24 @@
           ...newGroupPayload,
           ...multiPayload,
         }, payMount);
-        if (payHint) {
-          const fee = Number(activeCheckout.convenience_fee ?? convenienceFee ?? 0);
-          payHint.textContent = fee > 0
-            ? `Pay ${money(activeCheckout.amount)} securely (includes one ${money(fee)} CoachNow fee).`
-            : `Pay ${money(activeCheckout.amount)} securely in CoachNow.`;
+        if (checkout.requires_payment) {
+          activeCheckout = checkout;
+          const n = Number(checkout.sessions || 1);
+          if (payHint) {
+            payHint.textContent = `CoachNow fee: ${money(checkout.amount)}${n > 1 ? ` (${n} sessions × ${money(checkout.fee_per_session)})` : ''}. You’ll pay ${coachName} ${money(checkout.session_amount)} directly for ${n > 1 ? 'the sessions' : 'the session'}.`;
+          }
+          payConfirmBtn.textContent = `Pay ${money(checkout.amount)} & book`;
+          confirmBtn.hidden = true;
+          if (playersEl) playersEl.hidden = true;
+          payPanel.hidden = false;
+          payConfirmBtn.disabled = false;
+          return;
         }
-        confirmBtn.hidden = true;
-        if (playersEl) playersEl.hidden = true;
-        payPanel.hidden = false;
-        payConfirmBtn.disabled = false;
+      }
+
+      if (isGroup) {
+        const joined = await postJson(`${joinUrlBase}/${selected.group_session_id}/join`, { players });
+        showSuccess(joined, selected);
         return;
       }
 
