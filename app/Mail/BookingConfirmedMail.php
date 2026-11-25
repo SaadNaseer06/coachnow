@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Booking;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -46,6 +47,7 @@ class BookingConfirmedMail extends Mailable
                 'dueToCoach' => array_sum(array_map(fn (Booking $b) => (float) $b->amount, $this->bookings)),
                 'feePaid' => array_sum(array_map(fn (Booking $b) => $b->fee_status === 'paid' ? (float) $b->platform_fee_amount : 0.0, $this->bookings)),
                 'feeWaived' => $first->fee_status === 'waived',
+                'feeOffer' => $first->fee_status === 'offer' ? (User::feeWaiverLine() ?? 'CoachNow booking fee waived') : null,
                 'contact' => $first->coach?->contactForFamilies(),
                 'dashboardUrl' => route('player-dashboard', absolute: true),
             ],

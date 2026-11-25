@@ -17,6 +17,7 @@
   data-rate="{{ (float) $coach->rate }}"
   data-convenience-fee="{{ (float) ($convenienceFee ?? config('coachnow.payments.convenience_fee', 2)) }}"
   data-member="{{ ($isMember ?? false) ? '1' : '' }}"
+  data-fee-waiver="{{ ($isMember ?? false) ? '' : ($feeWaiverLine ?? '') }}"
   data-focus-group="{{ $focusGroupId ?? '' }}"
   data-user-name="{{ auth()->user()?->name }}"
   data-group-rate="{{ $coach->offersGroupBooking() ? (float) $coach->group_rate : '' }}"
@@ -146,6 +147,9 @@
             <div><dt>Price</dt><dd id="sumPrice">${{ number_format((float) $coach->rate, 0) }}</dd></div>
             <div id="sumTotalRow" hidden><dt>Pay your coach</dt><dd id="sumTotal">—</dd></div>
             <div id="sumFeeRow" hidden><dt>CoachNow fee</dt><dd id="sumFee">—</dd></div>
+            @if (! ($isMember ?? false) && ! empty($feeWaiverLine))
+              <div class="book-waiver"><dd>{{ $feeWaiverLine }}</dd></div>
+            @endif
           </dl>
           <div class="book-mode" id="bookMode" role="radiogroup" aria-label="Session type" hidden>
             <button type="button" class="book-mode__opt is-selected" data-book-mode="single" role="radio" aria-checked="true">1-on-1</button>

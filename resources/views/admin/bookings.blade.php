@@ -67,6 +67,7 @@
                 @case('paid') ${{ number_format((float) $booking->platform_fee_amount, 2) }} @break
                 @case('refunded') Refunded @break
                 @case('waived') Member @break
+                @case('offer') Launch offer @break
                 @case('sample') Sample @break
                 @default —
               @endswitch

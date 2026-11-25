@@ -833,3 +833,21 @@ body.book-flow #coachnowPreloader {
   font-weight: 600;
   text-decoration: underline;
 }
+
+/* Launch offer line under the summary. */
+.book-summary dl .book-waiver {
+  display: block;
+  margin-top: 4px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.book-summary dl .book-waiver dd {
+  margin: 0;
+  color: #6ee7b7;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}

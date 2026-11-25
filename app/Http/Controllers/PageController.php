@@ -658,6 +658,7 @@ class PageController extends Controller
             'focusGroupId' => $focusGroupId,
             'convenienceFee' => User::convenienceFeeFor(request()->user()),
             'isMember' => (bool) request()->user()?->hasActiveSubscription(),
+            'feeWaiverLine' => User::feeWaiverLine(),
         ]);
     }
 
@@ -708,6 +709,7 @@ class PageController extends Controller
                 'group' => $group->id,
             ]),
             'convenienceFee' => User::convenienceFeeFor(request()->user()),
+            'feeWaiverLine' => User::feeWaiverLine(),
         ]);
     }
 
@@ -865,6 +867,7 @@ class PageController extends Controller
                 'cancelling' => (bool) $user->subscription_cancel_at_period_end,
                 'price' => (float) config('coachnow.subscription.price', 10),
                 'fee' => (float) config('coachnow.payments.convenience_fee', 2),
+                'waiver' => User::feeWaiverLine(),
             ],
             'groupJoinedBookings' => $groupJoined,
             'pendingGroupJoins' => $pendingGroupJoins,

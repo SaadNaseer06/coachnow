@@ -37,6 +37,8 @@
   // CoachNow's fee per session for non-members (0 for members). The session itself is paid to the coach.
   const convenienceFee = Number(root.dataset.convenienceFee || 0);
   const isMember = root.dataset.member === '1';
+  // Launch offer, e.g. "$2 booking fee waived through February 28". Empty when there's none.
+  const feeWaiver = root.dataset.feeWaiver || '';
   const coachName = root.dataset.coachName || 'your coach';
   const focusGroupId = root.dataset.focusGroup ? Number(root.dataset.focusGroup) : null;
   const userName = root.dataset.userName || '';
@@ -549,10 +551,10 @@
 
     if (!sumFeeRow || !sumFee) return;
     const fee = session > 0 ? convenienceFee * sessions : 0;
-    sumFeeRow.hidden = !(fee > 0 || (isMember && session > 0));
+    sumFeeRow.hidden = !(fee > 0 || ((isMember || feeWaiver) && session > 0));
     sumFee.textContent = fee > 0
       ? (sessions > 1 ? `${money(fee)} (${sessions} × ${money(convenienceFee)})` : money(fee))
-      : 'None, you’re a member';
+      : (isMember ? 'None, you’re a member' : 'Waived');
   }
 
   function renderSessionList() {

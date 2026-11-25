@@ -18,6 +18,8 @@
 @endif
 @if ($feePaid > 0)
 - CoachNow fee paid by card: ${{ number_format($feePaid, 2) }}
+@elseif ($feeOffer)
+- {{ $feeOffer }}
 @elseif ($feeWaived)
 - CoachNow fee: none, you’re a member
 @endif

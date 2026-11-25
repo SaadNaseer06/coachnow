@@ -550,7 +550,7 @@
               @csrf
               <button type="submit" class="player-req-cta player-req-cta--block">Become a member</button>
             </form>
-            <p class="text-[12px] text-zinc-500 mt-2">You can book coaches without a membership. The ${{ number_format($ms['fee'], 0) }} CoachNow fee per session then applies.</p>
+            <p class="text-[12px] text-zinc-500 mt-2">You can book coaches without a membership. The ${{ number_format($ms['fee'], 0) }} CoachNow fee per session then applies{{ ! empty($ms['waiver']) ? ' (currently '.lcfirst(substr($ms['waiver'], strpos($ms['waiver'], 'waived'))).')' : '' }}.</p>
           @endif
         </article>
 

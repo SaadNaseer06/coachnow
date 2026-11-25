@@ -301,6 +301,7 @@ class SessionBookingService
             'fee_status' => match (true) {
                 $fee > 0 => $paymentIntentId ? 'paid' : 'sample',
                 $price > 0 && $payer->hasActiveSubscription() => 'waived',
+                $price > 0 && User::feeWaivedUntil() => 'offer',
                 default => null,
             },
             'coach_payout_amount' => $price,

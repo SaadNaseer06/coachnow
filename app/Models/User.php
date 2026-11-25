@@ -111,7 +111,7 @@ class User extends Authenticatable
      */
     public static function convenienceFeeFor(?self $user): float
     {
-        if ($user?->hasActiveSubscription()) {
+        if ($user?->hasActiveSubscription() || self::feeWaivedUntil()) {
             return 0.0;
         }
 
@@ -124,6 +124,30 @@ class User extends Authenticatable
     public function sendPasswordResetNotification($token): void
     {
         app(AppMailer::class)->sendPasswordReset($this, (string) $token);
+    }
+
+    /**
+     * The launch offer's last day while it's running, otherwise null. Decided by when the
+     * booking is made, not when the session takes place.
+     */
+    public static function feeWaivedUntil(): ?\Illuminate\Support\Carbon
+    {
+        $until = config('coachnow.payments.fee_waived_until');
+        if (blank($until)) {
+            return null;
+        }
+
+        $end = \Illuminate\Support\Carbon::parse((string) $until, config('app.timezone'))->endOfDay();
+
+        return now()->lte($end) ? $end : null;
+    }
+
+    /** "$2 booking fee waived through February 28", or null when there's no offer. */
+    public static function feeWaiverLine(): ?string
+    {
+        $until = self::feeWaivedUntil();
+
+        return $until ? '$'.number_format((float) config('coachnow.payments.convenience_fee', 2), 0).' booking fee waived through '.$until->format('F j') : null;
     }
 
     public function isAdmin(): bool

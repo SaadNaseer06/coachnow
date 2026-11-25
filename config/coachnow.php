@@ -50,6 +50,9 @@ return [
         // Families pay the coach directly. Non-members pay CoachNow this fee per session booked
         // on Book Now (per session, not per player). Members don't pay it.
         'convenience_fee' => (float) env('COACHNOW_CONVENIENCE_FEE', 2),
+        // Launch offer: nobody pays the fee on bookings made up to the end of this day (site time).
+        // It comes back for non-members the day after. Empty = no offer.
+        'fee_waived_until' => env('COACHNOW_FEE_WAIVED_UNTIL', '2027-02-28'),
         // Parents may cancel direct/group bookings up to this many hours before start. The coach
         // handles any session money; the CoachNow fee is non-refundable when the parent cancels.
         'cancel_cutoff_hours' => (int) env('COACHNOW_CANCEL_CUTOFF_HOURS', 24),

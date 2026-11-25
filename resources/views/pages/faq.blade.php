@@ -37,7 +37,7 @@
             </div>
             <div class="faq-item">
               <button type="button" aria-expanded="false"><span>How do payments work?</span><span class="faq-icon" aria-hidden="true">+</span></button>
-              <div class="faq-body"><p>You pay your coach directly for sessions, for example by Venmo or cash. After you book, you’ll see how your coach likes to be paid. When you use Book Now, CoachNow charges a ${{ number_format((float) config('coachnow.payments.convenience_fee', 2), 0) }} fee per session by card. Family members don’t pay it.</p></div>
+              <div class="faq-body"><p>You pay your coach directly for sessions, for example by Venmo or cash. After you book, you’ll see how your coach likes to be paid. When you use Book Now, CoachNow charges a ${{ number_format((float) config('coachnow.payments.convenience_fee', 2), 0) }} fee per session by card. Family members don’t pay it.{{ \App\Models\User::feeWaiverLine() ? ' Launch offer: '.\App\Models\User::feeWaiverLine().'.' : '' }}</p></div>
             </div>
             <div class="faq-item">
               <button type="button" aria-expanded="false"><span>What about cancellations and refunds?</span><span class="faq-icon" aria-hidden="true">+</span></button>

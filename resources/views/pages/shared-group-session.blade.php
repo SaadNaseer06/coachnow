@@ -65,6 +65,8 @@
             <span><strong>Available spaces:</strong> {{ $meta['spots_remaining'] }}</span>
             @if($convenienceFee > 0)
               <span><strong>CoachNow fee:</strong> ${{ number_format($convenienceFee, 0) }} for the session</span>
+            @elseif(! empty($feeWaiverLine) && ! auth()->user()?->hasActiveSubscription())
+              <span><strong>CoachNow fee:</strong> {{ $feeWaiverLine }}</span>
             @endif
           </div>
         </div>
